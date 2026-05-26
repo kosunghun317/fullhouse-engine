@@ -159,6 +159,57 @@ SUITES = {
             "equity_mc": "bots/mock_competitors/equity_mc/bot.py",
         },
     },
+    "mock_equity_family_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "equity_mc": "bots/mock_competitors/equity_mc/bot.py",
+            "equity_tight": "bots/mock_competitors/equity_tight/bot.py",
+            "equity_loose": "bots/mock_competitors/equity_loose/bot.py",
+            "equity_pressure": "bots/mock_competitors/equity_pressure/bot.py",
+            "pot_odds_plus": "bots/mock_competitors/pot_odds_plus/bot.py",
+        },
+    },
+    "mock_bucket_family_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "bucket_policy": "bots/mock_competitors/bucket_policy/bot.py",
+            "bucket_halfpot": "bots/mock_competitors/bucket_halfpot/bot.py",
+            "bucket_overbet": "bots/mock_competitors/bucket_overbet/bot.py",
+            "bucket_mixed": "bots/mock_competitors/bucket_mixed/bot.py",
+            "threshold_caller": "bots/benchmarks/threshold_caller/bot.py",
+        },
+    },
+    "mock_policy_family_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "policy_value": "bots/mock_competitors/numpy_policy_value",
+            "policy_bluff": "bots/mock_competitors/numpy_policy_bluff",
+            "policy_station": "bots/mock_competitors/numpy_policy_station",
+            "policy_folder": "bots/mock_competitors/numpy_policy_folder",
+            "policy_pressure": "bots/mock_competitors/numpy_policy_pressure",
+        },
+    },
+    "mock_anti_heuristic_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "anti_heuristic": "bots/mock_competitors/anti_heuristic/bot.py",
+            "opponent_modeler": "bots/mock_competitors/opponent_modeler/bot.py",
+            "equity_pressure": "bots/mock_competitors/equity_pressure/bot.py",
+            "bucket_overbet": "bots/mock_competitors/bucket_overbet/bot.py",
+            "cbet_reg": "bots/mock_competitors/cbet_reg/bot.py",
+        },
+    },
+    "mock_pressure_heads_up": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "pressure_heads_up": "bots/mock_competitors/pressure_heads_up/bot.py",
+        },
+    },
 }
 
 

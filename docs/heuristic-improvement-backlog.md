@@ -18,17 +18,18 @@ Effort scale:
 | ---: | --- | ---: | --- | --- | --- |
 | 1 | Deterministic evaluation mode | 1 | Same benchmark command can be rerun with fixed bot-local RNG; validator still passes without env vars. | Add optional env-controlled RNG seed in `bots/heuristic/bot.py`; document env var. | Done |
 | 2 | Submission packaging check | 1 | One command creates a zip, validates it, inspects contents, and runs short directory/zip matches. | Add `tools/harden_submission.py`; keep packaging output outside committed source or under ignored build output. | Done |
-| 3 | Threshold search harness | 2 | One command evaluates named parameter sets and reports mean/min delta and errors. | Add local tuner that sets env vars before `run_match()`; keep submitted bot defaults unchanged. | Done |
-| 4 | Code hygiene for submission bot | 1 | Remove unused import/helper while keeping validator green and benchmark command runnable. | Remove unused `math` import and unused `_players_left_to_act()` unless needed by a new feature. | Done |
-| 5 | Explicit 169-class preflop table | 3 | `_preflop_score()` has table coverage for all 169 canonical classes. | Generate an internal preflop score table at import from transparent rules; policy reads the table. | Done |
-| 6 | Smarter opponent model | 3 | Track pressure folds, normalized raise size, and expose them in profile/fold-pressure decisions. | Extend per-opponent stats from public action stream; update classification and fold pressure. | Done |
-| 7 | Better hand-category detection | 3 | Postflop policy can identify made-hand class, flush draw, and straight draw from hero+board. | Add feature extractor using `eval7.handtype()` plus deterministic draw checks; feed thresholds. | Done |
-| 8 | Safer heads-up maniac mode | 3 | Heads-up aggressor benchmark should avoid stack-off variance when hero has a large lead. | Add stack-lead protection and tighter high-risk calls against maniacs. | Done |
-| 9 | Range-aware equity adjustment | 4 | Equity used by policy changes by opponent profile and betting context; benchmarks remain positive. | Apply transparent profile/risk adjustments to raw Monte Carlo equity before policy thresholds. | Done |
-| 10 | Hand-history patch workflow | 4 | One command can summarize local/exported hand histories with showdown/action leak metrics. | Add analyzer that accepts JSON hand logs/results; make it tolerant of unknown Day 1 schema. | Done |
-| 11 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Promoted |
-| 12 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
-| 13 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
+| 3 | Expanded mock competitor families | 2 | Focused local suites exist for equity, bucket, trained-policy, anti-heuristic, and heads-up pressure opponents. | Add new mock bots, train numpy-policy variants into `.npz`, add suites and selector preset. | Done |
+| 4 | Threshold search harness | 2 | One command evaluates named parameter sets and reports mean/min delta and errors. | Add local tuner that sets env vars before `run_match()`; keep submitted bot defaults unchanged. | Done |
+| 5 | Code hygiene for submission bot | 1 | Remove unused import/helper while keeping validator green and benchmark command runnable. | Remove unused `math` import and unused `_players_left_to_act()` unless needed by a new feature. | Done |
+| 6 | Explicit 169-class preflop table | 3 | `_preflop_score()` has table coverage for all 169 canonical classes. | Generate an internal preflop score table at import from transparent rules; policy reads the table. | Done |
+| 7 | Smarter opponent model | 3 | Track pressure folds, normalized raise size, and expose them in profile/fold-pressure decisions. | Extend per-opponent stats from public action stream; update classification and fold pressure. | Done |
+| 8 | Better hand-category detection | 3 | Postflop policy can identify made-hand class, flush draw, and straight draw from hero+board. | Add feature extractor using `eval7.handtype()` plus deterministic draw checks; feed thresholds. | Done |
+| 9 | Safer heads-up maniac mode | 3 | Heads-up aggressor benchmark should avoid stack-off variance when hero has a large lead. | Add stack-lead protection and tighter high-risk calls against maniacs. | Done |
+| 10 | Range-aware equity adjustment | 4 | Equity used by policy changes by opponent profile and betting context; benchmarks remain positive. | Apply transparent profile/risk adjustments to raw Monte Carlo equity before policy thresholds. | Done |
+| 11 | Hand-history patch workflow | 4 | One command can summarize local/exported hand histories with showdown/action leak metrics. | Add analyzer that accepts JSON hand logs/results; make it tolerant of unknown Day 1 schema. | Done |
+| 12 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Promoted |
+| 13 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
+| 14 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
 
 ## Pro-Heuristic Gaps
 
@@ -77,6 +78,9 @@ Implemented candidate status:
 - SPR-aware commitment and off-bucket sizing were promoted after the 30-seed promotion screen recorded in `docs/heuristic-benchmark-results.md`.
 - `legacy-baseline` preserves the pre-promotion defaults for future comparison.
 - Config selection is implemented as a risk-aware ranking tool in `tools/select_heuristic_config.py`; it is an offline selector, not runtime learning.
+- Expanded mock competitor families are implemented and should be used through
+  `tools/select_heuristic_config.py --preset mock-family` before making
+  anti-model changes.
 
 ## Expected Competitor Strategies
 

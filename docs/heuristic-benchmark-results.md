@@ -89,10 +89,98 @@ Recommended tiers:
 - `--preset quick`: integration only, not a decision sample.
 - `--preset candidate`: 10-seed screen across core and stress suites.
 - `--preset mock-screen`: 10-seed screen focused on compressed-model mocks.
+- `--preset mock-family`: 10-seed focused screen against the expanded equity,
+  bucket, trained-policy, anti-heuristic, and heads-up pressure mock families.
 - `--preset promotion`: 30-seed minimum before changing production defaults.
 - `--preset final`: 100-seed acceptance matrix.
 
 For long screens, pass `--progress` so each config/suite boundary is printed to stderr.
+
+## Expanded Mock Competitor Families
+
+Reviewed: 2026-05-27.
+
+Purpose:
+
+- Stress the bot against likely compressed-policy submissions, not just public
+  reference bots.
+- Add stronger local-only opponents before changing the heuristic default.
+- Keep trained/model-like opponents outside the submitted bot path.
+
+New or expanded mock families:
+
+- Equity family: `equity_tight`, `equity_loose`, and `equity_pressure`
+  variants around the existing Monte Carlo equity bot.
+- Bucket family: `bucket_halfpot`, `bucket_overbet`, and `bucket_mixed`
+  variants around coarse CFR-like action buckets.
+- Trained numpy-policy family: `numpy_policy_value`, `numpy_policy_bluff`,
+  `numpy_policy_station`, `numpy_policy_folder`, and
+  `numpy_policy_pressure`, each with its own `data/policy.npz`.
+- Adversarial family: `anti_heuristic`, which reacts to observed hero
+  pressure/fold response.
+- Heads-up pressure family: `pressure_heads_up`, a direct heads-up aggression
+  and call-down stressor.
+
+Training command for the policy variants:
+
+```bash
+poetry run python tools/train_mock_numpy_policy.py --all --samples 60000 --seed 7331
+```
+
+Training results:
+
+| Variant | Iterations | Train Accuracy |
+| --- | ---: | ---: |
+| `balanced` | 53 | 0.9943 |
+| `bluff` | 47 | 0.9948 |
+| `folder` | 52 | 0.9984 |
+| `pressure` | 71 | 0.9945 |
+| `station` | 76 | 0.9954 |
+| `value` | 75 | 0.9956 |
+
+Validation:
+
+- `py_compile` passed for shared mock helpers and benchmark tools.
+- Validator passed for all new equity, bucket, anti-heuristic, heads-up
+  pressure, and policy-variant mocks.
+- Policy variants validate as bot directories so their `data/policy.npz` is
+  mounted as read-only benchmark data.
+
+Smoke command:
+
+```bash
+poetry run python tools/evaluate_heuristic.py \
+  --suite mock_equity_family_6max \
+  --suite mock_bucket_family_6max \
+  --suite mock_policy_family_6max \
+  --suite mock_anti_heuristic_6max \
+  --suite mock_pressure_heads_up \
+  --seed-count 1 \
+  --hands 80 \
+  --summary-only
+```
+
+Smoke result:
+
+| Suite | Mean | Positive | Busts | Errors | Interpretation |
+| --- | ---: | ---: | ---: | ---: | --- |
+| `mock_equity_family_6max` | 4,724 | 1/1 | 0 | 0 | Integration passed |
+| `mock_bucket_family_6max` | 2,069 | 1/1 | 0 | 0 | Integration passed |
+| `mock_policy_family_6max` | -10,000 | 0/1 | 1 | 0 | Hard new stress suite; do not tune from one smoke seed |
+| `mock_anti_heuristic_6max` | 1,989 | 1/1 | 0 | 0 | Integration passed |
+| `mock_pressure_heads_up` | 2,700 | 1/1 | 0 | 0 | Integration passed |
+
+Decision:
+
+- Keep the heuristic defaults unchanged from this smoke result.
+- Use `--preset mock-family` or `--preset mock-screen` for any real decision.
+- The new `mock_policy_family_6max` is now a watch suite because it can bust
+  the current bot in short samples.
+- Selector preset smoke also passed with `--preset mock-family --config baseline
+  --seed-count 1 --hands 80 --progress` at the default seed start `7001`
+  (`mean=4796.8`, `positive=5/5`, `busts=0`, `errors=0`), confirming the new
+  preset wiring works while reinforcing that one smoke seed is not a decision
+  sample.
 
 ## SPR / Anti-Bucket Candidate Screen
 
@@ -259,5 +347,15 @@ Additional parameter-audit suites:
 - `mock_adaptive_6max`: opponent-modeling, c-bet, tight regular, pressure, and short-stack mock table. Use this to test adaptive/table-mix robustness.
 - `heads_up_mock_numpy`: trained numpy-policy heads-up check.
 - `heads_up_equity_mc`: Monte Carlo equity bot heads-up check.
+- `mock_equity_family_6max`: equity bots with tight, loose, pressure, and
+  threshold profiles. Use this to test whether the heuristic overpays against
+  equity-style callers.
+- `mock_bucket_family_6max`: half-pot, overbet, mixed, and threshold bucket
+  policies. Use this to test sizing thresholds and off-bucket behavior.
+- `mock_policy_family_6max`: five trained numpy-policy variants. Use this as a
+  compressed NN/sklearn-style stress table.
+- `mock_anti_heuristic_6max`: adversarial table with an anti-heuristic bot,
+  opponent modeler, pressure equity bot, bucket overbetter, and c-bet regular.
+- `mock_pressure_heads_up`: heads-up aggression/call-down pressure test.
 
 The expanded default `tools/evaluate_heuristic.py` suite set now includes both the core suites and the additional parameter-audit suites. For faster iteration, pass explicit `--suite` arguments.

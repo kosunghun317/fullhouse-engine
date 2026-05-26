@@ -43,6 +43,14 @@ Create `bots/mock_competitors/` with opponents that imitate likely submissions:
 - `opponent_modeler`: classifies hero from action history and counters.
 - `copy_shark_plus`: modified public Shark with tighter postflop discipline.
 - `pot_odds_plus`: pot-odds threshold bot with multiple thresholds.
+- Expanded equity variants: `equity_tight`, `equity_loose`, and
+  `equity_pressure`.
+- Expanded bucket variants: `bucket_halfpot`, `bucket_overbet`, and
+  `bucket_mixed`.
+- Expanded trained-policy variants: `numpy_policy_value`,
+  `numpy_policy_bluff`, `numpy_policy_station`, `numpy_policy_folder`, and
+  `numpy_policy_pressure`.
+- Adversarial variants: `anti_heuristic` and `pressure_heads_up`.
 
 Success:
 
@@ -50,6 +58,15 @@ Success:
 - Add mock suites to `tools/evaluate_heuristic.py`.
 - Run one smoke suite without bot errors.
 - If a mock is NN-like, train it offline and save weights under its own `data/` directory before using it.
+
+Current status:
+
+- The expanded mock families are implemented.
+- The trained numpy policies were trained with `60000` synthetic samples each
+  and stored as read-only `.npz` data.
+- `mock-family` is now a selector preset for focused 10-seed screens.
+- One-seed smoke found `mock_policy_family_6max` can bust the current bot, so
+  it is a priority watch suite but not a default-change decision by itself.
 
 ### Stage 2: Lookup Data Support
 

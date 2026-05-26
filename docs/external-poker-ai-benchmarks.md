@@ -11,6 +11,12 @@ Current status: local mock competitors are already implemented under
 external RL/NN/CFR systems. External projects remain optional diagnostics
 because they do not match the Fullhouse interface as closely.
 
+As of 2026-05-27, the local mock suite includes expanded families for equity
+bots, bucket/CFR-like policies, trained numpy-policy variants, anti-heuristic
+adaptation, and heads-up pressure. These are more actionable than external
+projects because they run directly through `sandbox/match.py` with Fullhouse
+state, blinds, stacks, and action semantics.
+
 ## Rule-Matched Test Envelope
 
 Use Fullhouse rules as the benchmark source of truth:
@@ -66,6 +72,35 @@ tools/external_benchmarks/
 ```
 
 Do not put large checkpoints in git. Keep them under an ignored local path such as `external_models/` or `/private/tmp/fullhouse_external_models/`.
+
+Current rule-matched mock structure:
+
+```text
+bots/mock_competitors/
+  common.py                     # local-only helper shared by variants
+  equity_tight/
+  equity_loose/
+  equity_pressure/
+  bucket_halfpot/
+  bucket_overbet/
+  bucket_mixed/
+  anti_heuristic/
+  pressure_heads_up/
+  numpy_policy_value/
+    data/policy.npz
+  numpy_policy_bluff/
+    data/policy.npz
+  numpy_policy_station/
+    data/policy.npz
+  numpy_policy_folder/
+    data/policy.npz
+  numpy_policy_pressure/
+    data/policy.npz
+```
+
+These mocks are benchmark-only and intentionally not submission-shaped as a
+single portable package because several variants import shared local helpers.
+Run them locally through the benchmark harness.
 
 ## Candidate Ranking
 
@@ -172,14 +207,19 @@ Recommendation:
 ## Immediate Execution Plan
 
 1. Keep the Fullhouse benchmark harness and `bots/mock_competitors/` suites as the primary tuning signal.
-2. Use the public model inventory only to choose optional external opponents.
-3. If adding an external model, integrate it as a benchmark-only adapter and keep model artifacts ignored.
-4. Do not promote bot defaults from external benchmarks alone; rerun the local candidate/promotion/final screens.
-5. Prefer this order:
+2. Train/update mock numpy-policy variants before using the expanded mock
+   suites if `policy.npz` files are stale:
+   `poetry run python tools/train_mock_numpy_policy.py --all --samples 60000 --seed 7331`.
+3. Use `tools/select_heuristic_config.py --preset mock-family` for a focused
+   screen against the expanded local families.
+4. Use the public model inventory only to choose optional external opponents.
+5. If adding an external model, integrate it as a benchmark-only adapter and keep model artifacts ignored.
+6. Do not promote bot defaults from external benchmarks alone; rerun the local candidate/promotion/final screens.
+7. Prefer this order:
    1. AlphaNLHoldem pretrained checkpoint for quick neural heads-up pressure.
    2. DeepCFR 6-player small locally trained checkpoint if dependency install and smoke training pass.
    3. DecisionHoldem only if the Baidu data and Mac build are confirmed.
-6. Do not change `bots/heuristic/bot.py` structure for external dependencies.
+8. Do not change `bots/heuristic/bot.py` structure for external dependencies.
 
 ## What To Measure Against External Models
 

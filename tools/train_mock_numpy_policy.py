@@ -1,8 +1,8 @@
-"""Train the mock numpy-policy competitor.
+"""Train the mock numpy-policy competitors.
 
-This is not part of the submitted heuristic bot. It creates a tiny MLP policy
-that imitates a synthetic poker heuristic over Fullhouse-like states, then
-saves numpy weights under bots/mock_competitors/numpy_policy/data/policy.npz.
+This is not part of the submitted heuristic bot. It creates tiny MLP policies
+that imitate synthetic poker heuristics over Fullhouse-like states, then saves
+numpy weights under bots/mock_competitors/<variant>/data/policy.npz.
 """
 
 import argparse
@@ -14,6 +14,15 @@ from sklearn.neural_network import MLPClassifier
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_OUTPUT = ROOT / "bots" / "mock_competitors" / "numpy_policy" / "data" / "policy.npz"
+
+VARIANT_OUTPUTS = {
+    "balanced": DEFAULT_OUTPUT,
+    "value": ROOT / "bots" / "mock_competitors" / "numpy_policy_value" / "data" / "policy.npz",
+    "bluff": ROOT / "bots" / "mock_competitors" / "numpy_policy_bluff" / "data" / "policy.npz",
+    "station": ROOT / "bots" / "mock_competitors" / "numpy_policy_station" / "data" / "policy.npz",
+    "folder": ROOT / "bots" / "mock_competitors" / "numpy_policy_folder" / "data" / "policy.npz",
+    "pressure": ROOT / "bots" / "mock_competitors" / "numpy_policy_pressure" / "data" / "policy.npz",
+}
 
 
 def _sample_states(n, rng):
@@ -43,7 +52,7 @@ def _sample_states(n, rng):
     return x
 
 
-def _oracle_labels(x):
+def _oracle_labels(x, variant="balanced"):
     owed_ratio = x[:, 1]
     pot_size = x[:, 2]
     high = x[:, 3]
@@ -58,19 +67,108 @@ def _oracle_labels(x):
     strength -= 0.10 * late_street * (1.0 - pair)
     pressure_cost = owed_ratio + 0.70 * risk + 0.10 * pot_size
 
+    profile = {
+        "balanced": {
+            "call_margin": 0.18,
+            "call_strength": 0.58,
+            "call_owed": 0.25,
+            "raise_strength": 0.72,
+            "raise_owed": 0.16,
+            "semi_low": 0.45,
+            "semi_high": 0.68,
+            "semi_active": 0.55,
+        },
+        "value": {
+            "call_margin": 0.12,
+            "call_strength": 0.55,
+            "call_owed": 0.32,
+            "raise_strength": 0.80,
+            "raise_owed": 0.18,
+            "semi_low": 0.54,
+            "semi_high": 0.70,
+            "semi_active": 0.45,
+        },
+        "bluff": {
+            "call_margin": 0.24,
+            "call_strength": 0.62,
+            "call_owed": 0.18,
+            "raise_strength": 0.67,
+            "raise_owed": 0.18,
+            "semi_low": 0.34,
+            "semi_high": 0.70,
+            "semi_active": 0.70,
+        },
+        "station": {
+            "call_margin": 0.02,
+            "call_strength": 0.42,
+            "call_owed": 0.55,
+            "raise_strength": 0.84,
+            "raise_owed": 0.12,
+            "semi_low": 0.62,
+            "semi_high": 0.76,
+            "semi_active": 0.35,
+        },
+        "folder": {
+            "call_margin": 0.31,
+            "call_strength": 0.68,
+            "call_owed": 0.14,
+            "raise_strength": 0.83,
+            "raise_owed": 0.10,
+            "semi_low": 0.58,
+            "semi_high": 0.70,
+            "semi_active": 0.38,
+        },
+        "pressure": {
+            "call_margin": 0.16,
+            "call_strength": 0.55,
+            "call_owed": 0.28,
+            "raise_strength": 0.66,
+            "raise_owed": 0.22,
+            "semi_low": 0.36,
+            "semi_high": 0.72,
+            "semi_active": 0.78,
+        },
+    }.get(variant)
+    if profile is None:
+        raise ValueError(f"unknown variant: {variant}")
+
+    if variant == "value":
+        strength += 0.08 * pair + 0.03 * high
+        pressure_cost += 0.07 * (1.0 - pair)
+    elif variant == "bluff":
+        strength += 0.06 * suited + 0.04 * can_check - 0.04 * pair
+        pressure_cost -= 0.07 * can_check
+    elif variant == "station":
+        pressure_cost -= 0.13
+        strength += 0.03 * high
+    elif variant == "folder":
+        pressure_cost += 0.16 + 0.04 * late_street
+    elif variant == "pressure":
+        strength += 0.08 * can_check + 0.04 * suited - 0.03 * late_street
+        pressure_cost -= 0.10 * can_check
+
     labels = np.zeros(len(x), dtype=int)  # fold/check
-    call = (strength > pressure_cost + 0.18) | ((strength > 0.58) & (owed_ratio < 0.25))
-    raise_ = (strength > 0.72) & ((can_check > 0.5) | (owed_ratio < 0.16))
-    semi_bluff = (can_check > 0.5) & (strength > 0.45) & (strength < 0.68) & (active < 0.55)
+    call = (strength > pressure_cost + profile["call_margin"]) | (
+        (strength > profile["call_strength"]) & (owed_ratio < profile["call_owed"])
+    )
+    raise_ = (strength > profile["raise_strength"]) & (
+        (can_check > 0.5) | (owed_ratio < profile["raise_owed"])
+    )
+    semi_bluff = (
+        (can_check > 0.5)
+        & (strength > profile["semi_low"])
+        & (strength < profile["semi_high"])
+        & (active < profile["semi_active"])
+    )
     labels[call] = 1
     labels[raise_ | semi_bluff] = 2
     return labels
 
 
-def train(n, seed, output):
+def train(n, seed, output, variant="balanced"):
     rng = np.random.default_rng(seed)
     x = _sample_states(n, rng)
-    y = _oracle_labels(x)
+    y = _oracle_labels(x, variant=variant)
     mean = x.mean(axis=0)
     scale = x.std(axis=0)
     scale[scale < 1e-6] = 1.0
@@ -100,8 +198,10 @@ def train(n, seed, output):
         scale=scale.astype(np.float32),
         classes=clf.classes_.astype(np.int8),
         train_accuracy=np.array([clf.score(z, y)], dtype=np.float32),
+        variant=np.array([variant]),
     )
     return {
+        "variant": variant,
         "output": str(output),
         "samples": n,
         "seed": seed,
@@ -114,11 +214,18 @@ def main():
     parser = argparse.ArgumentParser(description="Train mock numpy-policy competitor")
     parser.add_argument("--samples", type=int, default=60000)
     parser.add_argument("--seed", type=int, default=7331)
-    parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
+    parser.add_argument("--variant", choices=sorted(VARIANT_OUTPUTS), default="balanced")
+    parser.add_argument("--all", action="store_true", help="Train every built-in policy variant")
+    parser.add_argument("--output", default=None)
     args = parser.parse_args()
-    result = train(args.samples, args.seed, Path(args.output))
-    for key, value in result.items():
-        print(f"{key}: {value}")
+    variants = sorted(VARIANT_OUTPUTS) if args.all else [args.variant]
+    for index, variant in enumerate(variants):
+        output = Path(args.output) if args.output and not args.all else VARIANT_OUTPUTS[variant]
+        result = train(args.samples, args.seed + index * 97, output, variant=variant)
+        for key, value in result.items():
+            print(f"{key}: {value}")
+        if len(variants) > 1:
+            print("")
 
 
 if __name__ == "__main__":

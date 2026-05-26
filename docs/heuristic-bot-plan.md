@@ -253,12 +253,18 @@ Current benchmark suites:
 - `heads_up_station`: anti-calling-station sanity check.
 - `sizing_6max`, `pressure_6max`, `tight_6max`, `mixed_stress_6max`, and `heads_up_threshold`: stress suites for sizing, pressure, tight tables, and threshold callers.
 - `mock_rl_6max`, `mock_bucket_6max`, `mock_adaptive_6max`, `heads_up_mock_numpy`, and `heads_up_equity_mc`: likely compressed-model and adaptive-opponent mocks.
+- `mock_equity_family_6max`, `mock_bucket_family_6max`,
+  `mock_policy_family_6max`, `mock_anti_heuristic_6max`, and
+  `mock_pressure_heads_up`: expanded local-only families for equity,
+  bucket/CFR-like, trained numpy-policy, adversarial, and heads-up pressure
+  stress tests.
 
 Run:
 
 ```bash
 poetry run python tools/evaluate_heuristic.py --json
 poetry run python tools/select_heuristic_config.py --preset candidate --progress
+poetry run python tools/select_heuristic_config.py --preset mock-family --progress
 ```
 
 The current promoted defaults passed the 30-seed promotion screen and the

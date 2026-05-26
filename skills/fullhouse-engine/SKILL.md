@@ -61,6 +61,18 @@ For full benchmark summaries, run:
 poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```
 
+For expanded mock-family screens, run:
+
+```bash
+poetry run python tools/select_heuristic_config.py --preset mock-family --config baseline --progress
+```
+
+For retraining benchmark-only numpy-policy mock competitors, run:
+
+```bash
+poetry run python tools/train_mock_numpy_policy.py --all --samples 60000 --seed 7331
+```
+
 For focused sizing/pressure benchmark checks, run:
 
 ```bash

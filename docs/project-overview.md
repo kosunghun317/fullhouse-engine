@@ -31,6 +31,8 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
 - `tools/build_heuristic_tables.py`: Optional read-only data table builder.
 - `tools/harden_submission.py`: Full heuristic submission hardening command for table rebuild, packaging, validation, zip inspection, and sanity matches.
+- `tools/train_mock_numpy_policy.py`: Offline trainer for benchmark-only
+  numpy-policy mock competitors.
 - `demo.py`: Flask demo UI showing local reference-bot matches.
 - `tests/`: Engine unit tests.
 
@@ -103,3 +105,6 @@ the SPR/off-bucket sizing profile documented in
 available as the local tuning config `legacy-baseline`.
 
 Use the benchmark docs as the source of truth before changing bot defaults.
+The newest mock benchmark expansion adds trained-policy, equity-family,
+bucket-family, anti-heuristic, and heads-up pressure suites; use
+`tools/select_heuristic_config.py --preset mock-family` for focused checks.

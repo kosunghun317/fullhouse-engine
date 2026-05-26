@@ -42,6 +42,14 @@ MOCK_SUITES = [
     "heads_up_equity_mc",
 ]
 
+MOCK_FAMILY_SUITES = [
+    "mock_equity_family_6max",
+    "mock_bucket_family_6max",
+    "mock_policy_family_6max",
+    "mock_anti_heuristic_6max",
+    "mock_pressure_heads_up",
+]
+
 PRESETS = {
     "quick": {
         "seed_count": 3,
@@ -55,8 +63,13 @@ PRESETS = {
     },
     "mock-screen": {
         "seed_count": 10,
-        "suites": ["reference_6max", "mutant_6max"] + MOCK_SUITES,
-        "note": "compressed-model/mock-opponent screen",
+        "suites": ["reference_6max", "mutant_6max"] + MOCK_SUITES + MOCK_FAMILY_SUITES,
+        "note": "compressed-model/mock-opponent screen with expanded mock families",
+    },
+    "mock-family": {
+        "seed_count": 10,
+        "suites": MOCK_FAMILY_SUITES,
+        "note": "focused screen against expanded trained/lookup/adversarial mock families",
     },
     "promotion": {
         "seed_count": 30,
