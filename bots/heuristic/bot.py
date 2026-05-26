@@ -5,13 +5,20 @@ preflop hand classes, bounded Monte Carlo equity, public-action opponent
 modeling, and a single action sanitizer at the edge.
 """
 
-import math
+import os
 import random
 import time
 
 import eval7
 
 BOT_NAME = "Heuristic Exploit"
+
+_seed = os.environ.get("HEURISTIC_RNG_SEED")
+if _seed:
+    try:
+        random.seed(int(_seed))
+    except ValueError:
+        random.seed(_seed)
 
 
 # ---------------------------------------------------------------------------
@@ -137,23 +144,6 @@ def _active_opponent_count(state):
         if player.get("seat") != hero_seat:
             count += 1
     return max(1, count)
-
-
-def _players_left_to_act(state):
-    hero_seat = state.get("seat_to_act", 0)
-    players = state.get("players", [])
-    if not players:
-        return 0
-    left = 0
-    for player in players:
-        seat = player.get("seat", 0)
-        if seat == hero_seat:
-            continue
-        if player.get("is_folded") or player.get("is_all_in"):
-            continue
-        if seat > hero_seat:
-            left += 1
-    return left
 
 
 def _position_bucket(state):

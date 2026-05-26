@@ -85,6 +85,14 @@ EQUITY_CACHE = {}
 
 No file writes, databases, network calls, subprocesses, threads, async tasks, pickle, or dynamic imports are used.
 
+For local evaluation only, the bot supports deterministic randomness through:
+
+```bash
+HEURISTIC_RNG_SEED=123 poetry run python tools/evaluate_heuristic.py --json
+```
+
+If the env var is unset, the bot uses normal process-local randomness.
+
 ## Card And Hand Helpers
 
 `_hand_class(cards)` converts two hole cards into a standard 169-class preflop label:
@@ -428,13 +436,9 @@ This fallback is deliberately simple and legal.
 
    It uses fixed fractions and big-blind multiples. It does not yet optimize sizes against specific call/fold thresholds.
 
-7. Randomness is unseeded.
+7. Benchmark randomness must be interpreted carefully.
 
-   The bot uses `random.random()` in mixed branches. This avoids deterministic patterns but makes benchmark results less reproducible.
-
-8. Some helper code is underused.
-
-   `_players_left_to_act()` and imported `math` are currently not strategically important. They can be removed or used in a future position model cleanup.
+   The bot can use `HEURISTIC_RNG_SEED` for reproducible local evaluation, but some benchmark opponents also use their own random choices. Large benchmark samples are still more reliable than one seed.
 
 ## Future Improvements
 
@@ -511,9 +515,7 @@ Future changes:
 
 ### 7. Deterministic Evaluation Mode
 
-Add optional deterministic random seeding at import time for local evaluation only, while keeping tournament behavior acceptable.
-
-Because submitted bots should not rely on external state, this should be controlled by a constant or removed before final submission if it harms exploitability.
+Implemented through `HEURISTIC_RNG_SEED`. Future work should use this in benchmark tooling when exact reproducibility is more important than sampling varied bot randomness.
 
 ### 8. Threshold Search Harness
 
