@@ -53,6 +53,10 @@ THIN_VALUE_BASE = _float_env("HEURISTIC_THIN_VALUE_BASE", 0.59)
 DRY_BLUFF_PROB = _float_env("HEURISTIC_DRY_BLUFF_PROB", 0.45)
 WET_BLUFF_PROB = _float_env("HEURISTIC_WET_BLUFF_PROB", 0.25)
 
+
+def _clamp(value, lo, hi):
+    return max(lo, min(hi, value))
+
 ULTRA_PREMIUM_CLASSES = {"AA", "KK"}
 PREMIUM_CLASSES = {"AA", "KK", "QQ", "JJ", "AKs", "AKo"}
 STRONG_CLASSES = {
@@ -258,10 +262,13 @@ def _default_stats():
         "all_ins": 0,
         "raise_total": 0,
         "raise_count": 0,
+        "pressure_events": 0,
+        "pressure_folds": 0,
+        "pressure_calls": 0,
     }
 
 
-def _remember_action(action):
+def _remember_action(action, previous_action=None):
     key = (
         action.get("hand_num"),
         action.get("seat"),
@@ -298,10 +305,25 @@ def _remember_action(action):
     elif act == "all_in":
         stats["all_ins"] += 1
 
+    if (
+        previous_action
+        and previous_action.get("hand_num") == action.get("hand_num")
+        and previous_action.get("bot_id") != bot_id
+        and previous_action.get("action") in ("raise", "all_in")
+        and act in ("fold", "call")
+    ):
+        stats["pressure_events"] += 1
+        if act == "fold":
+            stats["pressure_folds"] += 1
+        elif act == "call":
+            stats["pressure_calls"] += 1
+
 
 def _update_memory(state):
+    previous = None
     for action in state.get("match_action_log", []):
-        _remember_action(action)
+        _remember_action(action, previous)
+        previous = action
 
 
 def _rate(stats, key, prior=1.0, mass=5.0):
@@ -317,13 +339,23 @@ def _profile_for(bot_id):
     call_rate = _rate(stats, "calls")
     fold_rate = _rate(stats, "folds")
     all_in_rate = _rate(stats, "all_ins", prior=0.2, mass=8.0)
+    pressure_events = stats.get("pressure_events", 0)
+    pressure_fold_rate = (
+        (stats.get("pressure_folds", 0) + 1) / (pressure_events + 3)
+        if pressure_events >= 4 else None
+    )
+    avg_raise_bb = stats.get("raise_total", 0) / max(1, stats.get("raise_count", 0)) / BIG_BLIND
 
-    if raise_rate > 0.33 or all_in_rate > 0.10:
+    if raise_rate > 0.33 or all_in_rate > 0.10 or avg_raise_bb > 8.0:
         return "maniac"
     if call_rate > 0.42 and fold_rate < 0.25:
         return "station"
+    if pressure_fold_rate is not None and pressure_fold_rate > 0.62 and raise_rate < 0.24:
+        return "nit"
     if fold_rate > 0.42 and raise_rate < 0.18:
         return "nit"
+    if pressure_fold_rate is not None and pressure_fold_rate < 0.30 and call_rate > 0.34:
+        return "station"
     if raise_rate < 0.20 and call_rate < 0.34:
         return "abc"
     return "unknown"
@@ -347,6 +379,18 @@ def _table_profile(state):
 def _fold_pressure(state):
     """Estimate how likely a table is to fold to a bet."""
     profile = _table_profile(state)
+    hero_seat = state.get("seat_to_act")
+    pressure_rates = []
+    for player in state.get("players", []):
+        if player.get("seat") == hero_seat or player.get("is_folded"):
+            continue
+        stats = OPPONENTS.get(player.get("bot_id"))
+        if stats and stats.get("pressure_events", 0) >= 4:
+            rate = (stats.get("pressure_folds", 0) + 1) / (stats.get("pressure_events", 0) + 3)
+            pressure_rates.append(rate)
+    if pressure_rates:
+        observed = sum(pressure_rates) / len(pressure_rates)
+        return _clamp(observed, 0.15, 0.82)
     if profile == "nit":
         return 0.72
     if profile == "abc":
@@ -466,6 +510,62 @@ def _board_texture(state):
     if paired or (suited <= 2 and connected == 0):
         return "dry"
     return "medium"
+
+
+def _straight_draw(ranks):
+    vals = set(ranks)
+    if 14 in vals:
+        vals.add(1)
+    for start in range(1, 11):
+        window = {start, start + 1, start + 2, start + 3, start + 4}
+        if len(window & vals) >= 4:
+            return True
+    return False
+
+
+def _hand_features(state):
+    cards = state.get("your_cards", []) + state.get("community_cards", [])
+    if len(cards) < 5:
+        return {"made_rank": 0, "hand_type": "unknown", "flush_draw": False, "straight_draw": False}
+    try:
+        eval_cards = [eval7.Card(card) for card in cards]
+        score = eval7.evaluate(eval_cards)
+        hand_type = str(eval7.handtype(score)).lower()
+    except Exception:
+        hand_type = "unknown"
+
+    made_rank = 0
+    if "straight flush" in hand_type:
+        made_rank = 8
+    elif "quads" in hand_type or "four" in hand_type:
+        made_rank = 7
+    elif "full house" in hand_type:
+        made_rank = 6
+    elif "flush" in hand_type:
+        made_rank = 5
+    elif "straight" in hand_type:
+        made_rank = 4
+    elif "trips" in hand_type or "three" in hand_type:
+        made_rank = 3
+    elif "two pair" in hand_type:
+        made_rank = 2
+    elif "pair" in hand_type:
+        made_rank = 1
+
+    suits = {}
+    ranks = []
+    for card in cards:
+        suits[card[1]] = suits.get(card[1], 0) + 1
+        ranks.append(_rank_value(card))
+    board_len = len(state.get("community_cards", []))
+    flush_draw = board_len < 5 and max(suits.values() or [0]) >= 4 and made_rank < 5
+    straight_draw = board_len < 5 and _straight_draw(ranks) and made_rank < 4
+    return {
+        "made_rank": made_rank,
+        "hand_type": hand_type,
+        "flush_draw": flush_draw,
+        "straight_draw": straight_draw,
+    }
 
 
 # ---------------------------------------------------------------------------
@@ -619,7 +719,23 @@ def _call_margin(state, profile):
         margin -= 0.055
     elif profile == "station":
         margin -= 0.015
+    if _is_heads_up_stack_leader(state) and profile == "maniac":
+        margin += 0.04
     return max(0.015, margin)
+
+
+def _is_heads_up_stack_leader(state):
+    players = state.get("players", [])
+    if len(players) != 2:
+        return False
+    hero_seat = state.get("seat_to_act")
+    hero_stack = int(state.get("your_stack", 0) or 0)
+    opp_stack = 0
+    for player in players:
+        if player.get("seat") != hero_seat:
+            opp_stack = int(player.get("stack", 0) or 0)
+            break
+    return hero_stack > max(1, int(opp_stack * 1.25))
 
 
 def _passes_risk_guard(state, equity, profile):
@@ -640,14 +756,35 @@ def _passes_risk_guard(state, equity, profile):
         required += 0.04
     if profile == "maniac":
         required -= 0.02
+    if profile == "maniac" and _is_heads_up_stack_leader(state) and risk >= 0.20:
+        required += 0.08
     if required <= 0:
         return True
     return equity >= required
 
 
+def _adjust_equity_for_context(state, raw_equity, profile):
+    adjusted = raw_equity
+    if not state.get("can_check"):
+        if profile == "nit":
+            adjusted -= 0.045
+        elif profile == "abc":
+            adjusted -= 0.030
+        elif profile == "maniac":
+            adjusted += 0.025
+        current_bet = int(state.get("current_bet", 0) or 0)
+        pot = max(1, int(state.get("pot", 0) or 0))
+        if current_bet > pot * 0.70 and profile != "maniac":
+            adjusted -= 0.030
+    adjusted -= 0.012 * max(0, _active_opponent_count(state) - 2)
+    return _clamp(adjusted, 0.02, 0.98)
+
+
 def _postflop_policy(state, equity):
     profile = _table_profile(state)
+    equity = _adjust_equity_for_context(state, equity, profile)
     texture = _board_texture(state)
+    features = _hand_features(state)
     odds = _pot_odds(state)
     owed = int(state.get("amount_owed", 0) or 0)
     pot = max(1, int(state.get("pot", 0) or 0))
@@ -664,6 +801,9 @@ def _postflop_policy(state, equity):
         value_threshold -= 0.03
     if texture == "wet":
         value_threshold += 0.025
+    if features["made_rank"] >= 4:
+        value_threshold -= 0.035
+        thin_value -= 0.020
 
     if can_check:
         if equity >= value_threshold:
@@ -671,9 +811,10 @@ def _postflop_policy(state, equity):
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         if equity >= thin_value and profile in ("station", "maniac"):
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.45)}
+        has_draw = features["flush_draw"] or features["straight_draw"]
         if equity >= 0.42 and texture != "wet" and fold_pressure >= 0.55 and random.random() < DRY_BLUFF_PROB:
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.42)}
-        if equity >= 0.34 and texture == "wet" and fold_pressure >= 0.62 and random.random() < WET_BLUFF_PROB:
+        if has_draw and equity >= 0.30 and fold_pressure >= 0.52 and profile != "station" and random.random() < WET_BLUFF_PROB:
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.55)}
         return {"action": "check"}
 
