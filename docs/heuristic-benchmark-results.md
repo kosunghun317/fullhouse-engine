@@ -95,6 +95,51 @@ Recommended tiers:
 - `--preset promotion`: 30-seed minimum before changing production defaults.
 - `--preset final`: 100-seed acceptance matrix.
 
+## SPR / Anti-Bucket Candidate Screen
+
+Reviewed: 2026-05-27.
+
+Command:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --config spr-aware \
+  --config anti-bucket \
+  --config spr-anti-bucket \
+  --suite sizing_6max \
+  --suite pressure_6max \
+  --suite mixed_stress_6max \
+  --suite mock_bucket_6max \
+  --suite mock_rl_6max \
+  --seed-start 7201 \
+  --seed-count 10 \
+  --hands 400 \
+  --json
+```
+
+Aggregate targeted result, 5 suites x 10 seeds:
+
+| Config | Score | Mean Of Suite Means | Positive Runs | Busts | Heuristic Errors | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `spr-anti-bucket` | 8,435.74 | 15,180.3 | 40/50 | 6 | 0 | Promote to 30-seed screen candidate |
+| `spr-aware` | 4,877.97 | 11,659.04 | 37/50 | 10 | 0 | Keep candidate |
+| `anti-bucket` | 3,799.89 | 10,164.48 | 36/50 | 10 | 0 | Keep candidate |
+| `baseline` | 3,240.56 | 9,480.78 | 34/50 | 13 | 0 | Still production default |
+
+Key suite comparison:
+
+| Config | `sizing_6max` | `pressure_6max` | `mixed_stress_6max` | `mock_bucket_6max` | `mock_rl_6max` |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `baseline` | 23,813 / 0 busts | -8,462 / 9 busts | 10,077 / 1 bust | 14,010 / 0 busts | 7,966 / 3 busts |
+| `spr-anti-bucket` | 23,249 / 0 busts | 15,496 / 5 busts | 13,487 / 0 busts | 15,021 / 0 busts | 8,650 / 1 bust |
+
+Interpretation:
+
+- `spr-anti-bucket` materially improves the pressure and mixed-stress target suites in this screen.
+- The result is not enough to change production defaults because it omits the full core suite and uses only 10 seeds.
+- Next step before promotion: run `--preset promotion` or an equivalent 30-seed screen including core, stress, and mock suites.
+
 ## Benchmark Suite Catalog
 
 Core suites:
