@@ -76,3 +76,9 @@ TABLE = np.load(os.path.join(DATA_DIR, "table.npz"))
 def decide(state):
     return {"action": "check"} if state["can_check"] else {"action": "fold"}
 ```
+
+## In-Memory State
+
+Bots may keep ordinary Python state in RAM, such as module-level dictionaries, counters, and cached opponent statistics. That memory persists across hands within a single bot process, but it is lost when the process exits, crashes, or a new match starts.
+
+See `docs/bot-state-and-memory.md` for the fields provided to `decide()`, available action history, and safe memory patterns.

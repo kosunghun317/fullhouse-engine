@@ -9,6 +9,7 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 
 - Read `docs/project-overview.md` for repo purpose, file roles, tournament format, and frozen areas.
 - Read `docs/restrictions.md` before changing or writing any bot logic.
+- Read `docs/bot-state-and-memory.md` when reasoning about `decide()` inputs, action history, opponent modeling, or in-memory bot state.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
 
 ## Environment
