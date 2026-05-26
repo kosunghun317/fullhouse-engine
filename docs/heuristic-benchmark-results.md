@@ -190,6 +190,56 @@ Promotion rationale:
 - `heads_up_equity_mc` has higher mean but more busts; keep it as a final-run watch item.
 - The bot defaults now include the promoted SPR and off-bucket values. The old defaults remain available as `legacy-baseline`.
 
+## Final 100-Seed Acceptance Matrix
+
+Reviewed: 2026-05-27.
+
+Command:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --preset final \
+  --config baseline \
+  --seed-start 8001 \
+  --seed-count 100 \
+  --hands 400 \
+  --progress \
+  --json
+```
+
+Aggregate:
+
+| Config | Score | Mean Of Suite Means | Median Of Suite Medians | Positive Runs | Nonnegative Runs | Busts | Errors |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| promoted `baseline` | 7,303.13 | 12,406.08 | 11,266 | 1,239/1,500 | 1,239/1,500 | 157 | 0 |
+
+Suite table, 100 runs x 400 hands each:
+
+| Suite | Mean | Median | Stdev | Min | Max | Positive | Busts | Errors |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
+| `reference_6max` | 15,877.33 | 20,291 | 13,775.99 | -10,000 | 46,968 | 83/100 | 17 | 0 |
+| `mutant_6max` | 28,979.81 | 34,530.5 | 20,922.87 | -10,000 | 50,000 | 84/100 | 15 | 0 |
+| `heads_up_shark` | 8,687.06 | 9,257 | 1,856.98 | -3,344 | 10,000 | 99/100 | 0 | 0 |
+| `heads_up_aggressor` | 4,800 | 10,000 | 8,772.68 | -10,000 | 10,000 | 74/100 | 26 | 0 |
+| `heads_up_station` | 9,800 | 10,000 | 1,989.97 | -10,000 | 10,000 | 99/100 | 1 | 0 |
+| `sizing_6max` | 25,299.51 | 25,630.5 | 15,354.02 | -10,000 | 50,000 | 92/100 | 4 | 0 |
+| `pressure_6max` | 16,116.71 | 4,521.5 | 25,865.57 | -10,000 | 50,000 | 61/100 | 32 | 0 |
+| `tight_6max` | 17,032.13 | 16,949 | 3,047.48 | 8,625 | 28,706 | 100/100 | 0 | 0 |
+| `mixed_stress_6max` | 12,472.22 | 11,650 | 15,639.97 | -10,000 | 50,000 | 79/100 | 10 | 0 |
+| `heads_up_threshold` | 6,123.27 | 6,102 | 1,941.79 | 1,340 | 10,000 | 100/100 | 0 | 0 |
+| `mock_rl_6max` | 10,547.27 | 11,732 | 14,611.52 | -10,000 | 42,637 | 71/100 | 17 | 0 |
+| `mock_bucket_6max` | 16,292.59 | 16,061 | 5,567.75 | 3,662 | 33,925 | 100/100 | 0 | 0 |
+| `mock_adaptive_6max` | 10,542.98 | 11,266 | 10,101.17 | -10,000 | 41,828 | 83/100 | 2 | 0 |
+| `heads_up_mock_numpy` | 1,195.37 | 211.5 | 6,110.26 | -10,000 | 10,000 | 51/100 | 4 | 0 |
+| `heads_up_equity_mc` | 2,324.89 | 8,396.5 | 8,763.49 | -10,000 | 10,000 | 63/100 | 29 | 0 |
+
+Acceptance decision:
+
+- Promoted defaults remain accepted: all suites have positive mean and zero bot errors.
+- Main watch items are high-variance `pressure_6max`, `heads_up_equity_mc`, and `heads_up_aggressor` bust rates.
+- `mock_bucket_6max` recovered in the 100-run matrix: 100/100 positive, 0 busts.
+- The final matrix confirms the promoted default is stronger than the pre-promotion profile for this local benchmark set, but the high-variance suites should not be further loosened without another promotion screen.
+
 ## Benchmark Suite Catalog
 
 Core suites:
