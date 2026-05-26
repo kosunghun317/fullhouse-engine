@@ -89,7 +89,7 @@ poetry run python tools/tune_heuristic_thresholds.py --seed-count 100 --summary-
 For risk-aware config ranking, run:
 
 ```bash
-poetry run python tools/select_heuristic_config.py --preset candidate
+poetry run python tools/select_heuristic_config.py --preset candidate --progress
 ```
 
 For regenerating the explicit 169-class preflop table, run:

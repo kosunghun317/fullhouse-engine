@@ -14,8 +14,8 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.evaluate_heuristic import SUITES
-from tools.tune_heuristic_thresholds import CONFIGS, evaluate_config
+from tools.evaluate_heuristic import SUITES, run_suite
+from tools.tune_heuristic_thresholds import CONFIGS, _restore_env, _set_env
 
 
 CORE_SUITES = [
@@ -137,6 +137,24 @@ def rank_configs(report, risk_weight, min_weight, bust_penalty, error_penalty):
     return sorted(ranking, key=lambda item: item["score"], reverse=True)
 
 
+def evaluate_config_with_progress(name, suites, seeds, hands, progress=False):
+    old = _set_env(CONFIGS[name])
+    try:
+        results = []
+        for index, suite in enumerate(suites, 1):
+            if progress:
+                print(
+                    f"[{name}] suite {index}/{len(suites)}: {suite} "
+                    f"({len(seeds)} seeds x {hands} hands)",
+                    file=sys.stderr,
+                    flush=True,
+                )
+            results.append(run_suite(suite, seeds, hands, summary_only=True))
+    finally:
+        _restore_env(old)
+    return {"config": name, "env": CONFIGS[name], "results": results}
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run and rank heuristic configs with a risk-aware score")
     parser.add_argument("--config", choices=sorted(CONFIGS), action="append")
@@ -150,6 +168,7 @@ def main():
     parser.add_argument("--min-weight", type=float, default=0.10)
     parser.add_argument("--bust-penalty", type=float, default=8000.0)
     parser.add_argument("--error-penalty", type=float, default=20000.0)
+    parser.add_argument("--progress", action="store_true", help="Print config/suite progress to stderr")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -158,7 +177,7 @@ def main():
     seeds = _parse_seeds(args, args.preset)
 
     report = [
-        evaluate_config(name, suites, seeds, args.hands, summary_only=True)
+        evaluate_config_with_progress(name, suites, seeds, args.hands, progress=args.progress)
         for name in configs
     ]
     ranking = rank_configs(

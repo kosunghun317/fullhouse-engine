@@ -95,6 +95,8 @@ Recommended tiers:
 - `--preset promotion`: 30-seed minimum before changing production defaults.
 - `--preset final`: 100-seed acceptance matrix.
 
+For long screens, pass `--progress` so each config/suite boundary is printed to stderr.
+
 ## SPR / Anti-Bucket Candidate Screen
 
 Reviewed: 2026-05-27.
