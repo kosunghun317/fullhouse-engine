@@ -45,3 +45,5 @@ Final acceptance run:
 - Use the committed benchmark harness, not an ad hoc script.
 
 Ranks 1-10 are implemented. Rank 11 is intentionally left as a later tuning pass because it is likely to overfit without a larger seed set and should use the 100-run benchmark output as its input signal.
+
+The acceptance run is recorded in `docs/heuristic-benchmark-results.md`. Its main actionable finding is that heads-up aggressor remains high variance and should be optimized only if doing so does not reduce 6-max performance.
