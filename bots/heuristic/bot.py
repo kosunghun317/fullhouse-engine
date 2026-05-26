@@ -70,6 +70,18 @@ THIN_VALUE_FRACTION = _float_env("HEURISTIC_THIN_VALUE_FRACTION", 0.45)
 DRY_BLUFF_FRACTION = _float_env("HEURISTIC_DRY_BLUFF_FRACTION", 0.42)
 WET_SEMI_BLUFF_FRACTION = _float_env("HEURISTIC_WET_SEMI_BLUFF_FRACTION", 0.55)
 HIGH_EQUITY_RAISE_FRACTION = _float_env("HEURISTIC_HIGH_EQUITY_RAISE_FRACTION", 0.85)
+SPR_LOW = _float_env("HEURISTIC_SPR_LOW", 1.8)
+SPR_HIGH = _float_env("HEURISTIC_SPR_HIGH", 6.0)
+SPR_LOW_VALUE_DISCOUNT = _float_env("HEURISTIC_SPR_LOW_VALUE_DISCOUNT", 0.0)
+SPR_LOW_THIN_VALUE_DISCOUNT = _float_env("HEURISTIC_SPR_LOW_THIN_VALUE_DISCOUNT", 0.0)
+SPR_LOW_CALL_MARGIN_DISCOUNT = _float_env("HEURISTIC_SPR_LOW_CALL_MARGIN_DISCOUNT", 0.0)
+SPR_HIGH_CALL_MARGIN_BONUS = _float_env("HEURISTIC_SPR_HIGH_CALL_MARGIN_BONUS", 0.0)
+SPR_LOW_RAISE_FRACTION_BONUS = _float_env("HEURISTIC_SPR_LOW_RAISE_FRACTION_BONUS", 0.0)
+SPR_COMMIT_EQUITY = _float_env("HEURISTIC_SPR_COMMIT_EQUITY", 1.01)
+OFF_BUCKET_SIZING_PROB = _float_env("HEURISTIC_OFF_BUCKET_SIZING_PROB", 0.0)
+OFF_BUCKET_BLUFF_MIN = _float_env("HEURISTIC_OFF_BUCKET_BLUFF_MIN", 0.56)
+OFF_BUCKET_VALUE_STATION_BONUS = _float_env("HEURISTIC_OFF_BUCKET_VALUE_STATION_BONUS", 0.10)
+OFF_BUCKET_VALUE_TIGHT_MAX = _float_env("HEURISTIC_OFF_BUCKET_VALUE_TIGHT_MAX", 0.49)
 PREFLOP_PREMIUM_OPEN_BB = _float_env("HEURISTIC_PREFLOP_PREMIUM_OPEN_BB", 3.4)
 PREFLOP_OPEN_BB = _float_env("HEURISTIC_PREFLOP_OPEN_BB", 3.0)
 PREFLOP_HU_MANIAC_OPEN_BB = _float_env("HEURISTIC_PREFLOP_HU_MANIAC_OPEN_BB", 2.8)
@@ -472,6 +484,10 @@ def _effective_stack(state):
     return int(state.get("your_stack", 0) or 0) + invested
 
 
+def _stack_to_pot_ratio(state):
+    return _effective_stack(state) / max(1, int(state.get("pot", 0) or 0))
+
+
 # ---------------------------------------------------------------------------
 # Opponent model
 # ---------------------------------------------------------------------------
@@ -829,6 +845,28 @@ def _raise_to_preflop(state, big_blinds):
     return min(target, invested + stack)
 
 
+def _sizing_fraction(state, fraction, purpose, profile, texture, equity):
+    shaped = float(fraction)
+    spr = _stack_to_pot_ratio(state)
+
+    if purpose == "value" and spr <= SPR_LOW and equity >= SPR_COMMIT_EQUITY:
+        shaped += SPR_LOW_RAISE_FRACTION_BONUS
+
+    if OFF_BUCKET_SIZING_PROB > 0 and random.random() < OFF_BUCKET_SIZING_PROB:
+        if purpose in ("bluff", "semi_bluff") and profile in ("nit", "abc", "mixed", "unknown"):
+            shaped = max(shaped, OFF_BUCKET_BLUFF_MIN)
+        elif purpose == "value" and profile == "station":
+            shaped += OFF_BUCKET_VALUE_STATION_BONUS
+        elif purpose in ("value", "thin_value") and profile in ("nit", "abc"):
+            shaped = min(shaped, OFF_BUCKET_VALUE_TIGHT_MAX)
+        elif purpose == "thin_value":
+            shaped = min(shaped, 0.49)
+
+    if texture == "wet" and purpose == "value":
+        shaped = max(shaped, fraction)
+    return _clamp(shaped, 0.20, 1.25)
+
+
 def _sanitize_action(state, intent):
     if not isinstance(intent, dict):
         intent = {}
@@ -963,6 +1001,11 @@ def _call_margin(state, profile):
         margin -= 0.015
     if _is_heads_up_stack_leader(state) and profile == "maniac":
         margin += 0.04
+    spr = _stack_to_pot_ratio(state)
+    if spr <= SPR_LOW:
+        margin -= SPR_LOW_CALL_MARGIN_DISCOUNT
+    elif spr >= SPR_HIGH and owed > pot * 0.35:
+        margin += SPR_HIGH_CALL_MARGIN_BONUS
     return max(0.015, margin)
 
 
@@ -987,6 +1030,8 @@ def _passes_risk_guard(state, equity, profile):
     stack_total = max(1, _effective_stack(state))
     risk = owed / stack_total
     opponents = _active_opponent_count(state)
+    if _stack_to_pot_ratio(state) <= SPR_LOW and equity >= SPR_COMMIT_EQUITY and profile != "nit":
+        return True
     required = 0.0
     if risk >= RISK_CUTOFF_HIGH:
         required = RISK_REQ_HIGH
@@ -1033,9 +1078,13 @@ def _postflop_policy(state, equity):
     can_check = bool(state.get("can_check"))
     opponents = _active_opponent_count(state)
     fold_pressure = _fold_pressure(state)
+    spr = _stack_to_pot_ratio(state)
 
     value_threshold = VALUE_THRESHOLD_BASE + 0.055 * max(0, opponents - 1)
     thin_value = THIN_VALUE_BASE + 0.045 * max(0, opponents - 1)
+    if spr <= SPR_LOW:
+        value_threshold -= SPR_LOW_VALUE_DISCOUNT
+        thin_value -= SPR_LOW_THIN_VALUE_DISCOUNT
     if profile == "station":
         value_threshold -= 0.05
         thin_value -= 0.045
@@ -1050,14 +1099,18 @@ def _postflop_policy(state, equity):
     if can_check:
         if equity >= value_threshold:
             frac = PRESSURE_VALUE_FRACTION if profile in ("station", "maniac") or texture == "wet" else NORMAL_VALUE_FRACTION
+            frac = _sizing_fraction(state, frac, "value", profile, texture, equity)
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         if equity >= thin_value and profile in ("station", "maniac"):
-            return {"action": "raise", "amount": _raise_to_fraction(state, THIN_VALUE_FRACTION)}
+            frac = _sizing_fraction(state, THIN_VALUE_FRACTION, "thin_value", profile, texture, equity)
+            return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         has_draw = features["flush_draw"] or features["straight_draw"]
         if equity >= 0.42 and texture != "wet" and fold_pressure >= 0.55 and random.random() < DRY_BLUFF_PROB:
-            return {"action": "raise", "amount": _raise_to_fraction(state, DRY_BLUFF_FRACTION)}
+            frac = _sizing_fraction(state, DRY_BLUFF_FRACTION, "bluff", profile, texture, equity)
+            return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         if has_draw and equity >= 0.30 and fold_pressure >= 0.52 and profile != "station" and random.random() < WET_BLUFF_PROB:
-            return {"action": "raise", "amount": _raise_to_fraction(state, WET_SEMI_BLUFF_FRACTION)}
+            frac = _sizing_fraction(state, WET_SEMI_BLUFF_FRACTION, "semi_bluff", profile, texture, equity)
+            return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         return {"action": "check"}
 
     margin = _call_margin(state, profile)
@@ -1065,7 +1118,8 @@ def _postflop_policy(state, equity):
         return {"action": "fold"}
     if equity >= odds + margin:
         if equity >= max(0.88, value_threshold + 0.16) and owed < pot * 0.20:
-            return {"action": "raise", "amount": _raise_to_fraction(state, HIGH_EQUITY_RAISE_FRACTION)}
+            frac = _sizing_fraction(state, HIGH_EQUITY_RAISE_FRACTION, "value", profile, texture, equity)
+            return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         return {"action": "call"}
 
     if equity >= odds + 0.015 and profile == "maniac":

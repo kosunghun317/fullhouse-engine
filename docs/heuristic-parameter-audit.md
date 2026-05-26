@@ -15,6 +15,8 @@ The bot now exposes env vars for the major audited knobs. This makes benchmark s
 | Wet semi-bluff frequency | `HEURISTIC_WET_BLUFF_PROB=0.25` | Draw detection improved, but frequency is still hand-authored. | Sweep `0.05, 0.15, 0.25, 0.35`; require no regression vs station/maniac suites. |
 | Call margin | `0.075 + 0.035 * extra_opponents` | Pot-odds safety margin is plausible but not derived from opponent range modeling. | Sweep base `0.055-0.105` and multiway `0.025-0.055`; optimize for 6-max chip delta and fewer busts. |
 | Risk guard thresholds | `0.76`, `0.86`, `0.92` at risk cutoffs `0.28`, `0.45`, `0.70` | Protects stack, but the thresholds are not fit to tournament scoring. | Sweep required equities and risk cutoffs separately; track bust count as a first-class metric. |
+| SPR-aware commitment | Candidate-only env knobs around low SPR and high SPR spots | Low stack-to-pot ratio should change value/call thresholds, but the right amount is matchup-dependent. | Compare `spr-aware` against baseline on `pressure_6max`, `mixed_stress_6max`, and mock suites before promoting. |
+| Off-bucket sizing | Candidate-only env knobs for occasional `0.49/0.56+` style sizing | May exploit threshold/bucket bots, but can also overpay for folds or reduce value. | Compare `anti-bucket` and `spr-anti-bucket` on `sizing_6max`, `mock_bucket_6max`, and core suites. |
 | Preflop score cutoffs | `88`, `72`, `62`, `58`, and raise-facing cutoffs | Generated 169 table exists, but action boundaries are still rough. | Convert to env-tunable thresholds or small matrix; tune by position/profile with 100-run 6-max benchmark. |
 | Opponent profile thresholds | Raise/call/fold rates such as `0.33`, `0.42`, `0.62` | Based on intuitive behavior classes, not calibrated from hand histories. | After Day 1 histories, compare classifications against actual showdown/action leaks. |
 | Equity context correction | Adjustments such as `-0.045` vs nit, `+0.025` vs maniac | Transparent but hand-authored replacement for true range-weighted equity. | Sweep corrections; reject if heads-up gain harms 6-max acceptance run. |
@@ -38,11 +40,18 @@ These are practical abstractions, not solved sizes. The reason for fixed sizes i
 Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 
 - `baseline`
+- `anti-bucket`
 - `conservative`
+- `spr-anti-bucket`
+- `spr-aware`
 - `value-heavy`
 - `pressure`
 
 The default harness now uses 400 hands and all benchmark configurations to match the hackathon setup more closely.
+
+The SPR and off-bucket configs are candidates only. They must pass at least
+`tools/select_heuristic_config.py --preset candidate` and the targeted mock
+screen before any defaults are changed.
 
 Preflop table generation:
 

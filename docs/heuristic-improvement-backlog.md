@@ -26,7 +26,9 @@ Effort scale:
 | 8 | Safer heads-up maniac mode | 3 | Heads-up aggressor benchmark should avoid stack-off variance when hero has a large lead. | Add stack-lead protection and tighter high-risk calls against maniacs. | Done |
 | 9 | Range-aware equity adjustment | 4 | Equity used by policy changes by opponent profile and betting context; benchmarks remain positive. | Apply transparent profile/risk adjustments to raw Monte Carlo equity before policy thresholds. | Done |
 | 10 | Hand-history patch workflow | 4 | One command can summarize local/exported hand histories with showdown/action leak metrics. | Add analyzer that accepts JSON hand logs/results; make it tolerant of unknown Day 1 schema. | Done |
-| 11 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
+| 11 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Candidate implemented |
+| 12 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add no-op-by-default sizing perturbation helper and named configs. | Candidate implemented |
+| 13 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
 
 ## Pro-Heuristic Gaps
 
@@ -69,6 +71,12 @@ These methods are intentionally not neural-net-like. They fit the sandbox becaus
 | 8 | Config selection bandit | Multi-armed bandit over named env configs | Suite/config result summaries. | Which config to promote to default. | Avoid overfitting to one suite; select config by lower-confidence-bound score. |
 
 For any statistical upgrade, keep the runtime implementation simple: a few coefficient arrays, if/else feature extraction, and no training inside `decide()`.
+
+Implemented candidate status:
+
+- SPR-aware commitment is available through the `spr-aware` and `spr-anti-bucket` env configs; defaults are unchanged until the selector promotes them.
+- Off-bucket sizing is available through the `anti-bucket` and `spr-anti-bucket` env configs; it only changes bet sizes within the same strategic action class.
+- Config selection is implemented as a risk-aware ranking tool in `tools/select_heuristic_config.py`; it is an offline selector, not runtime learning.
 
 ## Expected Competitor Strategies
 
