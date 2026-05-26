@@ -81,8 +81,8 @@ Local tuning env vars:
 | `HEURISTIC_DRY_BLUFF_FRACTION` | `0.42` | Dry-board bluff/steal bet fraction. |
 | `HEURISTIC_WET_SEMI_BLUFF_FRACTION` | `0.55` | Wet-board draw semi-bluff fraction. |
 | `HEURISTIC_HIGH_EQUITY_RAISE_FRACTION` | `0.85` | Rare high-equity raise fraction when facing a small bet. |
-| `HEURISTIC_SPR_*` | disabled by default | Candidate-only stack-to-pot commitment adjustments. |
-| `HEURISTIC_OFF_BUCKET_*` | disabled by default | Candidate-only sizing perturbations for bucket/threshold opponents. |
+| `HEURISTIC_SPR_*` | promoted defaults | Stack-to-pot commitment and call-margin adjustments. |
+| `HEURISTIC_OFF_BUCKET_*` | promoted defaults | Low-frequency sizing perturbations for bucket/threshold opponents. |
 | `HEURISTIC_PREFLOP_*` | varies | Preflop open/call/reraise thresholds and bet sizes. |
 | `HEURISTIC_EQUITY_ADJ_*` | varies | Context corrections applied after raw Monte Carlo equity. |
 | `HEURISTIC_*_SAMPLES` | `520/700/900` | Flop, turn, and river Monte Carlo sample counts. |
@@ -301,10 +301,10 @@ There are two sizing helpers:
 
 `_sizing_fraction(state, fraction, purpose, profile, texture, equity)`:
 
-- Applies candidate-only stack-to-pot and off-bucket sizing adjustments.
-- Low-SPR value spots can use a larger fraction when the candidate config sets a commitment equity.
-- Against possible bucket/threshold bots, candidate configs can occasionally shift bluffs to `0.56+` pot and tight-value bets toward `0.49` pot.
-- Default env values make this helper a no-op, so production behavior is unchanged until promoted by benchmark.
+- Applies stack-to-pot and off-bucket sizing adjustments.
+- Low-SPR value spots can use a larger fraction when equity is at least `0.74`.
+- Against possible bucket/threshold bots, the bot occasionally shifts bluffs to `0.56+` pot and tight-value bets toward `0.49` pot.
+- The promoted default off-bucket rate is intentionally small: `12%` of eligible sizing decisions.
 
 Current sizing is intentionally simple:
 
@@ -390,7 +390,8 @@ Adjustments:
 - Maniacs slightly reduce value thresholds.
 - Wet boards increase value threshold by `0.025`.
 - Made straights or better reduce value and thin-value thresholds.
-- Candidate-only SPR configs can lower value/call thresholds in low-SPR spots and add margin in high-SPR large-bet spots.
+- Low-SPR spots lower value/call thresholds slightly.
+- High-SPR large-bet calls receive a small extra margin.
 
 When checking is legal:
 
@@ -504,7 +505,7 @@ This fallback is deliberately simple and legal.
 
 6. Bet sizing is coarse.
 
-   It uses fixed fractions and big-blind multiples by default. Candidate-only off-bucket sizing exists, but it has not been promoted to the production defaults.
+   It still uses fixed fraction families and big-blind multiples. Off-bucket sizing is now promoted, but only at low frequency and within the same strategic action class.
 
 7. Benchmark randomness must be interpreted carefully.
 

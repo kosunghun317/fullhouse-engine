@@ -19,6 +19,18 @@ from tools.evaluate_heuristic import run_suite
 
 CONFIGS = {
     "baseline": {},
+    "legacy-baseline": {
+        "HEURISTIC_SPR_LOW_VALUE_DISCOUNT": "0.0",
+        "HEURISTIC_SPR_LOW_THIN_VALUE_DISCOUNT": "0.0",
+        "HEURISTIC_SPR_LOW_CALL_MARGIN_DISCOUNT": "0.0",
+        "HEURISTIC_SPR_HIGH_CALL_MARGIN_BONUS": "0.0",
+        "HEURISTIC_SPR_LOW_RAISE_FRACTION_BONUS": "0.0",
+        "HEURISTIC_SPR_COMMIT_EQUITY": "1.01",
+        "HEURISTIC_OFF_BUCKET_SIZING_PROB": "0.0",
+        "HEURISTIC_OFF_BUCKET_BLUFF_MIN": "0.56",
+        "HEURISTIC_OFF_BUCKET_VALUE_STATION_BONUS": "0.10",
+        "HEURISTIC_OFF_BUCKET_VALUE_TIGHT_MAX": "0.49",
+    },
     "small-ball": {
         "HEURISTIC_NORMAL_VALUE_FRACTION": "0.42",
         "HEURISTIC_PRESSURE_VALUE_FRACTION": "0.62",

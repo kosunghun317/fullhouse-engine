@@ -142,6 +142,54 @@ Interpretation:
 - The result is not enough to change production defaults because it omits the full core suite and uses only 10 seeds.
 - Next step before promotion: run `--preset promotion` or an equivalent 30-seed screen including core, stress, and mock suites.
 
+## SPR / Anti-Bucket Promotion Screen
+
+Reviewed: 2026-05-27.
+
+Command:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --preset promotion \
+  --config baseline \
+  --config spr-anti-bucket \
+  --seed-start 7301 \
+  --seed-count 30 \
+  --hands 400 \
+  --progress \
+  --json
+```
+
+Aggregate result, 15 suites x 30 seeds:
+
+| Config | Score | Mean Of Suite Means | Positive Runs | Busts | Heuristic Errors | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `spr-anti-bucket` | 6,992.48 | 11,760.72 | 373/450 | 50 | 0 | Promoted to default |
+| old `baseline` | 4,014.54 | 9,156.57 | 343/450 | 78 | 0 | Kept as `legacy-baseline` |
+
+Important suite deltas:
+
+| Suite | Old Baseline | Promoted Default | Direction |
+| --- | ---: | ---: | --- |
+| `reference_6max` | 13,162 / 7 busts | 16,738 / 6 busts | Better |
+| `mutant_6max` | 27,329 / 7 busts | 29,910 / 6 busts | Better |
+| `heads_up_shark` | 8,044 / 0 busts | 7,628 / 0 busts | Slightly worse, acceptable |
+| `heads_up_aggressor` | -1,333 / 17 busts | 2,667 / 11 busts | Better |
+| `sizing_6max` | 21,127 / 2 busts | 22,870 / 1 bust | Better |
+| `pressure_6max` | 231 / 19 busts | 15,856 / 10 busts | Much better |
+| `mixed_stress_6max` | 8,882 / 5 busts | 14,463 / 2 busts | Better |
+| `mock_rl_6max` | 6,833 / 7 busts | 11,026 / 3 busts | Better |
+| `mock_bucket_6max` | 15,137 / 0 busts | 13,918 / 0 busts | Worse, acceptable |
+| `heads_up_equity_mc` | 506 / 7 busts | 1,129 / 10 busts | Higher mean, more busts |
+
+Promotion rationale:
+
+- The candidate improves the risk-aware aggregate score, total mean, positive-run count, and total bust count.
+- Core 6-max suites improve directly.
+- The main regression is `mock_bucket_6max` mean, but the suite remains positive with no busts.
+- `heads_up_equity_mc` has higher mean but more busts; keep it as a final-run watch item.
+- The bot defaults now include the promoted SPR and off-bucket values. The old defaults remain available as `legacy-baseline`.
+
 ## Benchmark Suite Catalog
 
 Core suites:
