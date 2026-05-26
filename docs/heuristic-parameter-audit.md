@@ -52,6 +52,12 @@ poetry run python tools/generate_preflop_table.py --iterations 20000 --seed 3133
 
 The committed bot table is explicit and generated from deterministic sampled heads-up equity. It should be regenerated only when we intentionally change the score definition.
 
+Latest tuning decision:
+
+- `baseline` remains the default after 10-seed core and stress-suite comparisons.
+- `pressure` is retained as a candidate because it improved some sizing/threshold cases, but it was not robust enough to promote.
+- `small-ball` performed well in the 3-seed stress check but was too volatile in the larger 10-seed core check.
+
 Quick smoke:
 
 ```bash
