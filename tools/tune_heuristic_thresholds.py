@@ -19,6 +19,21 @@ from tools.evaluate_heuristic import run_suite
 
 CONFIGS = {
     "baseline": {},
+    "small-ball": {
+        "HEURISTIC_NORMAL_VALUE_FRACTION": "0.42",
+        "HEURISTIC_PRESSURE_VALUE_FRACTION": "0.62",
+        "HEURISTIC_THIN_VALUE_FRACTION": "0.34",
+        "HEURISTIC_DRY_BLUFF_FRACTION": "0.34",
+        "HEURISTIC_WET_SEMI_BLUFF_FRACTION": "0.44",
+    },
+    "large-value": {
+        "HEURISTIC_NORMAL_VALUE_FRACTION": "0.62",
+        "HEURISTIC_PRESSURE_VALUE_FRACTION": "0.90",
+        "HEURISTIC_THIN_VALUE_FRACTION": "0.52",
+        "HEURISTIC_HIGH_EQUITY_RAISE_FRACTION": "1.05",
+        "HEURISTIC_DRY_BLUFF_PROB": "0.28",
+        "HEURISTIC_WET_BLUFF_PROB": "0.12",
+    },
     "conservative": {
         "HEURISTIC_CALL_MARGIN_BASE": "0.095",
         "HEURISTIC_CALL_MARGIN_MULTIWAY": "0.045",
@@ -39,6 +54,26 @@ CONFIGS = {
         "HEURISTIC_DRY_BLUFF_PROB": "0.58",
         "HEURISTIC_WET_BLUFF_PROB": "0.32",
         "HEURISTIC_VALUE_THRESHOLD_BASE": "0.65",
+    },
+    "tight-preflop": {
+        "HEURISTIC_PREFLOP_OPEN_SCORE": "66",
+        "HEURISTIC_PREFLOP_LATE_PLAY_SCORE": "54",
+        "HEURISTIC_PREFLOP_CHEAP_CALL_SCORE": "52",
+        "HEURISTIC_PREFLOP_LATE_RAISE_CALL_SCORE": "62",
+    },
+    "loose-position": {
+        "HEURISTIC_PREFLOP_OPEN_SCORE": "58",
+        "HEURISTIC_PREFLOP_LATE_PLAY_SCORE": "42",
+        "HEURISTIC_PREFLOP_CHEAP_CALL_SCORE": "44",
+        "HEURISTIC_PREFLOP_HU_MANIAC_OPEN_SCORE": "48",
+    },
+    "risk-averse": {
+        "HEURISTIC_RISK_REQ_LOW": "0.81",
+        "HEURISTIC_RISK_REQ_MID": "0.90",
+        "HEURISTIC_RISK_REQ_HIGH": "0.95",
+        "HEURISTIC_RISK_CUTOFF_LOW": "0.22",
+        "HEURISTIC_CALL_MARGIN_BASE": "0.095",
+        "HEURISTIC_DRY_BLUFF_PROB": "0.25",
     },
 }
 
@@ -100,6 +135,11 @@ def main():
         "heads_up_shark",
         "heads_up_aggressor",
         "heads_up_station",
+        "sizing_6max",
+        "pressure_6max",
+        "tight_6max",
+        "mixed_stress_6max",
+        "heads_up_threshold",
     ]
     seeds = _parse_seeds(args)
 

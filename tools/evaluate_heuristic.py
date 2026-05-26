@@ -61,6 +61,57 @@ SUITES = {
             "always_call": "bots/benchmarks/always_call/bot.py",
         },
     },
+    "sizing_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "threshold_caller": "bots/benchmarks/threshold_caller/bot.py",
+            "mathematician": "bots/mathematician/bot.py",
+            "overfold": "bots/benchmarks/overfold/bot.py",
+            "always_call": "bots/benchmarks/always_call/bot.py",
+            "half_pot_pressure": "bots/benchmarks/half_pot_pressure/bot.py",
+        },
+    },
+    "pressure_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "aggressor": "bots/aggressor/bot.py",
+            "jammer": "bots/benchmarks/jammer/bot.py",
+            "short_stacker": "bots/benchmarks/short_stacker/bot.py",
+            "minraiser": "bots/benchmarks/minraiser/bot.py",
+            "half_pot_pressure": "bots/benchmarks/half_pot_pressure/bot.py",
+        },
+    },
+    "tight_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "shark": "bots/shark/bot.py",
+            "tight_premium": "bots/benchmarks/tight_premium/bot.py",
+            "template": "bots/template/bot.py",
+            "mathematician": "bots/mathematician/bot.py",
+            "overfold": "bots/benchmarks/overfold/bot.py",
+        },
+    },
+    "mixed_stress_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "shark": "bots/shark/bot.py",
+            "aggressor": "bots/aggressor/bot.py",
+            "threshold_caller": "bots/benchmarks/threshold_caller/bot.py",
+            "short_stacker": "bots/benchmarks/short_stacker/bot.py",
+            "tight_premium": "bots/benchmarks/tight_premium/bot.py",
+        },
+    },
+    "heads_up_threshold": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "threshold_caller": "bots/benchmarks/threshold_caller/bot.py",
+        },
+    },
 }
 
 
@@ -143,6 +194,11 @@ def main():
         "heads_up_shark",
         "heads_up_aggressor",
         "heads_up_station",
+        "sizing_6max",
+        "pressure_6max",
+        "tight_6max",
+        "mixed_stress_6max",
+        "heads_up_threshold",
     ]
     seeds = _parse_seeds(args)
     report = [run_suite(name, seeds, args.hands, args.summary_only) for name in suites]

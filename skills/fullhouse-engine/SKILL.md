@@ -60,6 +60,12 @@ For full benchmark summaries, run:
 poetry run python tools/evaluate_heuristic.py --seed-count 100 --summary-only --json
 ```
 
+For focused sizing/pressure benchmark checks, run:
+
+```bash
+poetry run python tools/evaluate_heuristic.py --suite sizing_6max --suite pressure_6max --suite mixed_stress_6max --seed-count 10 --summary-only --json
+```
+
 For heuristic submission packaging, run:
 
 ```bash

@@ -44,3 +44,23 @@ Accepted 100-run benchmark matrix:
 The deck seed is deterministic, but some benchmark opponents use their own process-local randomness. Treat the 100-run table as a stronger directional benchmark than the old three-seed smoke test, not as a perfectly reproducible tournament forecast.
 
 The weakest suite is still `heads_up_aggressor`. A stricter heads-up maniac-call patch was tested and then reverted because the full 100-run rerun worsened that suite to mean `-2,200` with `61` busts and slightly reduced `reference_6max`. The current bot keeps the stronger 6-max policy and records heads-up aggressor as the main known risk.
+
+## Benchmark Suite Catalog
+
+Core suites:
+
+- `reference_6max`: public reference opponents.
+- `mutant_6max`: simple mutated strategies that many rushed bots may resemble.
+- `heads_up_shark`: tight/value heads-up stress test.
+- `heads_up_aggressor`: high-variance maniac stress test.
+- `heads_up_station`: calling-station heads-up stress test.
+
+Additional parameter-audit suites:
+
+- `sizing_6max`: mixes pot-odds folders, threshold callers, overfolders, stations, and half-pot pressure. Use this to tune bet sizes.
+- `pressure_6max`: aggressor, jammer, short-stacker, minraiser, and half-pot pressure. Use this to tune risk guards and anti-maniac behavior.
+- `tight_6max`: shark, tight premium, template, mathematician, and overfolder. Use this to test blind stealing and value extraction against passive/tight tables.
+- `mixed_stress_6max`: shark, aggressor, threshold caller, short-stacker, and tight premium. Use this as a harder 6-max robustness check.
+- `heads_up_threshold`: threshold caller heads-up. Use this to test whether bet sizes exploit or feed simple call/fold thresholds.
+
+The expanded default `tools/evaluate_heuristic.py` suite set now includes both the core suites and the additional parameter-audit suites. For faster iteration, pass explicit `--suite` arguments.

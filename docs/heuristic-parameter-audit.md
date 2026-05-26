@@ -94,9 +94,9 @@ Avoid:
 
 ## Next Parameter Work
 
-1. Add and run benchmark suites that stress bet sizing, pressure, and mixed 6-max tables.
-2. Add named configs for smaller/larger value sizing and tighter/looser preflop cutoffs.
-3. Run existing-opponent sweeps first.
+1. Run existing-opponent sweeps first.
+2. Run the added parameter-audit suites: `sizing_6max`, `pressure_6max`, `tight_6max`, `mixed_stress_6max`, and `heads_up_threshold`.
+3. Compare named configs for smaller/larger value sizing, tighter/looser preflop cutoffs, and risk-averse play.
 4. Run 100-rule-matched games per surviving config.
 5. Keep only changes that improve `reference_6max` or `mutant_6max` without increasing bust count materially.
 6. Use external neural/RL baselines as diagnostic opponents, not as final acceptance criteria.
