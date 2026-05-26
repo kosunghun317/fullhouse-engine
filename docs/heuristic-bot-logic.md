@@ -118,6 +118,7 @@ If the env var is unset, the bot uses normal process-local randomness.
 
 `_preflop_score(cards)` gives a rough numeric hand score:
 
+- The bot builds `PREFLOP_SCORE_TABLE` for all 169 canonical hand classes at import time.
 - Premium classes return `92`.
 - Strong classes return `76`.
 - Speculative classes start at `55`.
@@ -459,7 +460,7 @@ This fallback is deliberately simple and legal.
 
 ### 1. Preflop Table Upgrade
 
-Replace the current score heuristic with an explicit 169-hand matrix by:
+Implemented as a generated 169-class score table. Future work should turn this score table into separate action matrices by:
 
 - Position bucket.
 - Unopened/limped/raised pot.

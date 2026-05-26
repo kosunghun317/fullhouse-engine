@@ -114,7 +114,7 @@ def _connectedness(cards):
     return abs(_rank_value(cards[0]) - _rank_value(cards[1]))
 
 
-def _preflop_score(cards):
+def _preflop_score_formula(cards):
     cls = _hand_class(cards)
     high = max((_rank_value(c) for c in cards), default=2)
     low = min((_rank_value(c) for c in cards), default=2)
@@ -144,6 +144,38 @@ def _preflop_score(cards):
     if high >= 11 and low >= 9:
         base += 8
     return min(90, max(8, int(base)))
+
+
+def _representative_cards(hand_class):
+    if len(hand_class) == 2:
+        return [hand_class[0] + "s", hand_class[1] + "h"]
+    high, low, suitedness = hand_class[0], hand_class[1], hand_class[2]
+    if suitedness == "s":
+        return [high + "s", low + "s"]
+    return [high + "s", low + "h"]
+
+
+def _build_preflop_score_table():
+    table = {}
+    ranks = list(reversed(RANK_ORDER))
+    for i, high in enumerate(ranks):
+        for j, low in enumerate(ranks):
+            if i == j:
+                cls = high + low
+                table[cls] = _preflop_score_formula(_representative_cards(cls))
+            elif i < j:
+                for suffix in ("s", "o"):
+                    cls = high + low + suffix
+                    table[cls] = _preflop_score_formula(_representative_cards(cls))
+    return table
+
+
+PREFLOP_SCORE_TABLE = _build_preflop_score_table()
+
+
+def _preflop_score(cards):
+    cls = _hand_class(cards)
+    return PREFLOP_SCORE_TABLE.get(cls, _preflop_score_formula(cards))
 
 
 # ---------------------------------------------------------------------------
