@@ -29,6 +29,7 @@ EQUITY_BUDGET_S = 0.20
 EQUITY_CACHE_MAX = 4096
 SEEN_ACTIONS_MAX = 1200
 
+ULTRA_PREMIUM_CLASSES = {"AA", "KK"}
 PREMIUM_CLASSES = {"AA", "KK", "QQ", "JJ", "AKs", "AKo"}
 STRONG_CLASSES = {
     "TT", "99", "88", "AQs", "AQo", "AJs", "AJo", "ATs", "KQs", "KQo",
@@ -441,6 +442,18 @@ def _raise_to_fraction(state, fraction):
     return min(target, current + stack)
 
 
+def _raise_to_preflop(state, big_blinds):
+    current_bet = int(state.get("current_bet", 0) or 0)
+    invested = int(state.get("your_bet_this_street", 0) or 0)
+    stack = int(state.get("your_stack", 0) or 0)
+    target = max(
+        int(state.get("min_raise_to", 0) or 0),
+        int(BIG_BLIND * big_blinds),
+        int(current_bet * 2.4),
+    )
+    return min(target, invested + stack)
+
+
 def _sanitize_action(state, intent):
     if not isinstance(intent, dict):
         intent = {}
@@ -495,6 +508,7 @@ def _preflop_policy(state):
     pot = max(1, int(state.get("pot", 0) or 0))
     facing_raise = _facing_raise_preflop(state)
     odds = _pot_odds(state)
+    heads_up = len(state.get("players", [])) <= 2
 
     late_bonus = 8 if position == "late" else 3 if position == "middle" else 0
     if profile == "nit":
@@ -505,33 +519,48 @@ def _preflop_policy(state):
     adjusted = score + late_bonus
     shallow = stack_total <= 18 * BIG_BLIND
 
-    if cls in PREMIUM_CLASSES or adjusted >= 88:
-        frac = 0.85 if profile in ("station", "maniac") else 0.62
-        return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
-
     if facing_raise:
-        if adjusted >= 78:
-            if owed <= pot * 0.55 or shallow:
+        current_bet = int(state.get("current_bet", 0) or 0)
+        risk = owed / max(1, stack_total)
+        if heads_up and profile == "maniac":
+            if adjusted >= 64 and risk <= 0.24:
+                return {"action": "call"}
+            if adjusted >= 54 and odds <= 0.30 and risk <= 0.13:
+                return {"action": "call"}
+        if cls in ULTRA_PREMIUM_CLASSES:
+            if current_bet <= 9 * BIG_BLIND and risk <= 0.22:
+                return {"action": "raise", "amount": _raise_to_preflop(state, max(7.0, current_bet / BIG_BLIND * 2.2))}
+            if risk <= 0.55 or shallow:
                 return {"action": "call"}
             return {"action": "fold"}
-        if adjusted >= 66 and odds < 0.18 and position != "early":
+        if cls in PREMIUM_CLASSES or adjusted >= 82:
+            if risk <= 0.24 and owed <= pot * 0.48:
+                return {"action": "call"}
+            return {"action": "fold"}
+        if adjusted >= 72 and odds < 0.15 and position == "late":
             return {"action": "call"}
         return {"action": "check"} if state.get("can_check") else {"action": "fold"}
 
-    if adjusted >= 68:
-        return {"action": "raise", "amount": _raise_to_fraction(state, 0.55)}
+    if cls in PREMIUM_CLASSES or adjusted >= 88:
+        return {"action": "raise", "amount": _raise_to_preflop(state, 3.4)}
 
-    if adjusted >= 55 and position != "early":
+    if heads_up and profile == "maniac" and adjusted >= 58:
+        return {"action": "raise", "amount": _raise_to_preflop(state, 2.8)}
+
+    if adjusted >= 72:
+        return {"action": "raise", "amount": _raise_to_preflop(state, 3.0)}
+
+    if adjusted >= 62 and position != "early":
         if state.get("can_check"):
             if profile == "nit" and random.random() < 0.45:
                 return {"action": "raise", "amount": _raise_to_fraction(state, 0.42)}
             return {"action": "check"}
-        if owed <= max(BIG_BLIND, int(pot * 0.24)):
+        if owed <= max(BIG_BLIND, int(pot * 0.16)):
             return {"action": "call"}
 
     if state.get("can_check"):
         return {"action": "check"}
-    if owed <= max(BIG_BLIND, int(pot * 0.10)) and adjusted >= 45:
+    if owed <= max(BIG_BLIND, int(pot * 0.08)) and adjusted >= 58:
         return {"action": "call"}
     return {"action": "fold"}
 
@@ -554,6 +583,29 @@ def _call_margin(state, profile):
     return max(0.015, margin)
 
 
+def _passes_risk_guard(state, equity, profile):
+    owed = int(state.get("amount_owed", 0) or 0)
+    if owed <= 0:
+        return True
+    stack_total = max(1, _effective_stack(state))
+    risk = owed / stack_total
+    opponents = _active_opponent_count(state)
+    required = 0.0
+    if risk >= 0.70:
+        required = 0.92
+    elif risk >= 0.45:
+        required = 0.86
+    elif risk >= 0.28:
+        required = 0.76
+    if opponents >= 3:
+        required += 0.04
+    if profile == "maniac":
+        required -= 0.02
+    if required <= 0:
+        return True
+    return equity >= required
+
+
 def _postflop_policy(state, equity):
     profile = _table_profile(state)
     texture = _board_texture(state)
@@ -564,8 +616,8 @@ def _postflop_policy(state, equity):
     opponents = _active_opponent_count(state)
     fold_pressure = _fold_pressure(state)
 
-    value_threshold = 0.63 + 0.045 * max(0, opponents - 1)
-    thin_value = 0.56 + 0.035 * max(0, opponents - 1)
+    value_threshold = 0.66 + 0.055 * max(0, opponents - 1)
+    thin_value = 0.59 + 0.045 * max(0, opponents - 1)
     if profile == "station":
         value_threshold -= 0.05
         thin_value -= 0.045
@@ -587,8 +639,10 @@ def _postflop_policy(state, equity):
         return {"action": "check"}
 
     margin = _call_margin(state, profile)
+    if not _passes_risk_guard(state, equity, profile):
+        return {"action": "fold"}
     if equity >= odds + margin:
-        if equity >= value_threshold + 0.10 and owed < pot * 0.45:
+        if equity >= max(0.88, value_threshold + 0.16) and owed < pot * 0.20:
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.85)}
         return {"action": "call"}
 

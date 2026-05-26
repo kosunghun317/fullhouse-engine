@@ -42,3 +42,9 @@ poetry run python sandbox/match.py bots/template/bot.py bots/shark/bot.py --hand
 ```
 
 For bot changes, validate the edited bot directly and run at least one seeded local match against `bots/shark/bot.py`.
+
+For heuristic bot benchmark passes, run:
+
+```bash
+poetry run python tools/evaluate_heuristic.py --json
+```

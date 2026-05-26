@@ -238,6 +238,20 @@ Metrics:
 
 Only tune thresholds against aggregate results, not one lucky seed.
 
+Current benchmark suites:
+
+- `reference_6max`: heuristic against all bundled reference bots.
+- `mutant_6max`: heuristic against committed simple exploit targets under `bots/benchmarks/`.
+- `heads_up_shark`: quick heads-up sanity check against the tight reference bot.
+- `heads_up_aggressor`: anti-maniac sanity check.
+- `heads_up_station`: anti-calling-station sanity check.
+
+Run:
+
+```bash
+poetry run python tools/evaluate_heuristic.py --json
+```
+
 ## Public Baselines To Study
 
 Use these as references, not direct dependencies:
