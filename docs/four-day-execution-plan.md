@@ -133,6 +133,17 @@ Decision metrics:
 - worst seed/min delta.
 - targeted suite result if the change is meant to fix one weakness.
 
+The local selector encodes this policy:
+
+```bash
+poetry run python tools/select_heuristic_config.py --preset candidate
+poetry run python tools/select_heuristic_config.py --preset mock-screen
+poetry run python tools/select_heuristic_config.py --preset promotion
+```
+
+The default `quick` preset is an integration check only. It must not be used
+to promote or reject a production default.
+
 Default changes must pass:
 
 ```bash

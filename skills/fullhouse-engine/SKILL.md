@@ -86,6 +86,12 @@ For threshold tuning summaries, run:
 poetry run python tools/tune_heuristic_thresholds.py --seed-count 100 --summary-only --json
 ```
 
+For risk-aware config ranking, run:
+
+```bash
+poetry run python tools/select_heuristic_config.py --preset candidate
+```
+
 For regenerating the explicit 169-class preflop table, run:
 
 ```bash

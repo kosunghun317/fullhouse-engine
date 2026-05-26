@@ -77,6 +77,24 @@ Default decision:
 - Keep `pressure`, `small-ball`, `large-value`, `value-heavy`, `tight-preflop`, `loose-position`, and `risk-averse` as benchmark-only configs.
 - The next real improvement target is not another constant tweak; it is SPR-aware risk/value logic or controlled off-bucket sizing.
 
+## Config Selection Tool
+
+Use `tools/select_heuristic_config.py` when deciding whether a named env
+configuration deserves promotion. It ranks configs with:
+
+```text
+mean_delta - risk_weight * stdev_delta + min_weight * min_delta
+- bust_penalty * bust_rate - error_penalty * error_rate
+```
+
+Recommended tiers:
+
+- `--preset quick`: integration only, not a decision sample.
+- `--preset candidate`: 10-seed screen across core and stress suites.
+- `--preset mock-screen`: 10-seed screen focused on compressed-model mocks.
+- `--preset promotion`: 30-seed minimum before changing production defaults.
+- `--preset final`: 100-seed acceptance matrix.
+
 ## Benchmark Suite Catalog
 
 Core suites:
