@@ -13,6 +13,7 @@ from sandbox.validator import validate
 
 
 BOT_PATH = ROOT / "bots" / "heuristic" / "bot.py"
+DATA_DIR = ROOT / "bots" / "heuristic" / "data"
 DEFAULT_OUTPUT = ROOT / "dist" / "heuristic_bot.zip"
 
 
@@ -22,6 +23,10 @@ def package(output):
         output.unlink()
     with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as zf:
         zf.write(BOT_PATH, "bot.py")
+        if DATA_DIR.exists():
+            for path in DATA_DIR.rglob("*"):
+                if path.is_file():
+                    zf.write(path, "data/" + str(path.relative_to(DATA_DIR)))
     return output
 
 

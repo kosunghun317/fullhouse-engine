@@ -10,8 +10,10 @@ import random
 import time
 
 import eval7
+import numpy as np
 
 BOT_NAME = "Heuristic Exploit"
+DATA_DIR = os.environ.get("BOT_DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
 
 _seed = os.environ.get("HEURISTIC_RNG_SEED")
 if _seed is not None and _seed != "":
@@ -104,6 +106,16 @@ PROFILE_PRESSURE_STATION_FOLD_RATE = _float_env("HEURISTIC_PROFILE_PRESSURE_STAT
 
 def _clamp(value, lo, hi):
     return max(lo, min(hi, value))
+
+
+def _load_tables():
+    try:
+        return np.load(os.path.join(DATA_DIR, "tables.npz"), allow_pickle=False)
+    except Exception:
+        return None
+
+
+TABLES = _load_tables()
 
 ULTRA_PREMIUM_CLASSES = {"AA", "KK"}
 PREMIUM_CLASSES = {"AA", "KK", "QQ", "JJ", "AKs", "AKo"}
@@ -382,6 +394,15 @@ PREFLOP_SCORE_TABLE = {
 
 def _preflop_score(cards):
     cls = _hand_class(cards)
+    if TABLES is not None:
+        try:
+            classes = TABLES["preflop_classes"]
+            scores = TABLES["preflop_scores"]
+            for index, hand_class in enumerate(classes):
+                if str(hand_class) == cls:
+                    return int(scores[index])
+        except Exception:
+            pass
     return PREFLOP_SCORE_TABLE.get(cls, _preflop_score_formula(cards))
 
 

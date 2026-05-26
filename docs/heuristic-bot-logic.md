@@ -111,6 +111,12 @@ EQUITY_CACHE = {}
 
 `EQUITY_CACHE` memoizes Monte Carlo equity estimates for repeated states.
 
+At import time, the bot attempts to load optional read-only lookup data from
+`data/tables.npz` with `np.load(..., allow_pickle=False)`. The current table
+contains the same explicit 169-class preflop scores as the hard-coded fallback,
+plus reserved bet-size and prior-bias arrays for later tuning. If the file is
+absent or malformed, the bot keeps running from hard-coded constants.
+
 No file writes, databases, network calls, subprocesses, threads, async tasks, pickle, or dynamic imports are used.
 
 For local evaluation only, the bot supports deterministic randomness through:
@@ -587,6 +593,7 @@ Score with mean chip delta, worst-run result, bust rate, and bot errors.
 Before final upload:
 
 - Validate `bots/heuristic/bot.py`.
+- Regenerate optional lookup data with `poetry run python tools/build_heuristic_tables.py --json`.
 - Run `poetry run python tools/package_heuristic.py --json`.
 - Confirm no extra `.py` files are inside `data/`.
 - Run the exact validator against the final submission path.

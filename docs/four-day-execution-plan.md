@@ -64,6 +64,12 @@ Use the data-size allowance without making the bot dependent on data:
 - Fallback to hard-coded constants if data is absent.
 - Update `tools/package_heuristic.py` to include optional `data/`.
 
+Implemented builder:
+
+```bash
+poetry run python tools/build_heuristic_tables.py --json
+```
+
 Success:
 
 - Package zip contains `bot.py` and `data/tables.npz`.

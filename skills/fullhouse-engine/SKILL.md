@@ -70,6 +70,7 @@ poetry run python tools/evaluate_heuristic.py --suite sizing_6max --suite pressu
 For heuristic submission packaging, run:
 
 ```bash
+poetry run python tools/build_heuristic_tables.py --json
 poetry run python tools/package_heuristic.py --json
 ```
 
