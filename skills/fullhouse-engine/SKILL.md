@@ -52,6 +52,12 @@ For heuristic bot benchmark passes, run:
 poetry run python tools/evaluate_heuristic.py --json
 ```
 
+For full benchmark summaries, run:
+
+```bash
+poetry run python tools/evaluate_heuristic.py --seed-count 100 --summary-only --json
+```
+
 For heuristic submission packaging, run:
 
 ```bash
@@ -62,4 +68,16 @@ For threshold tuning comparisons, run:
 
 ```bash
 poetry run python tools/tune_heuristic_thresholds.py --json
+```
+
+For threshold tuning summaries, run:
+
+```bash
+poetry run python tools/tune_heuristic_thresholds.py --seed-count 100 --summary-only --json
+```
+
+For exported qualifier hand-history analysis, run:
+
+```bash
+poetry run python tools/analyze_hand_history.py path/to/history.json --json
 ```

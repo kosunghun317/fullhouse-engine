@@ -64,29 +64,40 @@ def _restore_env(old):
             os.environ[key] = value
 
 
-def evaluate_config(name, suites, seeds, hands):
+def evaluate_config(name, suites, seeds, hands, summary_only=False):
     old = _set_env(CONFIGS[name])
     try:
-        results = [run_suite(suite, seeds, hands) for suite in suites]
+        results = [run_suite(suite, seeds, hands, summary_only) for suite in suites]
     finally:
         _restore_env(old)
     return {"config": name, "env": CONFIGS[name], "results": results}
+
+
+def _parse_seeds(args):
+    if args.seeds:
+        return [int(part.strip()) for part in args.seeds.split(",") if part.strip()]
+    if args.seed_count:
+        return list(range(args.seed_start, args.seed_start + args.seed_count))
+    return [101, 202, 303]
 
 
 def main():
     parser = argparse.ArgumentParser(description="Tune heuristic threshold env configurations")
     parser.add_argument("--config", choices=sorted(CONFIGS), action="append")
     parser.add_argument("--suite", action="append", default=None)
-    parser.add_argument("--seeds", default="101,202,303")
+    parser.add_argument("--seeds", default=None)
+    parser.add_argument("--seed-start", type=int, default=101)
+    parser.add_argument("--seed-count", type=int, default=None)
     parser.add_argument("--hands", type=int, default=200)
+    parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     configs = args.config or sorted(CONFIGS)
     suites = args.suite or ["reference_6max", "mutant_6max", "heads_up_aggressor"]
-    seeds = [int(part.strip()) for part in args.seeds.split(",") if part.strip()]
+    seeds = _parse_seeds(args)
 
-    report = [evaluate_config(name, suites, seeds, args.hands) for name in configs]
+    report = [evaluate_config(name, suites, seeds, args.hands, args.summary_only) for name in configs]
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
         return
@@ -97,8 +108,9 @@ def main():
             summary = suite["summary"]
             print(
                 f"  {suite['suite']}: mean={summary['mean_delta']} "
-                f"min={summary['min_delta']} positive={summary['positive_runs']}/{summary['runs']} "
-                f"errors={len(summary['heuristic_errors'])}"
+                f"min={summary['min_delta']} stdev={summary['stdev_delta']} "
+                f"positive={summary['positive_runs']}/{summary['runs']} "
+                f"busts={summary['bust_count']} errors={summary['heuristic_error_count']}"
             )
 
 

@@ -159,6 +159,9 @@ For each opponent, it tracks:
 - `all_ins`
 - `raise_total`
 - `raise_count`
+- `pressure_events`
+- `pressure_folds`
+- `pressure_calls`
 
 Actions ignored:
 
@@ -177,9 +180,9 @@ Current behavior profiles:
 | Profile | Condition |
 | --- | --- |
 | `unknown` | Fewer than 10 recorded actions or no clear pattern. |
-| `maniac` | Raise rate above `0.33` or all-in rate above `0.10`. |
-| `station` | Call rate above `0.42` and fold rate below `0.25`. |
-| `nit` | Fold rate above `0.42` and raise rate below `0.18`. |
+| `maniac` | Raise rate above `0.33`, all-in rate above `0.10`, or average raise size above `8 BB`. |
+| `station` | Call rate above `0.42` and fold rate below `0.25`, or low pressure-fold rate with high call rate. |
+| `nit` | Fold rate above `0.42` and raise rate below `0.18`, or high pressure-fold rate with low raise rate. |
 | `abc` | Raise rate below `0.20` and call rate below `0.34`. |
 
 `_table_profile(state)` summarizes the remaining table. It returns a profile when that profile appears in at least half of visible non-hero, non-folded opponents. Otherwise it returns `mixed`.
@@ -195,6 +198,8 @@ Current behavior profiles:
 | other/mixed | `0.45` |
 
 This value controls selective bluffing and semi-bluffing.
+
+If enough direct pressure observations are available, `_fold_pressure()` uses the average observed pressure-fold rate of active opponents instead of the profile fallback. This is more useful than raw fold rate because it measures how players respond after another player raises or moves all-in.
 
 ## Equity Engine
 
@@ -212,6 +217,7 @@ Postflop:
 - Compares hero's evaluated hand against sampled opponent hands.
 - Splits ties as fractional wins.
 - Caches by `(sorted_hole_cards, board_cards, opponent_count)`.
+- Adjusts the raw estimate by betting context before policy thresholds.
 
 Sampling schedule:
 
@@ -224,6 +230,15 @@ Sampling schedule:
 If there are 4+ opponents, sample count is reduced to 75%.
 
 The estimate is also limited by `EQUITY_BUDGET_S = 0.20`, and the remaining `DECIDE_BUDGET_S` is checked before sampling. This keeps the bot well below the engine timeout in normal operation.
+
+Context adjustment:
+
+- Facing a nit or ABC table reduces usable equity.
+- Facing a maniac slightly increases usable equity.
+- Large bets from non-maniacs reduce usable equity again.
+- Multiway spots receive an additional opponent-count penalty.
+
+This is not true range-weighted Monte Carlo. It is a transparent correction for the biggest mistake in random-card simulation: treating every opponent continuation range as equally wide.
 
 ## Board Texture
 
@@ -238,6 +253,14 @@ Texture adjusts value betting and bluffing:
 
 - Wet boards require slightly stronger value thresholds.
 - Dry boards are better candidates for continuation bets and small bluffs.
+
+`_hand_features(state)` also extracts hero made-hand and draw features:
+
+- Made-hand class from `eval7.handtype()`, ranked from high card through straight flush.
+- Flush draw when hero+board have four cards of one suit before the river.
+- Straight draw when hero+board cover four cards in a five-rank window before the river.
+
+Made straights or better slightly lower value thresholds. Wet-board semi-bluffs now require an actual flush or straight draw rather than only medium raw equity.
 
 ## Bet Sizing
 
@@ -339,13 +362,14 @@ Adjustments:
 - Stations reduce value thresholds because they call too much.
 - Maniacs slightly reduce value thresholds.
 - Wet boards increase value threshold by `0.025`.
+- Made straights or better reduce value and thin-value thresholds.
 
 When checking is legal:
 
 - Strong equity value-bets.
 - Thin value-bets against stations and maniacs.
 - Medium equity may bluff dry boards if fold pressure is high.
-- Wet-board semi-bluffs are rare and require high fold pressure.
+- Wet-board semi-bluffs require a real draw, enough equity, and non-station opponents.
 - Otherwise the bot checks.
 
 When facing a bet:
@@ -372,6 +396,7 @@ Additional margin:
 - Early position: `+0.025`
 - Owed amount larger than 70% of pot: `+0.04`
 - Nit or ABC profile: `+0.03`
+- Heads-up stack-lead protection against maniacs: `+0.04`
 
 Reduced margin:
 
@@ -402,6 +427,7 @@ Adjustments:
 
 - 3+ opponents: `+0.04`
 - Maniac: `-0.02`
+- Heads-up stack leader facing a maniac and risking at least 20% of stack: `+0.08`
 
 This is intentionally conservative. The tournament ranking is chip delta over finite hands, and busting can be much worse than folding a marginally profitable spot.
 
@@ -428,25 +454,25 @@ This fallback is deliberately simple and legal.
 
 ## Current Weaknesses
 
-1. Opponent modeling is action-only.
+1. Opponent modeling is still public-action-only.
 
-   The bot does not infer whether opponents showed down weak or strong hands because normal action requests do not include a clean hand-complete callback.
+   The bot tracks pressure folds and raise sizes, but it does not infer whether opponents showed down weak or strong hands during live play because normal action requests do not include a clean hand-complete callback.
 
 2. Preflop strategy is hand-authored.
 
    The 169-class policy is a rough chart, not a solved range. Some hands are likely overplayed or underplayed by position.
 
-3. Equity estimates assume random-ish opponent hole cards.
+3. Equity estimates still start from random-ish opponent hole cards.
 
-   Opponent ranges are not narrowed from preflop action, bet sizing, or street progression.
+   The policy applies context corrections after Monte Carlo, but the sampler itself does not yet draw from profile-specific hand ranges.
 
-4. Heads-up anti-maniac behavior is still high variance.
+4. Heads-up anti-maniac behavior can still be high variance.
 
-   Benchmark results were positive on average but had one busted run against the aggressor profile.
+   Stack-lead protection reduces avoidable calls, but aggressor-heavy heads-up spots can still swing hard over short samples.
 
-5. Board texture is crude.
+5. Board and hand features are still coarse.
 
-   It recognizes suited and connected boards, but not made-hand categories, blockers, nut advantage, pair blockers, or draw quality.
+   The bot recognizes made-hand class, flush draws, and straight draws, but not top pair, overpair, blockers, nut advantage, pair blockers, or draw quality.
 
 6. Bet sizing is coarse.
 
@@ -470,9 +496,9 @@ Implemented as a generated 169-class score table. Future work should turn this s
 
 This would make the bot easier to tune and reduce accidental over/under-play.
 
-### 2. Range-Aware Equity
+### 2. True Range-Weighted Equity
 
-Current Monte Carlo samples opponents from all unknown cards. A better version would weight opponent hands by action:
+Current Monte Carlo samples opponents from all unknown cards and then applies a transparent context adjustment. A better version would weight sampled opponent hands by action:
 
 - Tight raisers get stronger ranges.
 - Limp/call stations get wider ranges.
@@ -481,23 +507,20 @@ Current Monte Carlo samples opponents from all unknown cards. A better version w
 
 This can still be done with simple weighted sampling, without building a neural net.
 
-### 3. Better Hand Category Detection
+### 3. Richer Hand Category Detection
 
-Add deterministic made-hand and draw features:
+The bot already detects made-hand class, flush draw, and straight draw. Future work should add:
 
-- Pair, two pair, trips, straight, flush.
 - Overpair and top pair.
-- Flush draws.
-- Open-ended straight draws.
 - Gutshots.
 - Board-pair danger.
 - Nut blockers.
 
 Then use these features to adjust equity thresholds and bluff choices.
 
-### 4. Smarter Opponent Model
+### 4. Street-Specific Opponent Model
 
-Improve public-action stats:
+The bot already tracks global pressure folds and normalized raise size. Future work should split those stats by street:
 
 - Track actions by street.
 - Track aggression after checking.
@@ -508,7 +531,7 @@ Improve public-action stats:
 
 ### 5. Hand-History Patch Workflow
 
-After Day 1 hand histories are available, compute population leaks:
+`tools/analyze_hand_history.py` can summarize exported JSON or newline-delimited JSON hand histories. After Day 1 hand histories are available, use it to compute population leaks:
 
 - Showdown hand strength after calls.
 - Bluff frequency after large bets.

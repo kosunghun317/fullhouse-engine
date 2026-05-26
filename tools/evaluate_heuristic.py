@@ -67,8 +67,15 @@ SUITES = {
 def summarize(results):
     deltas = [r["chip_delta"].get("heuristic", 0) for r in results]
     errors = []
+    busts = 0
     for result in results:
         errors.extend(result["bot_errors"].get("heuristic", []))
+        final_stack = result.get("final_stacks", {}).get("heuristic")
+        if final_stack is not None:
+            busts += int(final_stack <= 0)
+        else:
+            busts += int(result["chip_delta"].get("heuristic", 0) <= -10000)
+    durations = [r.get("duration_s", 0) for r in results]
     return {
         "runs": len(results),
         "mean_delta": round(statistics.mean(deltas), 2) if deltas else 0,
@@ -78,11 +85,15 @@ def summarize(results):
         "stdev_delta": round(statistics.pstdev(deltas), 2) if len(deltas) > 1 else 0,
         "positive_runs": sum(1 for d in deltas if d > 0),
         "nonnegative_runs": sum(1 for d in deltas if d >= 0),
+        "bust_count": busts,
+        "mean_duration_s": round(statistics.mean(durations), 2) if durations else 0,
+        "max_duration_s": round(max(durations), 2) if durations else 0,
+        "heuristic_error_count": len(errors),
         "heuristic_errors": errors,
     }
 
 
-def run_suite(name, seeds, hands_override=None):
+def run_suite(name, seeds, hands_override=None, summary_only=False):
     suite = SUITES[name]
     hands = hands_override or suite["hands"]
     results = []
@@ -101,20 +112,34 @@ def run_suite(name, seeds, hands_override=None):
             "bot_errors": result["bot_errors"],
             "duration_s": result["duration_s"],
         })
-    return {"suite": name, "hands": hands, "summary": summarize(results), "runs": results}
+    report = {"suite": name, "hands": hands, "summary": summarize(results)}
+    if not summary_only:
+        report["runs"] = results
+    return report
+
+
+def _parse_seeds(args):
+    if args.seeds:
+        return [int(part.strip()) for part in args.seeds.split(",") if part.strip()]
+    if args.seed_count:
+        return list(range(args.seed_start, args.seed_start + args.seed_count))
+    return [101, 202, 303]
 
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark bots/heuristic/bot.py")
     parser.add_argument("--suite", choices=sorted(SUITES), action="append")
-    parser.add_argument("--seeds", default="101,202,303")
+    parser.add_argument("--seeds", default=None)
+    parser.add_argument("--seed-start", type=int, default=101)
+    parser.add_argument("--seed-count", type=int, default=None)
     parser.add_argument("--hands", type=int, default=None)
+    parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     suites = args.suite or ["reference_6max", "mutant_6max", "heads_up_shark"]
-    seeds = [int(part.strip()) for part in args.seeds.split(",") if part.strip()]
-    report = [run_suite(name, seeds, args.hands) for name in suites]
+    seeds = _parse_seeds(args)
+    report = [run_suite(name, seeds, args.hands, args.summary_only) for name in suites]
 
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
@@ -125,8 +150,10 @@ def main():
         print(
             f"{item['suite']}: mean={summary['mean_delta']} "
             f"median={summary['median_delta']} min={summary['min_delta']} "
-            f"max={summary['max_delta']} positive={summary['positive_runs']}/{summary['runs']} "
-            f"errors={len(summary['heuristic_errors'])}"
+            f"max={summary['max_delta']} stdev={summary['stdev_delta']} "
+            f"positive={summary['positive_runs']}/{summary['runs']} "
+            f"nonnegative={summary['nonnegative_runs']}/{summary['runs']} "
+            f"busts={summary['bust_count']} errors={summary['heuristic_error_count']}"
         )
 
 
