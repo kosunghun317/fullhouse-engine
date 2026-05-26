@@ -10,6 +10,7 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/project-overview.md` for repo purpose, file roles, tournament format, and frozen areas.
 - Read `docs/restrictions.md` before changing or writing any bot logic.
 - Read `docs/bot-state-and-memory.md` when reasoning about `decide()` inputs, action history, opponent modeling, or in-memory bot state.
+- Read `docs/heuristic-bot-plan.md` before implementing or tuning the heuristic competition bot.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
 
 ## Environment
@@ -26,6 +27,7 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 
 - Treat `engine/game.py`, `sandbox/runner.py`, and `db/schema.sql` as frozen unless the user explicitly asks for a change there.
 - Keep bot submissions compatible with the validator restrictions: no network, subprocesses, threading, async, file writes during gameplay, dynamic imports, or reflection escapes.
+- Keep `bots/heuristic/bot.py` submission-shaped: one production file with internal sections, one final action sanitizer, and no helper package required for validation.
 - Use `data/` only for read-only assets loaded at module-import time.
 - When changing setup, restrictions, or bot behavior assumptions, update the matching file under `docs/` and this skill if the workflow changes.
 
