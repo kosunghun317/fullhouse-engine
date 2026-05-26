@@ -57,3 +57,9 @@ For heuristic submission packaging, run:
 ```bash
 poetry run python tools/package_heuristic.py --json
 ```
+
+For threshold tuning comparisons, run:
+
+```bash
+poetry run python tools/tune_heuristic_thresholds.py --json
+```

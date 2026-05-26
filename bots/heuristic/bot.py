@@ -14,11 +14,18 @@ import eval7
 BOT_NAME = "Heuristic Exploit"
 
 _seed = os.environ.get("HEURISTIC_RNG_SEED")
-if _seed:
+if _seed is not None and _seed != "":
     try:
         random.seed(int(_seed))
     except ValueError:
         random.seed(_seed)
+
+
+def _float_env(name, default):
+    try:
+        return float(os.environ.get(name, default))
+    except (TypeError, ValueError):
+        return float(default)
 
 
 # ---------------------------------------------------------------------------
@@ -35,6 +42,16 @@ DECIDE_BUDGET_S = 1.65
 EQUITY_BUDGET_S = 0.20
 EQUITY_CACHE_MAX = 4096
 SEEN_ACTIONS_MAX = 1200
+
+CALL_MARGIN_BASE = _float_env("HEURISTIC_CALL_MARGIN_BASE", 0.075)
+CALL_MARGIN_MULTIWAY = _float_env("HEURISTIC_CALL_MARGIN_MULTIWAY", 0.035)
+RISK_REQ_LOW = _float_env("HEURISTIC_RISK_REQ_LOW", 0.76)
+RISK_REQ_MID = _float_env("HEURISTIC_RISK_REQ_MID", 0.86)
+RISK_REQ_HIGH = _float_env("HEURISTIC_RISK_REQ_HIGH", 0.92)
+VALUE_THRESHOLD_BASE = _float_env("HEURISTIC_VALUE_THRESHOLD_BASE", 0.66)
+THIN_VALUE_BASE = _float_env("HEURISTIC_THIN_VALUE_BASE", 0.59)
+DRY_BLUFF_PROB = _float_env("HEURISTIC_DRY_BLUFF_PROB", 0.45)
+WET_BLUFF_PROB = _float_env("HEURISTIC_WET_BLUFF_PROB", 0.25)
 
 ULTRA_PREMIUM_CLASSES = {"AA", "KK"}
 PREMIUM_CLASSES = {"AA", "KK", "QQ", "JJ", "AKs", "AKo"}
@@ -557,7 +574,7 @@ def _preflop_policy(state):
 
 def _call_margin(state, profile):
     opponents = _active_opponent_count(state)
-    margin = 0.075 + 0.035 * max(0, opponents - 1)
+    margin = CALL_MARGIN_BASE + CALL_MARGIN_MULTIWAY * max(0, opponents - 1)
     if _position_bucket(state) == "early":
         margin += 0.025
     owed = int(state.get("amount_owed", 0) or 0)
@@ -582,11 +599,11 @@ def _passes_risk_guard(state, equity, profile):
     opponents = _active_opponent_count(state)
     required = 0.0
     if risk >= 0.70:
-        required = 0.92
+        required = RISK_REQ_HIGH
     elif risk >= 0.45:
-        required = 0.86
+        required = RISK_REQ_MID
     elif risk >= 0.28:
-        required = 0.76
+        required = RISK_REQ_LOW
     if opponents >= 3:
         required += 0.04
     if profile == "maniac":
@@ -606,8 +623,8 @@ def _postflop_policy(state, equity):
     opponents = _active_opponent_count(state)
     fold_pressure = _fold_pressure(state)
 
-    value_threshold = 0.66 + 0.055 * max(0, opponents - 1)
-    thin_value = 0.59 + 0.045 * max(0, opponents - 1)
+    value_threshold = VALUE_THRESHOLD_BASE + 0.055 * max(0, opponents - 1)
+    thin_value = THIN_VALUE_BASE + 0.045 * max(0, opponents - 1)
     if profile == "station":
         value_threshold -= 0.05
         thin_value -= 0.045
@@ -622,9 +639,9 @@ def _postflop_policy(state, equity):
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         if equity >= thin_value and profile in ("station", "maniac"):
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.45)}
-        if equity >= 0.42 and texture != "wet" and fold_pressure >= 0.55 and random.random() < 0.45:
+        if equity >= 0.42 and texture != "wet" and fold_pressure >= 0.55 and random.random() < DRY_BLUFF_PROB:
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.42)}
-        if equity >= 0.34 and texture == "wet" and fold_pressure >= 0.62 and random.random() < 0.25:
+        if equity >= 0.34 and texture == "wet" and fold_pressure >= 0.62 and random.random() < WET_BLUFF_PROB:
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.55)}
         return {"action": "check"}
 

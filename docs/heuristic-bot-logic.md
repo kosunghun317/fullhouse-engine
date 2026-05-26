@@ -58,6 +58,21 @@ Important constants:
 | `EQUITY_CACHE_MAX` | `4096` | Equity cache reset threshold. |
 | `SEEN_ACTIONS_MAX` | `1200` | Action de-duplication reset threshold. |
 
+Local tuning env vars:
+
+| Env Var | Default | Purpose |
+| --- | ---: | --- |
+| `HEURISTIC_RNG_SEED` | unset | Optional deterministic bot-local RNG seed for evaluation. |
+| `HEURISTIC_CALL_MARGIN_BASE` | `0.075` | Base call margin over raw pot odds. |
+| `HEURISTIC_CALL_MARGIN_MULTIWAY` | `0.035` | Extra call margin per extra opponent. |
+| `HEURISTIC_RISK_REQ_LOW` | `0.76` | Required equity when risking at least 28% of stack. |
+| `HEURISTIC_RISK_REQ_MID` | `0.86` | Required equity when risking at least 45% of stack. |
+| `HEURISTIC_RISK_REQ_HIGH` | `0.92` | Required equity when risking at least 70% of stack. |
+| `HEURISTIC_VALUE_THRESHOLD_BASE` | `0.66` | Base postflop value-bet threshold. |
+| `HEURISTIC_THIN_VALUE_BASE` | `0.59` | Base thin-value threshold. |
+| `HEURISTIC_DRY_BLUFF_PROB` | `0.45` | Mixed bluff probability on dry boards. |
+| `HEURISTIC_WET_BLUFF_PROB` | `0.25` | Mixed semi-bluff probability on wet boards. |
+
 Hand-class groups:
 
 - `ULTRA_PREMIUM_CLASSES`: `AA`, `KK`
@@ -519,7 +534,9 @@ Implemented through `HEURISTIC_RNG_SEED`. Future work should use this in benchma
 
 ### 8. Threshold Search Harness
 
-Expose selected thresholds as constants and run random/grid search across:
+Implemented as `tools/tune_heuristic_thresholds.py` with named env configurations. It currently compares baseline, conservative, value-heavy, and pressure settings across selected benchmark suites.
+
+Future work can expand the named configurations or replace them with random/grid search across:
 
 - Preflop open thresholds.
 - Call margins.
