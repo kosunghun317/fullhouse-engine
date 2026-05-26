@@ -17,7 +17,7 @@ Effort scale:
 | Rank | Improvement | Effort | Quantifiable Target | Action Plan | Status |
 | ---: | --- | ---: | --- | --- | --- |
 | 1 | Deterministic evaluation mode | 1 | Same benchmark command can be rerun with fixed bot-local RNG; validator still passes without env vars. | Add optional env-controlled RNG seed in `bots/heuristic/bot.py`; document env var. | Done |
-| 2 | Submission packaging check | 1 | One command creates a zip and validates it with `sandbox/validator.py`. | Add `tools/package_heuristic.py`; default output outside committed source or under ignored build output. | Planned |
+| 2 | Submission packaging check | 1 | One command creates a zip and validates it with `sandbox/validator.py`. | Add `tools/package_heuristic.py`; default output outside committed source or under ignored build output. | Done |
 | 3 | Threshold search harness | 2 | One command evaluates named parameter sets and reports mean/min delta and errors. | Add local tuner that sets env vars before `run_match()`; keep submitted bot defaults unchanged. | Planned |
 | 4 | Code hygiene for submission bot | 1 | Remove unused import/helper while keeping validator green and benchmark command runnable. | Remove unused `math` import and unused `_players_left_to_act()` unless needed by a new feature. | Done |
 | 5 | Explicit 169-class preflop table | 3 | `_preflop_score()` has table coverage for all 169 canonical classes. | Generate an internal preflop score table at import from transparent rules; policy reads the table. | Planned |

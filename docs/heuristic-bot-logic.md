@@ -534,7 +534,7 @@ Score with mean chip delta, worst-run result, bust rate, and bot errors.
 Before final upload:
 
 - Validate `bots/heuristic/bot.py`.
-- Zip only the submission file if needed.
+- Run `poetry run python tools/package_heuristic.py --json`.
 - Confirm no extra `.py` files are inside `data/`.
 - Run the exact validator against the final submission path.
 

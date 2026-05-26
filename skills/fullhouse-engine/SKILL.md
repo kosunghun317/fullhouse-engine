@@ -51,3 +51,9 @@ For heuristic bot benchmark passes, run:
 ```bash
 poetry run python tools/evaluate_heuristic.py --json
 ```
+
+For heuristic submission packaging, run:
+
+```bash
+poetry run python tools/package_heuristic.py --json
+```
