@@ -1,6 +1,6 @@
 # Bot Restrictions And Sandbox Rules
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 ## Runtime Limits
 
@@ -63,6 +63,7 @@ Rules:
 - Treat data as read-only.
 - Keep `data/` under 200 MB.
 - Do not include Python code in `data/`.
+- Use `np.load(..., allow_pickle=False)` for numpy lookup data.
 
 Minimal pattern:
 
@@ -71,7 +72,7 @@ import os
 import numpy as np
 
 DATA_DIR = os.environ.get("BOT_DATA_DIR", os.path.join(os.path.dirname(__file__), "data"))
-TABLE = np.load(os.path.join(DATA_DIR, "table.npz"))
+TABLE = np.load(os.path.join(DATA_DIR, "table.npz"), allow_pickle=False)
 
 def decide(state):
     return {"action": "check"} if state["can_check"] else {"action": "fold"}

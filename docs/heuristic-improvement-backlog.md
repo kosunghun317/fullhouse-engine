@@ -1,6 +1,6 @@
 # Heuristic Improvement Backlog
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 This backlog turns the future-improvement ideas from `docs/heuristic-bot-logic.md` into ranked, measurable tasks.
 
@@ -27,7 +27,7 @@ Effort scale:
 | 9 | Range-aware equity adjustment | 4 | Equity used by policy changes by opponent profile and betting context; benchmarks remain positive. | Apply transparent profile/risk adjustments to raw Monte Carlo equity before policy thresholds. | Done |
 | 10 | Hand-history patch workflow | 4 | One command can summarize local/exported hand histories with showdown/action leak metrics. | Add analyzer that accepts JSON hand logs/results; make it tolerant of unknown Day 1 schema. | Done |
 | 11 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Promoted |
-| 12 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add no-op-by-default sizing perturbation helper and named configs. | Promoted |
+| 12 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
 | 13 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
 
 ## Pro-Heuristic Gaps
@@ -111,7 +111,11 @@ Candidate improvements:
 | 6 | Threshold probing | Use small test bets against unknowns; update pressure-fold stats. | Stop probing if opponent calls too much. | Faster opponent classification in 400-hand matches. |
 | 7 | Stack-pressure deviation | When we are table chip leader, pressure medium stacks more; when healthy but not dominant, avoid marginal all-ins. | Keep chip-delta scoring in mind; do not optimize for survival alone. | Lower bust count while preserving upside. |
 
-Practical rule: cap all "unlikely action" mixing to a small explicit budget, probably `2-6%` of eligible close decisions, and make it env-tunable. The action still has to be a recognizable poker line: trap, delayed c-bet, blocker bluff, probe, or off-bucket size. Do not add pure noise.
+Practical rule: cap all "unlikely action" mixing to a small explicit budget and
+make it env-tunable. Off-bucket sizing is currently promoted at `12%` of
+eligible sizing decisions after benchmark promotion. Any additional ambiguity
+layer should still be a recognizable poker line: trap, delayed c-bet, blocker
+bluff, probe, or off-bucket size. Do not add pure noise.
 
 ## Implementation Policy
 
@@ -129,6 +133,9 @@ Final acceptance run:
 - Report mean, median, standard deviation, min, max, positive-run count, nonnegative-run count, bust count, and bot-error count.
 - Use the committed benchmark harness, not an ad hoc script.
 
-Ranks 1-10 are implemented. Rank 11 is intentionally left as a later tuning pass because it is likely to overfit without a larger seed set and should use the 100-run benchmark output as its input signal.
+Ranks 1-12 are implemented or promoted. Full preflop matrix tuning remains the
+main deferred architecture item because it is likely to overfit without a
+larger seed set and should use the 100-run benchmark output as its input
+signal.
 
 The acceptance run is recorded in `docs/heuristic-benchmark-results.md`. Its main actionable finding is that heads-up aggressor remains high variance and should be optimized only if doing so does not reduce 6-max performance.

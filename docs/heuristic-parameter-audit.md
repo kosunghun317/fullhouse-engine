@@ -1,6 +1,6 @@
 # Heuristic Parameter Audit
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 This document lists the current bot choices that are not fully justified by data yet. These are the knobs to tune before changing architecture.
 
@@ -63,9 +63,10 @@ The committed bot table is explicit and generated from deterministic sampled hea
 
 Latest tuning decision:
 
-- `baseline` remains the default after 10-seed core and stress-suite comparisons.
-- `pressure` is retained as a candidate because it improved some sizing/threshold cases, but it was not robust enough to promote.
-- `small-ball` performed well in the 3-seed stress check but was too volatile in the larger 10-seed core check.
+- `baseline` now means the promoted SPR/off-bucket profile.
+- `legacy-baseline` preserves the pre-promotion defaults.
+- The promotion was accepted after a 30-seed screen and a 100-seed final matrix across core, stress, and mock suites.
+- `pressure`, `small-ball`, `spr-aware`, and `anti-bucket` remain comparison configs, not production defaults.
 
 Quick smoke:
 
@@ -82,11 +83,10 @@ poetry run python tools/tune_heuristic_thresholds.py \
 Rule-matched comparison:
 
 ```bash
-poetry run python tools/tune_heuristic_thresholds.py \
-  --seed-start 1001 \
-  --seed-count 100 \
-  --hands 400 \
-  --summary-only \
+poetry run python tools/select_heuristic_config.py \
+  --preset final \
+  --config baseline \
+  --progress \
   --json
 ```
 
@@ -109,9 +109,8 @@ Avoid:
 
 ## Next Parameter Work
 
-1. Run existing-opponent sweeps first.
-2. Run the added parameter-audit suites: `sizing_6max`, `pressure_6max`, `tight_6max`, `mixed_stress_6max`, and `heads_up_threshold`.
-3. Compare named configs for smaller/larger value sizing, tighter/looser preflop cutoffs, and risk-averse play.
-4. Run 100-rule-matched games per surviving config.
-5. Keep only changes that improve `reference_6max` or `mutant_6max` without increasing bust count materially.
-6. Use external neural/RL baselines as diagnostic opponents, not as final acceptance criteria.
+1. Keep `baseline` as the promoted SPR/off-bucket default unless a future promotion screen beats it.
+2. Compare against `legacy-baseline` only when checking whether a new idea is better than the pre-promotion policy.
+3. Prioritize high-variance watch items from the 100-seed matrix: `pressure_6max`, `heads_up_equity_mc`, and `heads_up_aggressor`.
+4. Treat external neural/RL baselines as diagnostic opponents, not final acceptance criteria.
+5. Promote any new default only after candidate, promotion, and final acceptance screens.

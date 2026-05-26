@@ -1,6 +1,6 @@
 # Bot State, History, And In-Memory Storage
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 ## What `decide()` Receives
 
@@ -160,3 +160,16 @@ Practical consequences:
 - The 768 MB memory limit includes imports, loaded data, lookup tables, and any in-memory opponent model.
 
 For cross-hand strategy inside a match, module-level memory is the right tool. For cross-match knowledge, train or prepare offline and ship read-only artifacts in `data/`.
+
+## Current Heuristic Usage
+
+`bots/heuristic/bot.py` currently follows this pattern:
+
+- `OPPONENTS`: per-`bot_id` action and pressure-response statistics.
+- `SEEN_ACTIONS`: de-duplicates rolling `match_action_log` entries.
+- `EQUITY_CACHE`: memoizes bounded Monte Carlo equity estimates.
+- `data/tables.npz`: optional read-only import-time lookup table for preflop scores and reserved tuning arrays.
+
+The promoted strategy uses only public state, in-memory counters, bounded
+Monte Carlo, and import-time read-only numpy data. It does not write files or
+persist state across matches.

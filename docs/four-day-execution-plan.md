@@ -18,10 +18,10 @@ This plan classifies the attached strategy suggestions by what is realistically 
 | --- | --- | --- | --- |
 | Mock competitor bot zoo | Implement now | Low risk, directly improves tests against likely field strategies. | Add `bots/mock_competitors/` and benchmark suites. |
 | Preflop lookup table | Done | Explicit 169-class table is already embedded. | Keep generator and tune thresholds around it. |
-| Data-package lookup tables | Implement now | Useful, simple, and allowed by rules. | Add optional `data/tables.npz` support and package script inclusion. |
+| Data-package lookup tables | Done | Useful, simple, and allowed by rules. | Optional `data/tables.npz` support and package inclusion are implemented. |
 | Pot-odds threshold detector | Implement soon | Concrete exploit, easy to validate. | Track small/large pressure responses and adjust sizing. |
-| SPR-aware risk/value logic | Implement soon | Likely improves bust control and pressure suites. | Add `_spr()` and risk/value threshold adjustments. |
-| Off-bucket sizing mix | Implement soon | Direct counter to bucketed CFR/NN policies. | Low-frequency nearby size variation with guardrails. |
+| SPR-aware risk/value logic | Promoted | Improved pressure/mixed/mock suites in 30-seed promotion and 100-seed final screens. | Defaults now include low-SPR value/call adjustments. |
+| Off-bucket sizing mix | Promoted | Direct counter to bucketed CFR/NN policies. | Defaults now include guarded low-frequency sizing variation. |
 | Low-frequency trap checks | Implement soon | Simple anti-maniac/anti-modeling improvement. | Strong-hand checks vs aggressive profiles only. |
 | Delayed c-bet / probe logic | Prototype if time | Needs action-line state parsing, but manageable. | Turn bet after flop checks through and opponent checks again. |
 | Blocker-based bluffs | Prototype if time | Requires careful board/card feature extraction. | Only rare bluffs with nut blockers, never vs stations. |
@@ -116,7 +116,17 @@ Success:
 
 ## Current Default Policy
 
-The current default remains `baseline`. Prior tuning showed `pressure` and `small-ball` help selected suites but are not robust enough to promote.
+The current default is still named `baseline`, but it now includes the promoted
+SPR/off-bucket behavior. The pre-promotion default is preserved as
+`legacy-baseline` for comparisons.
+
+The promotion was based on:
+
+- 10-seed targeted candidate screen.
+- 30-seed promotion screen over core, stress, and mock suites.
+- 100-seed final acceptance matrix over 15 suites.
+
+See `docs/heuristic-benchmark-results.md` for the exact numbers.
 
 Smoke tests are validity checks only. Do not promote or reject a default from a smoke result. A config decision needs a large enough sample:
 
@@ -139,6 +149,7 @@ The local selector encodes this policy:
 poetry run python tools/select_heuristic_config.py --preset candidate
 poetry run python tools/select_heuristic_config.py --preset mock-screen
 poetry run python tools/select_heuristic_config.py --preset promotion
+poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress
 ```
 
 The default `quick` preset is an integration check only. It must not be used
@@ -149,6 +160,7 @@ Default changes must pass:
 ```bash
 poetry run pytest -q
 poetry run python sandbox/validator.py bots/heuristic/bot.py
+poetry run python tools/build_heuristic_tables.py --json
 poetry run python tools/package_heuristic.py --json
-poetry run python tools/evaluate_heuristic.py --seed-start 1001 --seed-count 100 --hands 400 --summary-only --json
+poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```

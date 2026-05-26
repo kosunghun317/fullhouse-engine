@@ -1,6 +1,6 @@
 # Heuristic Bot Implementation Plan
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 ## Project Framing
 
@@ -22,10 +22,14 @@ Primary submission path:
 
 ```text
 bots/heuristic/
-└── bot.py
+├── bot.py
+└── data/
+    └── tables.npz
 ```
 
-Keep the production bot in one file because the simplest valid submission is `bot.py`. Use clear internal sections instead of introducing a package that later has to be flattened for submission.
+Keep the production logic in one file because the simplest valid submission is
+`bot.py`. Optional data is read-only and loaded at import time with
+`np.load(..., allow_pickle=False)`.
 
 Planned `bot.py` sections:
 
@@ -50,7 +54,7 @@ Use module-level memory only:
 ```python
 OPPONENTS = {}
 SEEN_ACTIONS = set()
-HAND_SNAPSHOTS = {}
+EQUITY_CACHE = {}
 ```
 
 Track only public information from `action_log`, `match_action_log`, and visible stack/pot state.
@@ -175,19 +179,21 @@ Against pot-odds bots:
 
 ## Bet Sizing
 
-Use a small fixed size menu:
+Use a small fixed size family with low-frequency off-bucket deviations:
 
 - `min_raise_to`
-- `1/3 pot`
-- `1/2 pot`
-- `2/3 pot`
-- `pot`
+- dry bluffs around `0.42` pot.
+- normal value around `0.52` pot.
+- wet-board semi-bluffs around `0.55` pot.
+- pressure/value around `0.75` pot.
+- rare high-equity raises around `0.85` pot.
+- occasional `0.49`/`0.56+` pot deviations to stress threshold and bucketed policies.
 - `all_in`
 
 Convert all size intents through one function:
 
 ```python
-size_raise_to(state, fraction_of_pot)
+_raise_to_fraction(state, fraction_of_pot)
 ```
 
 Then pass through `sanitize_action()`.
@@ -220,11 +226,11 @@ After a validating first bot exists, add a local harness outside the submitted b
 tools/evaluate_heuristic.py
 ```
 
-The harness should run seeded 400-hand matches against:
+The harness runs seeded 400-hand matches against:
 
 - Fullhouse reference bots.
 - Mutated always-call / overfold / overraise / minraise variants.
-- Self-play copies of the heuristic bot.
+- Local mock competitors under `bots/mock_competitors/`, including trained numpy-policy, equity Monte Carlo, bucket-policy, c-bet, and opponent-modeling bots.
 
 Metrics:
 
@@ -245,12 +251,18 @@ Current benchmark suites:
 - `heads_up_shark`: quick heads-up sanity check against the tight reference bot.
 - `heads_up_aggressor`: anti-maniac sanity check.
 - `heads_up_station`: anti-calling-station sanity check.
+- `sizing_6max`, `pressure_6max`, `tight_6max`, `mixed_stress_6max`, and `heads_up_threshold`: stress suites for sizing, pressure, tight tables, and threshold callers.
+- `mock_rl_6max`, `mock_bucket_6max`, `mock_adaptive_6max`, `heads_up_mock_numpy`, and `heads_up_equity_mc`: likely compressed-model and adaptive-opponent mocks.
 
 Run:
 
 ```bash
 poetry run python tools/evaluate_heuristic.py --json
+poetry run python tools/select_heuristic_config.py --preset candidate --progress
 ```
+
+The current promoted defaults passed the 30-seed promotion screen and the
+100-seed final acceptance matrix in `docs/heuristic-benchmark-results.md`.
 
 ## Public Baselines To Study
 
@@ -275,7 +287,9 @@ Do not spend the first week trying to port any of these systems. The contest bot
 4. Add bounded `eval7` postflop equity estimates and caching.
 5. Add postflop value/call/bluff policy.
 6. Add exploit adjustments by opponent type.
-7. Add local evaluation harness and mutated benchmark bots if needed.
-8. Tune thresholds from seeded aggregate results.
+7. Add local evaluation harness and mutated benchmark bots.
+8. Add mock competitor suites and optional lookup data.
+9. Add risk-aware config selection.
+10. Promote defaults only after candidate, promotion, and final acceptance screens.
 
 Each step should update docs or this plan if assumptions change, then commit.

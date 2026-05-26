@@ -1,10 +1,15 @@
 # External Poker AI Benchmark Plan
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 This document records the public RL/deep-learning poker baselines that are realistic enough to consider for offline tuning of `bots/heuristic/bot.py`.
 
 The goal is not to train or distill those systems. The goal is to run our heuristic bot against stronger or different opponents, then tune our own interpretable parameters.
+
+Current status: local mock competitors are already implemented under
+`bots/mock_competitors/` and are the primary rule-matched substitute for
+external RL/NN/CFR systems. External projects remain optional diagnostics
+because they do not match the Fullhouse interface as closely.
 
 ## Rule-Matched Test Envelope
 
@@ -31,11 +36,11 @@ Sources:
 Rule-matched local command:
 
 ```bash
-poetry run python tools/evaluate_heuristic.py \
-  --seed-start 1001 \
-  --seed-count 100 \
+poetry run python tools/select_heuristic_config.py \
+  --preset final \
+  --config baseline \
   --hands 400 \
-  --summary-only \
+  --progress \
   --json
 ```
 
@@ -166,14 +171,15 @@ Recommendation:
 
 ## Immediate Execution Plan
 
-1. Keep the Fullhouse benchmark harness as the primary tuning signal.
+1. Keep the Fullhouse benchmark harness and `bots/mock_competitors/` suites as the primary tuning signal.
 2. Use the public model inventory only to choose optional external opponents.
 3. If adding an external model, integrate it as a benchmark-only adapter and keep model artifacts ignored.
-4. Prefer this order:
+4. Do not promote bot defaults from external benchmarks alone; rerun the local candidate/promotion/final screens.
+5. Prefer this order:
    1. AlphaNLHoldem pretrained checkpoint for quick neural heads-up pressure.
    2. DeepCFR 6-player small locally trained checkpoint if dependency install and smoke training pass.
    3. DecisionHoldem only if the Baidu data and Mac build are confirmed.
-5. Do not change `bots/heuristic/bot.py` structure for external dependencies.
+6. Do not change `bots/heuristic/bot.py` structure for external dependencies.
 
 ## What To Measure Against External Models
 
@@ -192,5 +198,5 @@ Do not accept a tuning change unless it also passes:
 ```bash
 poetry run pytest -q
 poetry run python sandbox/validator.py bots/heuristic/bot.py
-poetry run python tools/evaluate_heuristic.py --seed-start 1001 --seed-count 100 --hands 400 --summary-only --json
+poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```

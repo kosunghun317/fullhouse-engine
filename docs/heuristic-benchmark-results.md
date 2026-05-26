@@ -1,27 +1,19 @@
 # Heuristic Bot Benchmark Results
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 ## Validation Commands
 
 ```bash
 poetry run pytest -q
 poetry run python sandbox/validator.py bots/heuristic/bot.py
+poetry run python tools/build_heuristic_tables.py --json
+poetry run python tools/package_heuristic.py --json
 poetry run python sandbox/match.py bots/heuristic/bot.py bots/shark/bot.py --hands 100 --seed 77 --json
-poetry run python tools/evaluate_heuristic.py \
-  --suite reference_6max \
-  --suite mutant_6max \
-  --suite heads_up_shark \
-  --suite heads_up_aggressor \
-  --suite heads_up_station \
-  --seed-start 1001 \
-  --seed-count 100 \
-  --hands 400 \
-  --summary-only \
-  --json
+poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```
 
-## Results Summary
+## Historical Pre-Promotion Core Results
 
 Core validation:
 
@@ -29,7 +21,9 @@ Core validation:
 - Validator: `bots/heuristic/bot.py` passed.
 - Direct shark smoke match: heuristic `+7,590` over 100 hands with `HEURISTIC_RNG_SEED=11`, no bot errors.
 
-Accepted 100-run benchmark matrix:
+This was the accepted 100-run benchmark matrix before the SPR/off-bucket
+promotion. Keep it as historical context; the current accepted matrix is the
+`Final 100-Seed Acceptance Matrix` later in this file.
 
 | Suite | Hands x Runs | Mean Delta | Median Delta | Stdev | Min Delta | Max Delta | Positive Runs | Nonnegative Runs | Busts | Heuristic Errors |
 | --- | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
@@ -43,11 +37,13 @@ Accepted 100-run benchmark matrix:
 
 The deck seed is deterministic, but some benchmark opponents use their own process-local randomness. Treat the 100-run table as a stronger directional benchmark than the old three-seed smoke test, not as a perfectly reproducible tournament forecast.
 
-The weakest suite is still `heads_up_aggressor`. A stricter heads-up maniac-call patch was tested and then reverted because the full 100-run rerun worsened that suite to mean `-2,200` with `61` busts and slightly reduced `reference_6max`. The current bot keeps the stronger 6-max policy and records heads-up aggressor as the main known risk.
+At that point the weakest suite was `heads_up_aggressor`. The promoted
+SPR/off-bucket defaults improved that suite in later promotion/final screens,
+though it remains a high-variance watch item.
 
 ## Parameter Audit Run
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-26. Historical; superseded by the 2026-05-27 promotion and final matrices.
 
 Changes tested:
 
@@ -70,12 +66,12 @@ Stress-suite 10-seed comparison, 400 hands per run, seeds `4001-4010`:
 | `baseline` | 21,388.9 / 0 busts | -1,730.3 / 6 busts | 15,235.3 / 0 busts | 10,179.3 / 1 bust | 4,339.2 / 0 busts | More robust mixed result |
 | `pressure` | 21,487.5 / 0 busts | -828.8 / 6 busts | 15,282.4 / 0 busts | 6,563.2 / 2 busts | 5,128.7 / 0 busts | Better threshold/pressure mean, worse mixed robustness |
 
-Default decision:
+Historical default decision:
 
-- Keep current defaults.
+- Keep then-current defaults.
 - Do not promote `pressure` because the core run shows worse `mutant_6max` and `heads_up_aggressor`, and the stress run shows worse `mixed_stress_6max`.
 - Keep `pressure`, `small-ball`, `large-value`, `value-heavy`, `tight-preflop`, `loose-position`, and `risk-averse` as benchmark-only configs.
-- The next real improvement target is not another constant tweak; it is SPR-aware risk/value logic or controlled off-bucket sizing.
+- The next real improvement target was SPR-aware risk/value logic or controlled off-bucket sizing; that work was later promoted.
 
 ## Config Selection Tool
 

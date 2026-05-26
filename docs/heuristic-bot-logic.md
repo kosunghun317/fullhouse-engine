@@ -1,6 +1,6 @@
 # Heuristic Bot Logic
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 This document explains the current logic in `bots/heuristic/bot.py` and records improvement directions for future tuning.
 
@@ -587,7 +587,13 @@ Implemented through `HEURISTIC_RNG_SEED`. Future work should use this in benchma
 
 ### 8. Threshold Search Harness
 
-Implemented as `tools/tune_heuristic_thresholds.py` with named env configurations. It currently compares baseline, conservative, value-heavy, and pressure settings across selected benchmark suites.
+Implemented as:
+
+- `tools/tune_heuristic_thresholds.py`: named env configurations.
+- `tools/select_heuristic_config.py`: risk-aware candidate, promotion, and final ranking.
+
+`baseline` now means the promoted SPR/off-bucket profile. Use
+`legacy-baseline` when comparing against the pre-promotion default.
 
 Future work can expand the named configurations or replace them with random/grid search across:
 

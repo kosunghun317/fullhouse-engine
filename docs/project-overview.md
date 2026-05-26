@@ -1,6 +1,6 @@
 # Fullhouse Engine Project Overview
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 ## What This Repo Is
 
@@ -23,7 +23,13 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `sandbox/runner.py`: Runtime process that loads a submitted bot and exchanges newline-delimited JSON actions.
 - `sandbox/match.py`: Local match orchestrator for 2-9 bots, with optional Docker sandboxing.
 - `sandbox/Dockerfile`: Production-like bot container using Python 3.10 and sandbox-approved libraries.
-- `bots/`: Reference bots and starter template.
+- `bots/`: Reference bots, starter template, heuristic bot, simple benchmark bots, and mock competitor bots.
+- `bots/heuristic/`: Current competition bot, optional read-only `data/tables.npz`, and single-file submission entrypoint.
+- `bots/mock_competitors/`: Local-only trained/handwritten benchmark opponents that approximate likely RL/NN/CFR/equity submissions.
+- `tools/evaluate_heuristic.py`: Seeded benchmark harness for core, stress, and mock suites.
+- `tools/select_heuristic_config.py`: Risk-aware config ranking and promotion-screen harness.
+- `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
+- `tools/build_heuristic_tables.py`: Optional read-only data table builder.
 - `demo.py`: Flask demo UI showing local reference-bot matches.
 - `tests/`: Engine unit tests.
 
@@ -87,3 +93,12 @@ The library-request deadline in `CONTRIBUTING.md` is 2026-05-25 23:59 UTC, which
 - `db/schema.sql`
 
 Acceptable contribution areas include bug reports, local demo UI improvements, additional reference bots, and documentation.
+
+## Current Heuristic Bot Status
+
+The active competition branch is `heuristic`. The current promoted default is
+the SPR/off-bucket sizing profile documented in
+`docs/heuristic-benchmark-results.md`. The old pre-promotion behavior remains
+available as the local tuning config `legacy-baseline`.
+
+Use the benchmark docs as the source of truth before changing bot defaults.

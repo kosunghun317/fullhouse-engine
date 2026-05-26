@@ -58,7 +58,7 @@ poetry run python tools/evaluate_heuristic.py --json
 For full benchmark summaries, run:
 
 ```bash
-poetry run python tools/evaluate_heuristic.py --seed-count 100 --summary-only --json
+poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```
 
 For focused sizing/pressure benchmark checks, run:

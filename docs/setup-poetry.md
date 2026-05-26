@@ -1,6 +1,6 @@
 # Poetry Setup
 
-Reviewed: 2026-05-26.
+Reviewed: 2026-05-27.
 
 This repo is configured for Python 3.10 because `eval7==0.1.7` is not compatible with Python 3.11+ builds that moved `longintrepr.h`.
 
@@ -42,6 +42,15 @@ poetry run pytest -q
 poetry run python sandbox/validator.py bots/template/bot.py
 poetry run python sandbox/match.py bots/template/bot.py bots/shark/bot.py --hands 20 --seed 7
 poetry run python demo.py
+```
+
+Heuristic bot workflow commands:
+
+```bash
+poetry run python tools/build_heuristic_tables.py --json
+poetry run python sandbox/validator.py bots/heuristic
+poetry run python tools/package_heuristic.py --json
+poetry run python tools/select_heuristic_config.py --preset candidate --progress
 ```
 
 The demo listens on port 5001 by default:
