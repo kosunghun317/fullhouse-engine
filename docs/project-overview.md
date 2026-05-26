@@ -30,6 +30,7 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `tools/select_heuristic_config.py`: Risk-aware config ranking and promotion-screen harness.
 - `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
 - `tools/build_heuristic_tables.py`: Optional read-only data table builder.
+- `tools/harden_submission.py`: Full heuristic submission hardening command for table rebuild, packaging, validation, zip inspection, and sanity matches.
 - `demo.py`: Flask demo UI showing local reference-bot matches.
 - `tests/`: Engine unit tests.
 

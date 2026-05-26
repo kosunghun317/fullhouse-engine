@@ -612,6 +612,7 @@ Before final upload:
 - Validate `bots/heuristic/bot.py`.
 - Regenerate optional lookup data with `poetry run python tools/build_heuristic_tables.py --json`.
 - Run `poetry run python tools/package_heuristic.py --json`.
+- Run `poetry run python tools/harden_submission.py --json`.
 - Confirm no extra `.py` files are inside `data/`.
 - Run the exact validator against the final submission path.
 

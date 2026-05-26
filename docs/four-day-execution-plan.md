@@ -162,5 +162,6 @@ poetry run pytest -q
 poetry run python sandbox/validator.py bots/heuristic/bot.py
 poetry run python tools/build_heuristic_tables.py --json
 poetry run python tools/package_heuristic.py --json
+poetry run python tools/harden_submission.py --json
 poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```
