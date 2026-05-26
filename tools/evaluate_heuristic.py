@@ -137,7 +137,13 @@ def main():
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    suites = args.suite or ["reference_6max", "mutant_6max", "heads_up_shark"]
+    suites = args.suite or [
+        "reference_6max",
+        "mutant_6max",
+        "heads_up_shark",
+        "heads_up_aggressor",
+        "heads_up_station",
+    ]
     seeds = _parse_seeds(args)
     report = [run_suite(name, seeds, args.hands, args.summary_only) for name in suites]
 

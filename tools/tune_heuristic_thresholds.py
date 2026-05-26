@@ -88,13 +88,19 @@ def main():
     parser.add_argument("--seeds", default=None)
     parser.add_argument("--seed-start", type=int, default=101)
     parser.add_argument("--seed-count", type=int, default=None)
-    parser.add_argument("--hands", type=int, default=200)
+    parser.add_argument("--hands", type=int, default=400)
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
     configs = args.config or sorted(CONFIGS)
-    suites = args.suite or ["reference_6max", "mutant_6max", "heads_up_aggressor"]
+    suites = args.suite or [
+        "reference_6max",
+        "mutant_6max",
+        "heads_up_shark",
+        "heads_up_aggressor",
+        "heads_up_station",
+    ]
     seeds = _parse_seeds(args)
 
     report = [evaluate_config(name, suites, seeds, args.hands, args.summary_only) for name in configs]

@@ -13,6 +13,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/heuristic-bot-plan.md` before implementing or tuning the heuristic competition bot.
 - Read `docs/heuristic-bot-logic.md` before modifying `bots/heuristic/bot.py`; it explains the current policy and improvement backlog.
 - Read `docs/heuristic-improvement-backlog.md` before selecting heuristic bot improvements; it ranks tasks by ease and defines success criteria.
+- Read `docs/heuristic-parameter-audit.md` before tuning heuristic thresholds or bet sizes.
+- Read `docs/external-poker-ai-benchmarks.md` before adding any external poker AI benchmark opponent.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic changes against the latest recorded benchmark run.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
 
