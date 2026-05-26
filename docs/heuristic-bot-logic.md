@@ -323,6 +323,7 @@ Position bonus:
 Facing a raise:
 
 - Heads-up vs maniac: calls wider with medium-plus hands if stack risk is controlled.
+- Heads-up vs maniac still uses stricter thresholds than 6-max maniac spots because the public aggressor can create high-variance all-in races with random hands.
 - `AA` and `KK`: may reraise when the current bet is not too large and risk is low.
 - Premium/very strong hands: prefer calls over stack-off reraises when risk is reasonable.
 - Marginal late-position hands: call only at good odds.
@@ -400,7 +401,8 @@ Additional margin:
 
 Reduced margin:
 
-- Maniac: `-0.055`
+- Maniac: `-0.055` in multiway and 6-max spots.
+- Heads-up maniac: `-0.020`
 - Station: `-0.015`
 
 The result is clamped to at least `0.015`.
@@ -426,7 +428,7 @@ Required equity:
 Adjustments:
 
 - 3+ opponents: `+0.04`
-- Maniac: `-0.02`
+- Maniac in 3+ player hands: `-0.02`
 - Heads-up stack leader facing a maniac and risking at least 20% of stack: `+0.08`
 
 This is intentionally conservative. The tournament ranking is chip delta over finite hands, and busting can be much worse than folding a marginally profitable spot.

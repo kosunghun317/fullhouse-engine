@@ -662,9 +662,9 @@ def _preflop_policy(state):
         current_bet = int(state.get("current_bet", 0) or 0)
         risk = owed / max(1, stack_total)
         if heads_up and profile == "maniac":
-            if adjusted >= 64 and risk <= 0.24:
+            if adjusted >= 68 and risk <= 0.22:
                 return {"action": "call"}
-            if adjusted >= 54 and odds <= 0.30 and risk <= 0.13:
+            if adjusted >= 60 and odds <= 0.28 and risk <= 0.10:
                 return {"action": "call"}
         if cls in ULTRA_PREMIUM_CLASSES:
             if current_bet <= 9 * BIG_BLIND and risk <= 0.22:
@@ -716,7 +716,7 @@ def _call_margin(state, profile):
     if profile in ("nit", "abc"):
         margin += 0.03
     elif profile == "maniac":
-        margin -= 0.055
+        margin -= 0.020 if len(state.get("players", [])) <= 2 else 0.055
     elif profile == "station":
         margin -= 0.015
     if _is_heads_up_stack_leader(state) and profile == "maniac":
@@ -754,7 +754,7 @@ def _passes_risk_guard(state, equity, profile):
         required = RISK_REQ_LOW
     if opponents >= 3:
         required += 0.04
-    if profile == "maniac":
+    if profile == "maniac" and len(state.get("players", [])) > 2:
         required -= 0.02
     if profile == "maniac" and _is_heads_up_stack_leader(state) and risk >= 0.20:
         required += 0.08
@@ -826,7 +826,8 @@ def _postflop_policy(state, equity):
             return {"action": "raise", "amount": _raise_to_fraction(state, 0.85)}
         return {"action": "call"}
 
-    if equity >= odds + 0.015 and profile == "maniac":
+    risk = owed / max(1, _effective_stack(state))
+    if equity >= odds + 0.015 and profile == "maniac" and (len(state.get("players", [])) > 2 or risk <= 0.12):
         return {"action": "call"}
     if owed <= max(BIG_BLIND, int(pot * 0.08)) and equity >= 0.18:
         return {"action": "call"}
