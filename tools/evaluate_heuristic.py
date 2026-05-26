@@ -112,6 +112,53 @@ SUITES = {
             "threshold_caller": "bots/benchmarks/threshold_caller/bot.py",
         },
     },
+    "mock_rl_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "numpy_policy": "bots/mock_competitors/numpy_policy",
+            "equity_mc": "bots/mock_competitors/equity_mc/bot.py",
+            "bucket_policy": "bots/mock_competitors/bucket_policy/bot.py",
+            "cbet_reg": "bots/mock_competitors/cbet_reg/bot.py",
+            "opponent_modeler": "bots/mock_competitors/opponent_modeler/bot.py",
+        },
+    },
+    "mock_bucket_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "bucket_policy": "bots/mock_competitors/bucket_policy/bot.py",
+            "pot_odds_plus": "bots/mock_competitors/pot_odds_plus/bot.py",
+            "copy_shark_plus": "bots/mock_competitors/copy_shark_plus/bot.py",
+            "threshold_caller": "bots/benchmarks/threshold_caller/bot.py",
+            "tight_premium": "bots/benchmarks/tight_premium/bot.py",
+        },
+    },
+    "mock_adaptive_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "opponent_modeler": "bots/mock_competitors/opponent_modeler/bot.py",
+            "cbet_reg": "bots/mock_competitors/cbet_reg/bot.py",
+            "copy_shark_plus": "bots/mock_competitors/copy_shark_plus/bot.py",
+            "half_pot_pressure": "bots/benchmarks/half_pot_pressure/bot.py",
+            "short_stacker": "bots/benchmarks/short_stacker/bot.py",
+        },
+    },
+    "heads_up_mock_numpy": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "numpy_policy": "bots/mock_competitors/numpy_policy",
+        },
+    },
+    "heads_up_equity_mc": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "equity_mc": "bots/mock_competitors/equity_mc/bot.py",
+        },
+    },
 }
 
 

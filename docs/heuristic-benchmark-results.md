@@ -94,5 +94,10 @@ Additional parameter-audit suites:
 - `tight_6max`: shark, tight premium, template, mathematician, and overfolder. Use this to test blind stealing and value extraction against passive/tight tables.
 - `mixed_stress_6max`: shark, aggressor, threshold caller, short-stacker, and tight premium. Use this as a harder 6-max robustness check.
 - `heads_up_threshold`: threshold caller heads-up. Use this to test whether bet sizes exploit or feed simple call/fold thresholds.
+- `mock_rl_6max`: trained numpy-policy, equity Monte Carlo, bucket policy, c-bet regular, and opponent-modeling mock. Use this to approximate compressed RL/NN/sklearn-style opponents.
+- `mock_bucket_6max`: bucket/CFR-like and threshold-heavy mock table. Use this to test off-bucket sizing and threshold exploits.
+- `mock_adaptive_6max`: opponent-modeling, c-bet, tight regular, pressure, and short-stack mock table. Use this to test adaptive/table-mix robustness.
+- `heads_up_mock_numpy`: trained numpy-policy heads-up check.
+- `heads_up_equity_mc`: Monte Carlo equity bot heads-up check.
 
 The expanded default `tools/evaluate_heuristic.py` suite set now includes both the core suites and the additional parameter-audit suites. For faster iteration, pass explicit `--suite` arguments.

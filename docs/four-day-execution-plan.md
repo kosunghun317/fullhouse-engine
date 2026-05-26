@@ -49,6 +49,7 @@ Success:
 - Each validates through `sandbox/validator.py`.
 - Add mock suites to `tools/evaluate_heuristic.py`.
 - Run one smoke suite without bot errors.
+- If a mock is NN-like, train it offline and save weights under its own `data/` directory before using it.
 
 ### Stage 2: Lookup Data Support
 
@@ -110,6 +111,21 @@ Success:
 ## Current Default Policy
 
 The current default remains `baseline`. Prior tuning showed `pressure` and `small-ball` help selected suites but are not robust enough to promote.
+
+Smoke tests are validity checks only. Do not promote or reject a default from a smoke result. A config decision needs a large enough sample:
+
+- Candidate screen: at least `10` seeds at 400 hands on core suites plus relevant stress suites.
+- Default promotion: at least `30` seeds at 400 hands on core suites and no obvious stress-suite regression.
+- Final acceptance: `100` seeds at 400 hands.
+
+Decision metrics:
+
+- mean chip delta.
+- median chip delta.
+- bust count.
+- positive-run count.
+- worst seed/min delta.
+- targeted suite result if the change is meant to fix one weakness.
 
 Default changes must pass:
 
