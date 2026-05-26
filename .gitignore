@@ -9,6 +9,7 @@ setup_fullhouse.py
 __pycache__/
 *.pyc
 *.pyo
+.venv/
 .env
 
 # Node

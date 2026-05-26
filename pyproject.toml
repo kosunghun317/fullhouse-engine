@@ -1,0 +1,27 @@
+[project]
+name = "fullhouse-engine"
+version = "0.1.0"
+description = "Local engine, sandbox, and reference bots for the Fullhouse poker bot hackathon."
+readme = "README.md"
+requires-python = ">=3.10,<3.11"
+dependencies = [
+    "Cython<3",
+    "eval7==0.1.7",
+    "flask>=3.0.0",
+    "numpy==1.26.4",
+    "scipy==1.13.0",
+    "treys==0.1.8",
+    "scikit-learn==1.5.2",
+]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.0.0",
+]
+
+[tool.poetry]
+package-mode = false
+
+[build-system]
+requires = ["poetry-core>=2.0.0,<3.0.0"]
+build-backend = "poetry.core.masonry.api"
