@@ -4,6 +4,8 @@ Reviewed: 2026-05-26.
 
 This document lists the current bot choices that are not fully justified by data yet. These are the knobs to tune before changing architecture.
 
+The bot now exposes env vars for the major audited knobs. This makes benchmark sweeps possible without refactoring the submission bot or changing the Fullhouse interface.
+
 ## Highest Priority Unknowns
 
 | Area | Current Choice | Why It Is Weakly Justified | Quantifiable Test |
@@ -41,6 +43,14 @@ Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 - `pressure`
 
 The default harness now uses 400 hands and all benchmark configurations to match the hackathon setup more closely.
+
+Preflop table generation:
+
+```bash
+poetry run python tools/generate_preflop_table.py --iterations 20000 --seed 31337
+```
+
+The committed bot table is explicit and generated from deterministic sampled heads-up equity. It should be regenerated only when we intentionally change the score definition.
 
 Quick smoke:
 
@@ -84,8 +94,9 @@ Avoid:
 
 ## Next Parameter Work
 
-1. Add env vars for bet-size fractions.
-2. Add named configs for smaller/larger value sizing.
-3. Run 100-rule-matched games per config.
-4. Keep only changes that improve `reference_6max` or `mutant_6max` without increasing bust count materially.
-5. Use external neural/RL baselines as diagnostic opponents, not as final acceptance criteria.
+1. Add and run benchmark suites that stress bet sizing, pressure, and mixed 6-max tables.
+2. Add named configs for smaller/larger value sizing and tighter/looser preflop cutoffs.
+3. Run existing-opponent sweeps first.
+4. Run 100-rule-matched games per surviving config.
+5. Keep only changes that improve `reference_6max` or `mutant_6max` without increasing bust count materially.
+6. Use external neural/RL baselines as diagnostic opponents, not as final acceptance criteria.

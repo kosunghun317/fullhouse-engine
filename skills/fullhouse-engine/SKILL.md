@@ -78,6 +78,12 @@ For threshold tuning summaries, run:
 poetry run python tools/tune_heuristic_thresholds.py --seed-count 100 --summary-only --json
 ```
 
+For regenerating the explicit 169-class preflop table, run:
+
+```bash
+poetry run python tools/generate_preflop_table.py --iterations 20000 --seed 31337
+```
+
 For exported qualifier hand-history analysis, run:
 
 ```bash

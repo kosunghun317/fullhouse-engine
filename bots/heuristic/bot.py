@@ -28,6 +28,13 @@ def _float_env(name, default):
         return float(default)
 
 
+def _int_env(name, default):
+    try:
+        return int(float(os.environ.get(name, default)))
+    except (TypeError, ValueError):
+        return int(default)
+
+
 # ---------------------------------------------------------------------------
 # Constants and tunables
 # ---------------------------------------------------------------------------
@@ -48,10 +55,51 @@ CALL_MARGIN_MULTIWAY = _float_env("HEURISTIC_CALL_MARGIN_MULTIWAY", 0.035)
 RISK_REQ_LOW = _float_env("HEURISTIC_RISK_REQ_LOW", 0.76)
 RISK_REQ_MID = _float_env("HEURISTIC_RISK_REQ_MID", 0.86)
 RISK_REQ_HIGH = _float_env("HEURISTIC_RISK_REQ_HIGH", 0.92)
+RISK_CUTOFF_LOW = _float_env("HEURISTIC_RISK_CUTOFF_LOW", 0.28)
+RISK_CUTOFF_MID = _float_env("HEURISTIC_RISK_CUTOFF_MID", 0.45)
+RISK_CUTOFF_HIGH = _float_env("HEURISTIC_RISK_CUTOFF_HIGH", 0.70)
 VALUE_THRESHOLD_BASE = _float_env("HEURISTIC_VALUE_THRESHOLD_BASE", 0.66)
 THIN_VALUE_BASE = _float_env("HEURISTIC_THIN_VALUE_BASE", 0.59)
 DRY_BLUFF_PROB = _float_env("HEURISTIC_DRY_BLUFF_PROB", 0.45)
 WET_BLUFF_PROB = _float_env("HEURISTIC_WET_BLUFF_PROB", 0.25)
+NORMAL_VALUE_FRACTION = _float_env("HEURISTIC_NORMAL_VALUE_FRACTION", 0.52)
+PRESSURE_VALUE_FRACTION = _float_env("HEURISTIC_PRESSURE_VALUE_FRACTION", 0.75)
+THIN_VALUE_FRACTION = _float_env("HEURISTIC_THIN_VALUE_FRACTION", 0.45)
+DRY_BLUFF_FRACTION = _float_env("HEURISTIC_DRY_BLUFF_FRACTION", 0.42)
+WET_SEMI_BLUFF_FRACTION = _float_env("HEURISTIC_WET_SEMI_BLUFF_FRACTION", 0.55)
+HIGH_EQUITY_RAISE_FRACTION = _float_env("HEURISTIC_HIGH_EQUITY_RAISE_FRACTION", 0.85)
+PREFLOP_PREMIUM_OPEN_BB = _float_env("HEURISTIC_PREFLOP_PREMIUM_OPEN_BB", 3.4)
+PREFLOP_OPEN_BB = _float_env("HEURISTIC_PREFLOP_OPEN_BB", 3.0)
+PREFLOP_HU_MANIAC_OPEN_BB = _float_env("HEURISTIC_PREFLOP_HU_MANIAC_OPEN_BB", 2.8)
+PREFLOP_RERAISE_MIN_BB = _float_env("HEURISTIC_PREFLOP_RERAISE_MIN_BB", 7.0)
+PREFLOP_RERAISE_MULT = _float_env("HEURISTIC_PREFLOP_RERAISE_MULT", 2.2)
+PREFLOP_PREMIUM_OPEN_SCORE = _float_env("HEURISTIC_PREFLOP_PREMIUM_OPEN_SCORE", 88)
+PREFLOP_OPEN_SCORE = _float_env("HEURISTIC_PREFLOP_OPEN_SCORE", 62)
+PREFLOP_LATE_PLAY_SCORE = _float_env("HEURISTIC_PREFLOP_LATE_PLAY_SCORE", 48)
+PREFLOP_CHEAP_CALL_SCORE = _float_env("HEURISTIC_PREFLOP_CHEAP_CALL_SCORE", 48)
+PREFLOP_HU_MANIAC_OPEN_SCORE = _float_env("HEURISTIC_PREFLOP_HU_MANIAC_OPEN_SCORE", 52)
+PREFLOP_HU_MANIAC_CALL_STRONG = _float_env("HEURISTIC_PREFLOP_HU_MANIAC_CALL_STRONG", 64)
+PREFLOP_HU_MANIAC_CALL_MEDIUM = _float_env("HEURISTIC_PREFLOP_HU_MANIAC_CALL_MEDIUM", 54)
+PREFLOP_PREMIUM_CALL_SCORE = _float_env("HEURISTIC_PREFLOP_PREMIUM_CALL_SCORE", 82)
+PREFLOP_LATE_RAISE_CALL_SCORE = _float_env("HEURISTIC_PREFLOP_LATE_RAISE_CALL_SCORE", 56)
+EQUITY_ADJ_NIT = _float_env("HEURISTIC_EQUITY_ADJ_NIT", -0.045)
+EQUITY_ADJ_ABC = _float_env("HEURISTIC_EQUITY_ADJ_ABC", -0.030)
+EQUITY_ADJ_MANIAC = _float_env("HEURISTIC_EQUITY_ADJ_MANIAC", 0.025)
+EQUITY_ADJ_LARGE_BET = _float_env("HEURISTIC_EQUITY_ADJ_LARGE_BET", -0.030)
+EQUITY_ADJ_MULTIWAY = _float_env("HEURISTIC_EQUITY_ADJ_MULTIWAY", -0.012)
+FLOP_SAMPLES = _int_env("HEURISTIC_FLOP_SAMPLES", 520)
+TURN_SAMPLES = _int_env("HEURISTIC_TURN_SAMPLES", 700)
+RIVER_SAMPLES = _int_env("HEURISTIC_RIVER_SAMPLES", 900)
+MULTIWAY_SAMPLE_FACTOR = _float_env("HEURISTIC_MULTIWAY_SAMPLE_FACTOR", 0.75)
+PROFILE_MANIAC_RAISE_RATE = _float_env("HEURISTIC_PROFILE_MANIAC_RAISE_RATE", 0.33)
+PROFILE_MANIAC_ALL_IN_RATE = _float_env("HEURISTIC_PROFILE_MANIAC_ALL_IN_RATE", 0.10)
+PROFILE_MANIAC_AVG_RAISE_BB = _float_env("HEURISTIC_PROFILE_MANIAC_AVG_RAISE_BB", 8.0)
+PROFILE_STATION_CALL_RATE = _float_env("HEURISTIC_PROFILE_STATION_CALL_RATE", 0.42)
+PROFILE_STATION_FOLD_RATE = _float_env("HEURISTIC_PROFILE_STATION_FOLD_RATE", 0.25)
+PROFILE_NIT_FOLD_RATE = _float_env("HEURISTIC_PROFILE_NIT_FOLD_RATE", 0.42)
+PROFILE_NIT_RAISE_RATE = _float_env("HEURISTIC_PROFILE_NIT_RAISE_RATE", 0.18)
+PROFILE_PRESSURE_NIT_FOLD_RATE = _float_env("HEURISTIC_PROFILE_PRESSURE_NIT_FOLD_RATE", 0.62)
+PROFILE_PRESSURE_STATION_FOLD_RATE = _float_env("HEURISTIC_PROFILE_PRESSURE_STATION_FOLD_RATE", 0.30)
 
 
 def _clamp(value, lo, hi):
@@ -159,22 +207,177 @@ def _representative_cards(hand_class):
     return [high + "s", low + "h"]
 
 
-def _build_preflop_score_table():
-    table = {}
-    ranks = list(reversed(RANK_ORDER))
-    for i, high in enumerate(ranks):
-        for j, low in enumerate(ranks):
-            if i == j:
-                cls = high + low
-                table[cls] = _preflop_score_formula(_representative_cards(cls))
-            elif i < j:
-                for suffix in ("s", "o"):
-                    cls = high + low + suffix
-                    table[cls] = _preflop_score_formula(_representative_cards(cls))
-    return table
-
-
-PREFLOP_SCORE_TABLE = _build_preflop_score_table()
+PREFLOP_SCORE_TABLE = {
+    "AA": 100,
+    "AKs": 68,
+    "AKo": 65,
+    "AQs": 66,
+    "AQo": 63,
+    "AJs": 65,
+    "AJo": 62,
+    "ATs": 63,
+    "ATo": 60,
+    "A9s": 61,
+    "A9o": 56,
+    "A8s": 58,
+    "A8o": 56,
+    "A7s": 56,
+    "A7o": 53,
+    "A6s": 55,
+    "A6o": 52,
+    "A5s": 56,
+    "A5o": 50,
+    "A4s": 55,
+    "A4o": 49,
+    "A3s": 54,
+    "A3o": 48,
+    "A2s": 52,
+    "A2o": 48,
+    "KK": 95,
+    "KQs": 62,
+    "KQo": 58,
+    "KJs": 60,
+    "KJo": 57,
+    "KTs": 59,
+    "KTo": 56,
+    "K9s": 56,
+    "K9o": 52,
+    "K8s": 53,
+    "K8o": 49,
+    "K7s": 52,
+    "K7o": 48,
+    "K6s": 51,
+    "K6o": 46,
+    "K5s": 48,
+    "K5o": 44,
+    "K4s": 47,
+    "K4o": 44,
+    "K3s": 46,
+    "K3o": 40,
+    "K2s": 44,
+    "K2o": 39,
+    "QQ": 90,
+    "QJs": 56,
+    "QJo": 52,
+    "QTs": 55,
+    "QTo": 51,
+    "Q9s": 52,
+    "Q9o": 48,
+    "Q8s": 48,
+    "Q8o": 45,
+    "Q7s": 46,
+    "Q7o": 42,
+    "Q6s": 45,
+    "Q6o": 40,
+    "Q5s": 44,
+    "Q5o": 37,
+    "Q4s": 42,
+    "Q4o": 38,
+    "Q3s": 41,
+    "Q3o": 35,
+    "Q2s": 39,
+    "Q2o": 34,
+    "JJ": 85,
+    "JTs": 51,
+    "JTo": 48,
+    "J9s": 48,
+    "J9o": 44,
+    "J8s": 45,
+    "J8o": 41,
+    "J7s": 43,
+    "J7o": 37,
+    "J6s": 40,
+    "J6o": 35,
+    "J5s": 38,
+    "J5o": 35,
+    "J4s": 36,
+    "J4o": 31,
+    "J3s": 36,
+    "J3o": 30,
+    "J2s": 33,
+    "J2o": 28,
+    "TT": 81,
+    "T9s": 46,
+    "T9o": 42,
+    "T8s": 42,
+    "T8o": 37,
+    "T7s": 40,
+    "T7o": 35,
+    "T6s": 37,
+    "T6o": 32,
+    "T5s": 34,
+    "T5o": 29,
+    "T4s": 33,
+    "T4o": 27,
+    "T3s": 31,
+    "T3o": 26,
+    "T2s": 29,
+    "T2o": 23,
+    "99": 76,
+    "98s": 40,
+    "98o": 35,
+    "97s": 37,
+    "97o": 32,
+    "96s": 33,
+    "96o": 28,
+    "95s": 31,
+    "95o": 26,
+    "94s": 28,
+    "94o": 22,
+    "93s": 26,
+    "93o": 21,
+    "92s": 25,
+    "92o": 20,
+    "88": 72,
+    "87s": 35,
+    "87o": 29,
+    "86s": 31,
+    "86o": 27,
+    "85s": 29,
+    "85o": 23,
+    "84s": 26,
+    "84o": 21,
+    "83s": 23,
+    "83o": 17,
+    "82s": 22,
+    "82o": 16,
+    "77": 66,
+    "76s": 31,
+    "76o": 25,
+    "75s": 29,
+    "75o": 21,
+    "74s": 25,
+    "74o": 19,
+    "73s": 21,
+    "73o": 14,
+    "72s": 17,
+    "72o": 12,
+    "66": 61,
+    "65s": 26,
+    "65o": 21,
+    "64s": 23,
+    "64o": 18,
+    "63s": 20,
+    "63o": 14,
+    "62s": 18,
+    "62o": 11,
+    "55": 56,
+    "54s": 24,
+    "54o": 18,
+    "53s": 21,
+    "53o": 15,
+    "52s": 18,
+    "52o": 12,
+    "44": 51,
+    "43s": 19,
+    "43o": 13,
+    "42s": 17,
+    "42o": 10,
+    "33": 44,
+    "32s": 14,
+    "32o": 8,
+    "22": 38,
+}
 
 
 def _preflop_score(cards):
@@ -346,15 +549,27 @@ def _profile_for(bot_id):
     )
     avg_raise_bb = stats.get("raise_total", 0) / max(1, stats.get("raise_count", 0)) / BIG_BLIND
 
-    if raise_rate > 0.33 or all_in_rate > 0.10 or avg_raise_bb > 8.0:
+    if (
+        raise_rate > PROFILE_MANIAC_RAISE_RATE
+        or all_in_rate > PROFILE_MANIAC_ALL_IN_RATE
+        or avg_raise_bb > PROFILE_MANIAC_AVG_RAISE_BB
+    ):
         return "maniac"
-    if call_rate > 0.42 and fold_rate < 0.25:
+    if call_rate > PROFILE_STATION_CALL_RATE and fold_rate < PROFILE_STATION_FOLD_RATE:
         return "station"
-    if pressure_fold_rate is not None and pressure_fold_rate > 0.62 and raise_rate < 0.24:
+    if (
+        pressure_fold_rate is not None
+        and pressure_fold_rate > PROFILE_PRESSURE_NIT_FOLD_RATE
+        and raise_rate < 0.24
+    ):
         return "nit"
-    if fold_rate > 0.42 and raise_rate < 0.18:
+    if fold_rate > PROFILE_NIT_FOLD_RATE and raise_rate < PROFILE_NIT_RAISE_RATE:
         return "nit"
-    if pressure_fold_rate is not None and pressure_fold_rate < 0.30 and call_rate > 0.34:
+    if (
+        pressure_fold_rate is not None
+        and pressure_fold_rate < PROFILE_PRESSURE_STATION_FOLD_RATE
+        and call_rate > 0.34
+    ):
         return "station"
     if raise_rate < 0.20 and call_rate < 0.34:
         return "abc"
@@ -475,13 +690,13 @@ def _estimate_equity(state, started_at):
     remaining_budget = max(0.03, DECIDE_BUDGET_S - (time.perf_counter() - started_at) - 0.05)
     budget = min(EQUITY_BUDGET_S, remaining_budget)
     if board_len >= 5:
-        samples = 900
+        samples = RIVER_SAMPLES
     elif board_len == 4:
-        samples = 700
+        samples = TURN_SAMPLES
     else:
-        samples = 520
+        samples = FLOP_SAMPLES
     if opponents >= 4:
-        samples = int(samples * 0.75)
+        samples = int(samples * MULTIWAY_SAMPLE_FACTOR)
     return _monte_carlo_equity(state, opponents, samples, budget)
 
 
@@ -662,44 +877,50 @@ def _preflop_policy(state):
         current_bet = int(state.get("current_bet", 0) or 0)
         risk = owed / max(1, stack_total)
         if heads_up and profile == "maniac":
-            if adjusted >= 64 and risk <= 0.24:
+            if adjusted >= PREFLOP_HU_MANIAC_CALL_STRONG and risk <= 0.24:
                 return {"action": "call"}
-            if adjusted >= 54 and odds <= 0.30 and risk <= 0.13:
+            if adjusted >= PREFLOP_HU_MANIAC_CALL_MEDIUM and odds <= 0.30 and risk <= 0.13:
                 return {"action": "call"}
         if cls in ULTRA_PREMIUM_CLASSES:
             if current_bet <= 9 * BIG_BLIND and risk <= 0.22:
-                return {"action": "raise", "amount": _raise_to_preflop(state, max(7.0, current_bet / BIG_BLIND * 2.2))}
+                return {
+                    "action": "raise",
+                    "amount": _raise_to_preflop(
+                        state,
+                        max(PREFLOP_RERAISE_MIN_BB, current_bet / BIG_BLIND * PREFLOP_RERAISE_MULT),
+                    ),
+                }
             if risk <= 0.55 or shallow:
                 return {"action": "call"}
             return {"action": "fold"}
-        if cls in PREMIUM_CLASSES or adjusted >= 82:
+        if cls in PREMIUM_CLASSES or adjusted >= PREFLOP_PREMIUM_CALL_SCORE:
             if risk <= 0.24 and owed <= pot * 0.48:
                 return {"action": "call"}
             return {"action": "fold"}
-        if adjusted >= 72 and odds < 0.15 and position == "late":
+        if adjusted >= PREFLOP_LATE_RAISE_CALL_SCORE and odds < 0.15 and position == "late":
             return {"action": "call"}
         return {"action": "check"} if state.get("can_check") else {"action": "fold"}
 
-    if cls in PREMIUM_CLASSES or adjusted >= 88:
-        return {"action": "raise", "amount": _raise_to_preflop(state, 3.4)}
+    if cls in PREMIUM_CLASSES or adjusted >= PREFLOP_PREMIUM_OPEN_SCORE:
+        return {"action": "raise", "amount": _raise_to_preflop(state, PREFLOP_PREMIUM_OPEN_BB)}
 
-    if heads_up and profile == "maniac" and adjusted >= 58:
-        return {"action": "raise", "amount": _raise_to_preflop(state, 2.8)}
+    if heads_up and profile == "maniac" and adjusted >= PREFLOP_HU_MANIAC_OPEN_SCORE:
+        return {"action": "raise", "amount": _raise_to_preflop(state, PREFLOP_HU_MANIAC_OPEN_BB)}
 
-    if adjusted >= 72:
-        return {"action": "raise", "amount": _raise_to_preflop(state, 3.0)}
+    if cls in STRONG_CLASSES or adjusted >= PREFLOP_OPEN_SCORE:
+        return {"action": "raise", "amount": _raise_to_preflop(state, PREFLOP_OPEN_BB)}
 
-    if adjusted >= 62 and position != "early":
+    if (adjusted >= PREFLOP_LATE_PLAY_SCORE or cls in SPECULATIVE_CLASSES) and position != "early":
         if state.get("can_check"):
             if profile == "nit" and random.random() < 0.45:
-                return {"action": "raise", "amount": _raise_to_fraction(state, 0.42)}
+                return {"action": "raise", "amount": _raise_to_fraction(state, DRY_BLUFF_FRACTION)}
             return {"action": "check"}
         if owed <= max(BIG_BLIND, int(pot * 0.16)):
             return {"action": "call"}
 
     if state.get("can_check"):
         return {"action": "check"}
-    if owed <= max(BIG_BLIND, int(pot * 0.08)) and adjusted >= 58:
+    if owed <= max(BIG_BLIND, int(pot * 0.08)) and adjusted >= PREFLOP_CHEAP_CALL_SCORE:
         return {"action": "call"}
     return {"action": "fold"}
 
@@ -746,11 +967,11 @@ def _passes_risk_guard(state, equity, profile):
     risk = owed / stack_total
     opponents = _active_opponent_count(state)
     required = 0.0
-    if risk >= 0.70:
+    if risk >= RISK_CUTOFF_HIGH:
         required = RISK_REQ_HIGH
-    elif risk >= 0.45:
+    elif risk >= RISK_CUTOFF_MID:
         required = RISK_REQ_MID
-    elif risk >= 0.28:
+    elif risk >= RISK_CUTOFF_LOW:
         required = RISK_REQ_LOW
     if opponents >= 3:
         required += 0.04
@@ -767,16 +988,16 @@ def _adjust_equity_for_context(state, raw_equity, profile):
     adjusted = raw_equity
     if not state.get("can_check"):
         if profile == "nit":
-            adjusted -= 0.045
+            adjusted += EQUITY_ADJ_NIT
         elif profile == "abc":
-            adjusted -= 0.030
+            adjusted += EQUITY_ADJ_ABC
         elif profile == "maniac":
-            adjusted += 0.025
+            adjusted += EQUITY_ADJ_MANIAC
         current_bet = int(state.get("current_bet", 0) or 0)
         pot = max(1, int(state.get("pot", 0) or 0))
         if current_bet > pot * 0.70 and profile != "maniac":
-            adjusted -= 0.030
-    adjusted -= 0.012 * max(0, _active_opponent_count(state) - 2)
+            adjusted += EQUITY_ADJ_LARGE_BET
+    adjusted += EQUITY_ADJ_MULTIWAY * max(0, _active_opponent_count(state) - 2)
     return _clamp(adjusted, 0.02, 0.98)
 
 
@@ -807,15 +1028,15 @@ def _postflop_policy(state, equity):
 
     if can_check:
         if equity >= value_threshold:
-            frac = 0.75 if profile in ("station", "maniac") or texture == "wet" else 0.52
+            frac = PRESSURE_VALUE_FRACTION if profile in ("station", "maniac") or texture == "wet" else NORMAL_VALUE_FRACTION
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         if equity >= thin_value and profile in ("station", "maniac"):
-            return {"action": "raise", "amount": _raise_to_fraction(state, 0.45)}
+            return {"action": "raise", "amount": _raise_to_fraction(state, THIN_VALUE_FRACTION)}
         has_draw = features["flush_draw"] or features["straight_draw"]
         if equity >= 0.42 and texture != "wet" and fold_pressure >= 0.55 and random.random() < DRY_BLUFF_PROB:
-            return {"action": "raise", "amount": _raise_to_fraction(state, 0.42)}
+            return {"action": "raise", "amount": _raise_to_fraction(state, DRY_BLUFF_FRACTION)}
         if has_draw and equity >= 0.30 and fold_pressure >= 0.52 and profile != "station" and random.random() < WET_BLUFF_PROB:
-            return {"action": "raise", "amount": _raise_to_fraction(state, 0.55)}
+            return {"action": "raise", "amount": _raise_to_fraction(state, WET_SEMI_BLUFF_FRACTION)}
         return {"action": "check"}
 
     margin = _call_margin(state, profile)
@@ -823,7 +1044,7 @@ def _postflop_policy(state, equity):
         return {"action": "fold"}
     if equity >= odds + margin:
         if equity >= max(0.88, value_threshold + 0.16) and owed < pot * 0.20:
-            return {"action": "raise", "amount": _raise_to_fraction(state, 0.85)}
+            return {"action": "raise", "amount": _raise_to_fraction(state, HIGH_EQUITY_RAISE_FRACTION)}
         return {"action": "call"}
 
     if equity >= odds + 0.015 and profile == "maniac":
