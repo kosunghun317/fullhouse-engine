@@ -37,6 +37,19 @@ python3 demo.py
 
 Open `http://localhost:5001` — you'll see 6 reference bots playing each other live with a real-time leaderboard and hand replay.
 
+### Poetry setup
+
+This repo also includes Poetry configuration for a repo-local `.venv` using Python 3.10:
+
+```bash
+pyenv install 3.10.20
+pyenv local 3.10.20
+make poetry-install
+poetry run python demo.py
+```
+
+See [`docs/setup-poetry.md`](docs/setup-poetry.md) for the `eval7` build workaround and common validation commands.
+
 > **macOS users**: we use port 5001 instead of the Flask default 5000 because macOS Monterey+ binds port 5000 to AirPlay Receiver. Override with `DEMO_PORT=8080 python3 demo.py` if 5001 is taken too.
 
 > Hitting a build error on `eval7`? You're not alone — modern pip's build
