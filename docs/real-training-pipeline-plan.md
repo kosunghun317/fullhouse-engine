@@ -68,6 +68,17 @@ timeout or resource cap, while still using `engine.game.PokerEngine`. Use it
 when training or screening benchmark opponents that already exist as bot
 directories rather than as in-memory policy objects.
 
+League orchestrator:
+
+```text
+tools/strong_mocks/league_train.py
+```
+
+It divides training into stages, keeps train pools separate from held-out eval
+pools, compares candidates against incumbents, and promotes only if the
+candidate clears a score margin with zero bot errors. See
+`docs/league-training-framework.md`.
+
 Supported trainable opponent policies:
 
 | Kind | Export Target | Update Rule | Runtime Bot |
@@ -234,6 +245,12 @@ Train real mock opponents:
 
 ```bash
 scripts/train_opponents_real.sh
+```
+
+Train through the league framework:
+
+```bash
+scripts/train_opponents_league.sh
 ```
 
 Recommended bounded adversarial run:
@@ -405,7 +422,7 @@ Validation results:
 - Validators passed for `bots/strong_mocks/ppo_policy`,
   `bots/strong_mocks/cfr_bucket`, `bots/strong_mocks/ensemble`, and
   `bots/heuristic/bot.py`.
-- `pytest -q`: 12 passed.
+- `pytest -q`: 15 passed.
 - `pytest -q tests/test_fast_match.py`: 4 passed, covering parity,
   process-parallel equivalence, worker auto-selection, and no-timeout behavior.
 - `python -m training.fast_match` CLI smoke passed for a 3-hand match.

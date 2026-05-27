@@ -35,6 +35,8 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `tools/strong_mocks/`: Shared feature/action abstractions, strong mock trainers, and evolutionary self-training pipeline.
 - `tools/strong_mocks/train_real_policy.py`: Fullhouse in-process real
   self-play trainer for PPO-style and CFR+/bucket strong mock policies.
+- `tools/strong_mocks/league_train.py`: League-style staged trainer with
+  train/eval pool separation and promotion gates for strong mock policies.
 - `tools/parallel.py`: Offline-only process/thread worker helper for seeded benchmark and self-training runs.
 - `scripts/train_opponents_real.sh`: Large real-training entrypoint for mock
   opponents.
@@ -85,6 +87,7 @@ graph TB
         Package["tools/package_heuristic.py\nzip builder"]
         Harden["tools/harden_submission.py\nsubmission hardening"]
         RealTrain["tools/strong_mocks/train_real_policy.py\nreal self-play trainer"]
+        LeagueTrain["tools/strong_mocks/league_train.py\nleague trainer"]
         Scripts["scripts/train_*.sh\nlarge training entrypoints"]
     end
 
@@ -93,11 +96,14 @@ graph TB
     Tools --> Package
     Tools --> Harden
     Tools --> RealTrain
+    Tools --> LeagueTrain
     Tools --> Scripts
 
     Eval --> Match
     Select --> Match
     RealTrain --> FastMatch
+    LeagueTrain --> FastMatch
+    LeagueTrain --> RealTrain
     Scripts --> FastMatch
     Match --> Game
     Match --> Runner
@@ -114,6 +120,7 @@ graph TB
     Harden --> Validator
     RealTrain --> Game
     RealTrain --> Strong
+    LeagueTrain --> Strong
     Scripts --> RealTrain
     Scripts --> SelfTrain
     Submission --> Validator
@@ -235,3 +242,6 @@ benchmark opponents and adapts compatible CFR+ abstraction ideas from
 The no-limit fast training runner adds unrestricted in-process matches and
 parallel batches for local-only training and benchmark throughput; see
 `docs/fast-training-runner.md`.
+The league training framework adds staged train/eval opponent divisions,
+candidate-vs-incumbent promotion gates, and archived league snapshots; see
+`docs/league-training-framework.md`.

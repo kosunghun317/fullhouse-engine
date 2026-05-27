@@ -20,6 +20,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
   self-play trainers, CFR+ abstractions, or large training scripts.
 - Read `docs/fast-training-runner.md` before changing the unrestricted
   in-process training runner or fast bot-directory batch commands.
+- Read `docs/league-training-framework.md` before changing league-style
+  opponent training, staged train/eval pools, or promotion gates.
 - Read `docs/strong-mock-self-training-pipeline.md` before changing strong mock opponents, mock training scripts, or self-training heuristic variants.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic changes against the latest recorded benchmark run.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
@@ -111,6 +113,35 @@ BUCKET_GENERATIONS=32 \
 BUCKET_MATCHES_PER_GENERATION=128 \
 BUCKET_HANDS=180 \
 scripts/train_opponents_real.sh
+```
+
+For league-style staged opponent training with held-out promotion gates, use:
+
+```bash
+RUN_ID=league-opponents-$(date +%Y%m%d-%H%M%S) \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+GENERATION_SCALE=1.0 \
+MATCH_SCALE=1.0 \
+HAND_SCALE=1.0 \
+EVAL_SEEDS=8 \
+EVAL_HANDS=160 \
+PROMOTE=1 \
+scripts/train_opponents_league.sh
+```
+
+For a league smoke that cannot overwrite repo artifacts:
+
+```bash
+RUN_ID=league-smoke \
+GENERATION_SCALE=0.05 \
+MATCH_SCALE=0.05 \
+HAND_SCALE=0.10 \
+EVAL_SEEDS=1 \
+EVAL_HANDS=12 \
+PROMOTE=0 \
+WORKERS=1 \
+scripts/train_opponents_league.sh
 ```
 
 For unrestricted fast local bot-directory batches, use:

@@ -18,7 +18,7 @@ poetry run python tools/select_heuristic_config.py --preset final --config basel
 
 Current repo-level unit/parity suite after adding the fast training runner:
 
-- `pytest -q`: 12 passed, with existing `eval7`/`pyparsing` deprecation
+- `pytest -q`: 15 passed, with existing `eval7`/`pyparsing` deprecation
   warnings.
 
 Core validation:

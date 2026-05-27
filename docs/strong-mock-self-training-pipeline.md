@@ -31,6 +31,7 @@ tools/strong_mocks/
   train_mccfr.py
   train_ppo.py
   train_real_policy.py
+  league_train.py
   self_train_heuristic.py
 
 training/
@@ -188,6 +189,31 @@ graph TD
     ExportPPO --> StrongScreen["strong-screen benchmark"]
     ExportCFR --> StrongScreen
 ```
+
+## Self-Training
+
+## League Training
+
+`tools/strong_mocks/league_train.py` is the preferred framework for stronger
+mock opponent training when time allows. It wraps `train_real_policy.py` in
+stages:
+
+- `oracle_bootstrap`
+- `public_adversarial`
+- `league_mixed`
+
+Each stage trains a candidate, evaluates it against held-out pools with
+`training.fast_match`, compares it with the incumbent repo artifact, and
+promotes only if it clears the score margin and has zero bot errors.
+
+Entry point:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_league.sh
+```
+
+Use `PROMOTE=0` for dry runs that archive candidates without changing
+`bots/strong_mocks/*/data/policy.npz`.
 
 ## Self-Training
 

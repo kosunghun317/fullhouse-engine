@@ -222,13 +222,14 @@ def _opponent_action(
     return _oracle_action("balanced", state, rng)
 
 
-def _opponent_pool(mode: str) -> list[dict]:
+def _opponent_pool(mode: str, extra_bot_paths: list[str] | None = None) -> list[dict]:
     base = [{"kind": "oracle", "style": style} for style in ORACLE_STYLES]
     if mode == "oracle":
         return base
     if mode == "fast":
         return base + [{"kind": "model", "name": "oracle_model"}]
     bot_path_specs = [{"kind": "bot_path", "path": str(path)} for path in BOT_PATH_OPPONENTS]
+    bot_path_specs.extend({"kind": "bot_path", "path": str(path)} for path in (extra_bot_paths or []))
     if mode == "adversarial":
         return base + [
             {"kind": "rollout", "style": "rollout_pressure"},
@@ -249,7 +250,7 @@ def _lineup(task: dict, rng: random.Random) -> tuple[list[str], dict[str, dict]]
     train_seats = min(players, max(1, int(task["train_seats"])))
     bot_ids = [f"train_{i}" for i in range(train_seats)]
     specs = {bid: {"kind": "current"} for bid in bot_ids}
-    pool = _opponent_pool(task["opponent_pool"])
+    pool = _opponent_pool(task["opponent_pool"], task.get("extra_bot_paths") or [])
     snapshots = task.get("snapshots", [])
     while len(bot_ids) < players:
         bot_id = f"opp_{len(bot_ids)}"
@@ -605,6 +606,7 @@ def train(args) -> dict:
                 "reward_scale": args.reward_scale,
                 "reward_clip": args.reward_clip,
                 "opponent_pool": args.opponent_pool,
+                "extra_bot_paths": args.extra_bot_path or [],
                 "snapshot_prob": args.snapshot_prob,
                 "snapshots": snapshots,
                 "seed": args.seed * 1_000_000 + generation * 10_000 + match_index,
@@ -727,6 +729,7 @@ def main() -> None:
     parser.add_argument("--reward-scale", type=float, default=1000.0)
     parser.add_argument("--reward-clip", type=float, default=10.0)
     parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed", "adversarial"], default="mixed")
+    parser.add_argument("--extra-bot-path", action="append", default=[])
     parser.add_argument("--snapshot-interval", type=int, default=2)
     parser.add_argument("--max-snapshots", type=int, default=6)
     parser.add_argument("--snapshot-prob", type=float, default=0.35)

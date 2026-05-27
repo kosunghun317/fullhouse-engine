@@ -73,6 +73,10 @@ The real policy trainer also uses `FastBot` for `--opponent-pool adversarial`,
 so trainable PPO/bucket policies can learn against real local `bot.py`
 opponents without launching the official subprocess sandbox.
 
+The league trainer uses the same fast runner for held-out candidate-vs-incumbent
+evaluation, which keeps promotion checks much cheaper than official subprocess
+matches while still using the original `PokerEngine` rules.
+
 ## Runtime Flow
 
 ```mermaid
