@@ -28,7 +28,7 @@ This plan classifies the attached strategy suggestions by what is realistically 
 | Online contextual bandit | Prototype if time | Reward attribution in 400 hands is noisy. | Start benchmark-only or cluster Thompson over safe modes. |
 | LinUCB over expert arms | Defer unless time remains | More moving parts and high regression risk. | Document feature vector; avoid raw-action bandit. |
 | Postflop bucket equity table | Defer | Generation quality/time tradeoff is uncertain. | Keep selective `eval7` Monte Carlo for now. |
-| CFR/NN/RL training | Defer | Not aligned with time limit. | Use mock competitors instead. |
+| CFR/NN/RL mock training | Implement as benchmark-only | Useful for stronger tests if kept outside the submitted bot. | Added strong mock trainers and self-training pipeline. |
 
 ## Execution Order
 
@@ -67,6 +67,34 @@ Current status:
 - `mock-family` is now a selector preset for focused 10-seed screens.
 - One-seed smoke found `mock_policy_family_6max` can bust the current bot, so
   it is a priority watch suite but not a default-change decision by itself.
+
+### Stage 1B: Strong Mock And Self-Training Pipeline
+
+Add stronger local-only opponents and a way to evolve heuristic configs without
+refactoring the submitted bot:
+
+- `oracle_imitation`: sklearn MLP imitation policy with committed `.npz` weights.
+- `ppo_policy`: lightweight PPO-style policy-gradient MLP with committed
+  `.npz` weights.
+- `cfr_bucket`: regret-matched coarse action-bucket table with committed
+  `.npz` data.
+- `rollout_search`: eval7 rollout/search stress bot.
+- `ensemble`: mixed policy opponent that changes model family by state key.
+- `self_train_heuristic.py`: evolutionary config trainer that seats 2 or 3
+  generated heuristic variants in 6-max games against strong/reference mocks.
+
+Success:
+
+- Strong mock bots validate as bot directories.
+- Strong suites run through `tools/evaluate_heuristic.py`.
+- `strong-screen` exists as a selector preset.
+- Self-training writes generated variants and results to configurable roots.
+
+Current status:
+
+- Implemented. See `docs/strong-mock-self-training-pipeline.md`.
+- Keep this benchmark-only. Do not move its helper imports into
+  `bots/heuristic/bot.py`.
 
 ### Stage 2: Lookup Data Support
 

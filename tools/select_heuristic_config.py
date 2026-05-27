@@ -50,6 +50,13 @@ MOCK_FAMILY_SUITES = [
     "mock_pressure_heads_up",
 ]
 
+STRONG_SUITES = [
+    "strong_mock_6max",
+    "strong_hybrid_6max",
+    "heads_up_strong_rollout",
+    "heads_up_strong_ensemble",
+]
+
 PRESETS = {
     "quick": {
         "seed_count": 3,
@@ -70,6 +77,11 @@ PRESETS = {
         "seed_count": 10,
         "suites": MOCK_FAMILY_SUITES,
         "note": "focused screen against expanded trained/lookup/adversarial mock families",
+    },
+    "strong-screen": {
+        "seed_count": 10,
+        "suites": STRONG_SUITES,
+        "note": "focused screen against benchmark-only strong mock opponents",
     },
     "promotion": {
         "seed_count": 30,

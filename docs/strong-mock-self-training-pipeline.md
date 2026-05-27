@@ -1,0 +1,178 @@
+# Strong Mock And Self-Training Pipeline
+
+Reviewed: 2026-05-27.
+
+## Purpose
+
+This pipeline creates stronger local benchmark opponents and evolves heuristic
+config variants without changing the submitted bot structure.
+
+The submitted bot remains:
+
+```text
+bots/heuristic/bot.py
+bots/heuristic/data/tables.npz
+```
+
+Do not split `bots/heuristic/bot.py` into helper packages before the event.
+The validator and submission package are safer with a single-file bot. Training
+and experimental opponents live outside that path.
+
+## Structure
+
+```text
+tools/strong_mocks/
+  features.py
+  actions.py
+  dataset.py
+  policies.py
+  train_imitation.py
+  train_mccfr.py
+  train_ppo.py
+  self_train_heuristic.py
+
+bots/strong_mocks/
+  oracle_imitation/
+  ppo_policy/
+  cfr_bucket/
+  rollout_search/
+  ensemble/
+
+bots/self_training/
+  heuristic_variant_template/
+```
+
+The strong mock bots are local benchmark opponents. They are not submission
+templates.
+
+## Refactor Decision
+
+Current decision: no production refactor.
+
+Reasons:
+
+- `bots/heuristic/bot.py` already validates as a submission-shaped bot.
+- Runtime imports in a submitted bot are more fragile than local tooling.
+- Multiple heuristic variants can be generated as wrapper bot directories that
+  set environment overrides and then import `bots.heuristic.bot`.
+- Training code can be modular without affecting final packaging.
+
+Future refactor trigger:
+
+- Only split production code if two or more promoted features need shared
+  logic that cannot stay readable in one file.
+- Before any split, confirm `tools/package_heuristic.py`,
+  `tools/harden_submission.py`, and `sandbox/validator.py` still accept the
+  final package.
+
+## Strong Mock Training
+
+Generate or refresh default strong-mock artifacts:
+
+```bash
+poetry run python tools/strong_mocks/train_imitation.py --samples 6000 --hidden 32 --seed 4242 --style balanced --output bots/strong_mocks/oracle_imitation/data/policy.npz --json
+poetry run python tools/strong_mocks/train_imitation.py --samples 6000 --hidden 32 --seed 4243 --style value --output bots/strong_mocks/oracle_imitation/data/policy_value.npz --json
+poetry run python tools/strong_mocks/train_mccfr.py --iterations 180 --batch-size 2048 --bucket-count 4096 --seed 5151 --output bots/strong_mocks/cfr_bucket/data/policy.npz --json
+poetry run python tools/strong_mocks/train_ppo.py --iterations 64 --batch-size 512 --hidden 32 --seed 6161 --output bots/strong_mocks/ppo_policy/data/policy.npz --json
+```
+
+Longer overnight runs can increase samples, iterations, hidden size, and CFR
+bucket count. Keep generated files under each bot's `data/` directory and load
+with `np.load(..., allow_pickle=False)`.
+
+## Self-Training
+
+`tools/strong_mocks/self_train_heuristic.py` evolves named heuristic configs.
+Each generated bot directory copies the wrapper template and writes
+`data/config.json`.
+
+That config sets environment variables before importing `bots.heuristic.bot`.
+Because Fullhouse runs each bot in its own process, 2 or 3 heuristic variants
+can sit in the same 6-player match with independent settings.
+
+Smoke command:
+
+```bash
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --generations 1 --population 4 --elite 2 --matches-per-generation 2 --hands 12 --seed 22 --generated-root /private/tmp/fullhouse_self_training/generated --result-root /private/tmp/fullhouse_self_training/results --json
+```
+
+Real local run:
+
+```bash
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local-$(date +%Y%m%d) --generations 4 --population 10 --elite 3 --matches-per-generation 8 --hands 240 --seed 8080 --json
+```
+
+For a generation to cover every candidate at least once, use:
+
+```text
+matches_per_generation >= ceil(population / max_heuristics)
+```
+
+Default `10 / 3` needs at least 4 matches; the default 8 gives repeat samples.
+
+## Benchmark Suites
+
+Strong-mock suites are wired into `tools/evaluate_heuristic.py`:
+
+- `strong_mock_6max`
+- `strong_hybrid_6max`
+- `heads_up_strong_rollout`
+- `heads_up_strong_ensemble`
+
+Focused selector preset:
+
+```bash
+poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --config spr-anti-bucket --seed-count 10 --hands 400 --progress --json
+```
+
+Do not promote a default from a smoke run. Use strong-screen results as an
+additional stress signal, then confirm with `promotion` or `final` presets.
+
+## Validation Gates
+
+Run after changing this pipeline:
+
+```bash
+poetry run python -m py_compile tools/strong_mocks/*.py tools/evaluate_heuristic.py tools/select_heuristic_config.py bots/self_training/heuristic_variant_template/bot.py
+poetry run python sandbox/validator.py bots/strong_mocks/oracle_imitation --json
+poetry run python sandbox/validator.py bots/strong_mocks/ppo_policy --json
+poetry run python sandbox/validator.py bots/strong_mocks/cfr_bucket --json
+poetry run python sandbox/validator.py bots/strong_mocks/rollout_search --json
+poetry run python sandbox/validator.py bots/strong_mocks/ensemble --json
+poetry run python tools/evaluate_heuristic.py --suite strong_mock_6max --suite heads_up_strong_rollout --seed-count 1 --hands 20 --summary-only
+```
+
+## Current Smoke Results
+
+Reviewed: 2026-05-27.
+
+Trained artifact smoke:
+
+| Artifact | Command Result |
+| --- | --- |
+| `oracle_imitation/data/policy.npz` | 6,000 samples, balanced style, train accuracy `0.9928` |
+| `oracle_imitation/data/policy_value.npz` | 6,000 samples, value style, train accuracy `0.9893` |
+| `cfr_bucket/data/policy.npz` | 180 iterations, 2,048 batch, 4,096 buckets |
+| `ppo_policy/data/policy.npz` | 64 iterations, oracle agreement `0.5664`, average reward `0.6461` |
+
+Strong bot validators:
+
+- `oracle_imitation`: passed.
+- `ppo_policy`: passed.
+- `cfr_bucket`: passed.
+- `rollout_search`: passed.
+- `ensemble`: passed.
+
+Benchmark smoke:
+
+| Suite | Hands | Mean | Positive | Busts | Errors |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `strong_mock_6max` | 20 | 3,070 | 1/1 | 0 | 0 |
+| `heads_up_strong_rollout` | 20 | 65 | 1/1 | 0 | 0 |
+
+Selector smoke:
+
+- `strong-screen`, `baseline` vs `spr-anti-bucket`, 1 seed x 12 hands:
+  wiring passed with no heuristic errors.
+- The short run produced negative values and one bust for both configs, so it
+  is an integration check only, not a strategy decision.

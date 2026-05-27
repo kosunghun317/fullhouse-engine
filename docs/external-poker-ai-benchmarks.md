@@ -13,9 +13,10 @@ because they do not match the Fullhouse interface as closely.
 
 As of 2026-05-27, the local mock suite includes expanded families for equity
 bots, bucket/CFR-like policies, trained numpy-policy variants, anti-heuristic
-adaptation, and heads-up pressure. These are more actionable than external
-projects because they run directly through `sandbox/match.py` with Fullhouse
-state, blinds, stacks, and action semantics.
+adaptation, heads-up pressure, and stronger benchmark-only trained opponents
+under `bots/strong_mocks/`. These are more actionable than external projects
+because they run directly through `sandbox/match.py` with Fullhouse state,
+blinds, stacks, and action semantics.
 
 ## Rule-Matched Test Envelope
 
@@ -96,6 +97,17 @@ bots/mock_competitors/
     data/policy.npz
   numpy_policy_pressure/
     data/policy.npz
+
+bots/strong_mocks/
+  oracle_imitation/
+    data/policy.npz
+    data/policy_value.npz
+  ppo_policy/
+    data/policy.npz
+  cfr_bucket/
+    data/policy.npz
+  rollout_search/
+  ensemble/
 ```
 
 These mocks are benchmark-only and intentionally not submission-shaped as a
@@ -210,16 +222,21 @@ Recommendation:
 2. Train/update mock numpy-policy variants before using the expanded mock
    suites if `policy.npz` files are stale:
    `poetry run python tools/train_mock_numpy_policy.py --all --samples 60000 --seed 7331`.
-3. Use `tools/select_heuristic_config.py --preset mock-family` for a focused
+3. Train/update strong mock artifacts before using the strong suites if their
+   `.npz` files are stale. See
+   `docs/strong-mock-self-training-pipeline.md` for commands.
+4. Use `tools/select_heuristic_config.py --preset mock-family` for a focused
    screen against the expanded local families.
-4. Use the public model inventory only to choose optional external opponents.
-5. If adding an external model, integrate it as a benchmark-only adapter and keep model artifacts ignored.
-6. Do not promote bot defaults from external benchmarks alone; rerun the local candidate/promotion/final screens.
-7. Prefer this order:
+5. Use `tools/select_heuristic_config.py --preset strong-screen` for a focused
+   screen against stronger benchmark-only trained/rollout opponents.
+6. Use the public model inventory only to choose optional external opponents.
+7. If adding an external model, integrate it as a benchmark-only adapter and keep model artifacts ignored.
+8. Do not promote bot defaults from external benchmarks alone; rerun the local candidate/promotion/final screens.
+9. Prefer this order:
    1. AlphaNLHoldem pretrained checkpoint for quick neural heads-up pressure.
    2. DeepCFR 6-player small locally trained checkpoint if dependency install and smoke training pass.
    3. DecisionHoldem only if the Baidu data and Mac build are confirmed.
-8. Do not change `bots/heuristic/bot.py` structure for external dependencies.
+10. Do not change `bots/heuristic/bot.py` structure for external dependencies.
 
 ## What To Measure Against External Models
 

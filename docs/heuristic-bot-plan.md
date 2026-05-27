@@ -31,6 +31,12 @@ Keep the production logic in one file because the simplest valid submission is
 `bot.py`. Optional data is read-only and loaded at import time with
 `np.load(..., allow_pickle=False)`.
 
+Training and benchmark infrastructure is intentionally outside the submission
+path. Strong mock opponents live under `bots/strong_mocks/`, and generated
+self-training variants live under `bots/self_training/generated/` or a caller
+provided temp root. They may import local helpers; `bots/heuristic/bot.py`
+should not.
+
 Planned `bot.py` sections:
 
 1. Constants and tunables.

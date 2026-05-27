@@ -26,8 +26,11 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `bots/`: Reference bots, starter template, heuristic bot, simple benchmark bots, and mock competitor bots.
 - `bots/heuristic/`: Current competition bot, optional read-only `data/tables.npz`, and single-file submission entrypoint.
 - `bots/mock_competitors/`: Local-only trained/handwritten benchmark opponents that approximate likely RL/NN/CFR/equity submissions.
+- `bots/strong_mocks/`: Benchmark-only stronger opponents with trained MLP, policy-gradient, CFR-like table, rollout, and ensemble policies.
+- `bots/self_training/`: Wrapper template for generated heuristic config variants used in local self-training matches.
 - `tools/evaluate_heuristic.py`: Seeded benchmark harness for core, stress, and mock suites.
 - `tools/select_heuristic_config.py`: Risk-aware config ranking and promotion-screen harness.
+- `tools/strong_mocks/`: Shared feature/action abstractions, strong mock trainers, and evolutionary self-training pipeline.
 - `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
 - `tools/build_heuristic_tables.py`: Optional read-only data table builder.
 - `tools/harden_submission.py`: Full heuristic submission hardening command for table rebuild, packaging, validation, zip inspection, and sanity matches.
@@ -108,3 +111,7 @@ Use the benchmark docs as the source of truth before changing bot defaults.
 The newest mock benchmark expansion adds trained-policy, equity-family,
 bucket-family, anti-heuristic, and heads-up pressure suites; use
 `tools/select_heuristic_config.py --preset mock-family` for focused checks.
+The strong-mock/self-training pipeline adds benchmark-only trained opponents
+under `bots/strong_mocks/` and generated multi-heuristic config matches through
+`tools/strong_mocks/self_train_heuristic.py`; see
+`docs/strong-mock-self-training-pipeline.md`.

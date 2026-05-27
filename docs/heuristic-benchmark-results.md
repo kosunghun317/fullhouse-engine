@@ -91,6 +91,8 @@ Recommended tiers:
 - `--preset mock-screen`: 10-seed screen focused on compressed-model mocks.
 - `--preset mock-family`: 10-seed focused screen against the expanded equity,
   bucket, trained-policy, anti-heuristic, and heads-up pressure mock families.
+- `--preset strong-screen`: 10-seed focused screen against benchmark-only MLP,
+  policy-gradient, CFR-like, rollout, and ensemble strong mocks.
 - `--preset promotion`: 30-seed minimum before changing production defaults.
 - `--preset final`: 100-seed acceptance matrix.
 
@@ -181,6 +183,56 @@ Decision:
   (`mean=4796.8`, `positive=5/5`, `busts=0`, `errors=0`), confirming the new
   preset wiring works while reinforcing that one smoke seed is not a decision
   sample.
+
+## Strong Mock And Self-Training Pipeline
+
+Reviewed: 2026-05-27.
+
+Purpose:
+
+- Add stronger local-only opponents that approximate prepared MLP,
+  policy-gradient, CFR-like, rollout, and ensemble submissions.
+- Add an evolutionary self-training loop for heuristic env configs without
+  refactoring the submitted bot.
+- Keep all training and generated wrappers outside `bots/heuristic/bot.py`.
+
+Artifacts:
+
+| Artifact | Result |
+| --- | --- |
+| `bots/strong_mocks/oracle_imitation/data/policy.npz` | 6,000 samples, balanced MLP, train accuracy `0.9928` |
+| `bots/strong_mocks/oracle_imitation/data/policy_value.npz` | 6,000 samples, value MLP, train accuracy `0.9893` |
+| `bots/strong_mocks/cfr_bucket/data/policy.npz` | 180 CFR-like iterations, 4,096 buckets |
+| `bots/strong_mocks/ppo_policy/data/policy.npz` | 64 policy-gradient iterations, oracle agreement `0.5664`, average reward `0.6461` |
+
+Validation:
+
+- `py_compile` passed for `tools/strong_mocks/*.py`, benchmark tools, strong
+  mock wrappers, and the self-training template.
+- Validator passed for `oracle_imitation`, `ppo_policy`, `cfr_bucket`,
+  `rollout_search`, and `ensemble`.
+- Self-training smoke passed with 1 generation, 4 candidates, 2 matches,
+  12 hands, and temp generated/result roots.
+
+Strong benchmark smoke:
+
+| Suite | Hands | Mean | Positive | Busts | Errors |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `strong_mock_6max` | 20 | 3,070 | 1/1 | 0 | 0 |
+| `heads_up_strong_rollout` | 20 | 65 | 1/1 | 0 | 0 |
+
+Selector smoke:
+
+- `strong-screen`, `baseline` vs `spr-anti-bucket`, 1 seed x 12 hands ran
+  without heuristic errors.
+- Both configs were negative in that tiny sample, including one short-run bust
+  each. Treat this only as wiring validation; a decision requires 10+ seeds at
+  400 hands and then the usual promotion/final gates.
+
+Reference:
+
+- Full command list and design rationale are in
+  `docs/strong-mock-self-training-pipeline.md`.
 
 ## Weak-Spot Candidate Screen
 

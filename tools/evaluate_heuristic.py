@@ -210,6 +210,42 @@ SUITES = {
             "pressure_heads_up": "bots/mock_competitors/pressure_heads_up/bot.py",
         },
     },
+    "strong_mock_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "oracle_imitation": "bots/strong_mocks/oracle_imitation",
+            "ppo_policy": "bots/strong_mocks/ppo_policy",
+            "cfr_bucket": "bots/strong_mocks/cfr_bucket",
+            "rollout_search": "bots/strong_mocks/rollout_search",
+            "ensemble": "bots/strong_mocks/ensemble",
+        },
+    },
+    "strong_hybrid_6max": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "ensemble": "bots/strong_mocks/ensemble",
+            "rollout_search": "bots/strong_mocks/rollout_search",
+            "oracle_imitation": "bots/strong_mocks/oracle_imitation",
+            "equity_pressure": "bots/mock_competitors/equity_pressure/bot.py",
+            "bucket_overbet": "bots/mock_competitors/bucket_overbet/bot.py",
+        },
+    },
+    "heads_up_strong_rollout": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "rollout_search": "bots/strong_mocks/rollout_search",
+        },
+    },
+    "heads_up_strong_ensemble": {
+        "hands": 400,
+        "bots": {
+            "heuristic": HEURISTIC,
+            "ensemble": "bots/strong_mocks/ensemble",
+        },
+    },
 }
 
 
