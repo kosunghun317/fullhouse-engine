@@ -57,6 +57,17 @@ subprocesses. This gives the trainer access to:
 - per-hand chip-delta rewards,
 - many independent matches for process-level parallelism.
 
+Companion fast bot runner:
+
+```text
+training/fast_match.py
+```
+
+It runs submitted-style `bot.py` directories directly in-process, with no
+timeout or resource cap, while still using `engine.game.PokerEngine`. Use it
+when training or screening benchmark opponents that already exist as bot
+directories rather than as in-memory policy objects.
+
 Supported trainable opponent policies:
 
 | Kind | Export Target | Update Rule | Runtime Bot |
@@ -98,6 +109,8 @@ graph TB
 
     subgraph FullhouseAdaptation["Fullhouse-specific implementation"]
         Engine["engine.game.PokerEngine\nreal NLHE hand loop"]
+        FastRunner["training.fast_match\nunrestricted bot.py runner"]
+        FastResults["parallel bot.py match results"]
         Actions["tools/strong_mocks/actions.py\n8-action abstraction"]
         Features["tools/strong_mocks/features.py\npublic state vector"]
         Abstractions["tools/strong_mocks/abstractions.py\nfeature or cfr-pokerbot buckets"]
@@ -109,6 +122,8 @@ graph TB
     Pokers --> Engine
     CFRPokerbot --> Abstractions
     Engine --> Trainer
+    Engine --> FastRunner
+    FastRunner --> FastResults
     Actions --> Trainer
     Features --> Trainer
     Abstractions --> Trainer
@@ -135,6 +150,8 @@ Implemented mechanisms:
 
 - `tools/strong_mocks/train_real_policy.py` uses `tools.parallel.map_parallel`
   over matches inside each generation.
+- `training/fast_match.py` uses the same helper for unrestricted bot.py
+  batches and parity-tested in-process matches.
 - `tools/strong_mocks/self_train_heuristic.py` uses the same process/thread
   worker helper over self-training matches.
 - `tools/select_heuristic_config.py` and `tools/evaluate_heuristic.py` already
@@ -149,6 +166,7 @@ Default guidance:
 ```bash
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
+poetry run python -m training.fast_match bots/heuristic bots/strong_mocks/ensemble bots/shark --hands 400 --repeat 32 --workers 0 --parallel-backend process --json
 ```
 
 Use `PARALLEL_BACKEND=thread` only for short smoke runs where process startup
@@ -309,12 +327,16 @@ artifacts were not overwritten:
 Validation results:
 
 - `py_compile` passed for `abstractions.py`, `policies.py`,
-  `train_real_policy.py`, self-training, and selector tools.
+  `train_real_policy.py`, `training/fast_match.py`, self-training, and
+  selector tools.
 - `bash -n` passed for both training scripts.
 - Validators passed for `bots/strong_mocks/ppo_policy`,
   `bots/strong_mocks/cfr_bucket`, `bots/strong_mocks/ensemble`, and
   `bots/heuristic/bot.py`.
-- `pytest -q`: 8 passed.
+- `pytest -q`: 12 passed.
+- `pytest -q tests/test_fast_match.py`: 4 passed, covering parity,
+  process-parallel equivalence, worker auto-selection, and no-timeout behavior.
+- `python -m training.fast_match` CLI smoke passed for a 3-hand match.
 - `strong-screen` 1-seed x 12-hand smoke ran with zero heuristic errors. The
   result was negative, as expected for a tiny strong-screen smoke, and is not a
   strategy decision sample.

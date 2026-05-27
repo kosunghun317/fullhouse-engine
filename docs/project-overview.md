@@ -23,6 +23,8 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `sandbox/runner.py`: Runtime process that loads a submitted bot and exchanges newline-delimited JSON actions.
 - `sandbox/match.py`: Local match orchestrator for 2-9 bots, with optional Docker sandboxing.
 - `sandbox/Dockerfile`: Production-like bot container using Python 3.10 and sandbox-approved libraries.
+- `training/fast_match.py`: Local-only no-limit in-process match runner for
+  fast training batches and unrestricted benchmark opponents.
 - `bots/`: Reference bots, starter template, heuristic bot, simple benchmark bots, and mock competitor bots.
 - `bots/heuristic/`: Current competition bot, optional read-only `data/tables.npz`, and single-file submission entrypoint.
 - `bots/mock_competitors/`: Local-only trained/handwritten benchmark opponents that approximate likely RL/NN/CFR/equity submissions.
@@ -65,6 +67,10 @@ graph TB
         Docker["sandbox/Dockerfile\nproduction-like container"]
     end
 
+    subgraph TrainingRuntime["Offline training runtime"]
+        FastMatch["training/fast_match.py\nno-limit local runner"]
+    end
+
     subgraph Bots["Bot directories"]
         Heuristic["bots/heuristic\ncompetition bot"]
         Data["bots/heuristic/data/tables.npz\nread-only lookup data"]
@@ -91,8 +97,14 @@ graph TB
 
     Eval --> Match
     Select --> Match
+    RealTrain --> FastMatch
+    Scripts --> FastMatch
     Match --> Game
     Match --> Runner
+    FastMatch --> Game
+    FastMatch --> Heuristic
+    FastMatch --> Mock
+    FastMatch --> Strong
     Runner --> Heuristic
     Runner --> Mock
     Runner --> Strong
@@ -220,3 +232,6 @@ promoting any of those knobs.
 The real-training pipeline adds process-parallel Fullhouse rollouts for
 benchmark opponents and adapts compatible CFR+ abstraction ideas from
 `jeffelin/CFR_pokerbot`; see `docs/real-training-pipeline-plan.md`.
+The no-limit fast training runner adds unrestricted in-process matches and
+parallel batches for local-only training and benchmark throughput; see
+`docs/fast-training-runner.md`.

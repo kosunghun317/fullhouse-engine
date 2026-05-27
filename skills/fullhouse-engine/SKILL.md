@@ -18,6 +18,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/external-poker-ai-benchmarks.md` before adding any external poker AI benchmark opponent.
 - Read `docs/real-training-pipeline-plan.md` before changing real Fullhouse
   self-play trainers, CFR+ abstractions, or large training scripts.
+- Read `docs/fast-training-runner.md` before changing the unrestricted
+  in-process training runner or fast bot-directory batch commands.
 - Read `docs/strong-mock-self-training-pipeline.md` before changing strong mock opponents, mock training scripts, or self-training heuristic variants.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic changes against the latest recorded benchmark run.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
@@ -90,6 +92,18 @@ rollouts. The CFR+/bucket path uses `--abstraction cfr-pokerbot` and
 `--bucket-update cfr-plus`, which are Fullhouse-compatible adaptations of
 compatible ideas from `jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not
 ported.
+
+For unrestricted fast local bot-directory batches, use:
+
+```bash
+poetry run python -m training.fast_match bots/heuristic bots/strong_mocks/ensemble bots/shark --hands 400 --repeat 32 --workers 0 --parallel-backend process --json
+```
+
+Validate fast-runner parity after changes:
+
+```bash
+poetry run pytest -q tests/test_fast_match.py
+```
 
 For multi-heuristic self-training, run a smoke first:
 

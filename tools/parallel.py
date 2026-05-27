@@ -15,10 +15,10 @@ Backend = Literal["process", "thread"]
 def resolve_workers(workers: int | None, task_count: int) -> int:
     if task_count <= 1:
         return 1
-    if workers is None or workers <= 1:
-        return 1
     if workers == 0:
         return max(1, min(os.cpu_count() or 1, task_count))
+    if workers is None or workers <= 1:
+        return 1
     return max(1, min(workers, task_count))
 
 

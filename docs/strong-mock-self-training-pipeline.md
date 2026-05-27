@@ -33,6 +33,9 @@ tools/strong_mocks/
   train_real_policy.py
   self_train_heuristic.py
 
+training/
+  fast_match.py
+
 bots/strong_mocks/
   oracle_imitation/
   ppo_policy/
@@ -46,6 +49,11 @@ bots/self_training/
 
 The strong mock bots are local benchmark opponents. They are not submission
 templates.
+
+`training/fast_match.py` is the unrestricted bot-directory runner for large
+training and validation batches. It uses the same `PokerEngine` rules as
+`sandbox/match.py`, but imports bots in-process and parallelizes independent
+matches without Docker, subprocess, timeout, CPU, or memory limits.
 
 ## Refactor Decision
 
@@ -221,6 +229,7 @@ Default `10 / 3` needs at least 4 matches; the default 8 gives repeat samples.
 The offline harnesses support independent-match parallelism:
 
 ```bash
+poetry run python -m training.fast_match bots/heuristic bots/strong_mocks/ensemble bots/shark --hands 400 --repeat 16 --workers 0 --parallel-backend process --json
 poetry run python tools/evaluate_heuristic.py --suite strong_mock_6max --seed-count 10 --hands 400 --workers 0 --parallel-backend process --summary-only
 poetry run python tools/evaluate_heuristic.py --suite heads_up_shark --seed-count 10 --hands 400 --workers 4 --parallel-backend thread --summary-only
 poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --workers 0 --parallel-backend process --progress
@@ -230,9 +239,11 @@ poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local --ge
 Backend guidance:
 
 - `process`: default recommendation for serious screens. It isolates match
-  state and avoids Python GIL contention.
+  state, avoids Python GIL contention, and is safest for in-process fast
+  matches.
 - `thread`: lower overhead for short local validation where most time is spent
-  waiting on bot subprocess pipes. Use it only within one config at a time.
+  waiting on bot subprocess pipes. Use it only within one config at a time; it
+  is less isolated for `training.fast_match`.
 - `asyncio`: not implemented because `sandbox.match.run_match()` is synchronous
   and CPU/subprocess blocking. A useful async version would require a separate
   async match orchestrator.
@@ -263,7 +274,8 @@ additional stress signal, then confirm with `promotion` or `final` presets.
 Run after changing this pipeline:
 
 ```bash
-poetry run python -m py_compile tools/parallel.py tools/strong_mocks/*.py tools/evaluate_heuristic.py tools/select_heuristic_config.py bots/self_training/heuristic_variant_template/bot.py
+poetry run python -m py_compile training/fast_match.py tools/parallel.py tools/strong_mocks/*.py tools/evaluate_heuristic.py tools/select_heuristic_config.py bots/self_training/heuristic_variant_template/bot.py
+poetry run pytest -q tests/test_fast_match.py
 poetry run python sandbox/validator.py bots/strong_mocks/oracle_imitation --json
 poetry run python sandbox/validator.py bots/strong_mocks/ppo_policy --json
 poetry run python sandbox/validator.py bots/strong_mocks/cfr_bucket --json
