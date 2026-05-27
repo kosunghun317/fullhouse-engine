@@ -88,10 +88,30 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
 ```
 
 It trains PPO-style and CFR+/bucket strong mocks from actual Fullhouse
-rollouts. The CFR+/bucket path uses `--abstraction cfr-pokerbot` and
-`--bucket-update cfr-plus`, which are Fullhouse-compatible adaptations of
-compatible ideas from `jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not
-ported.
+rollouts. Defaults use `OPPONENT_POOL=adversarial`, real `bot.py` opponents
+through `training.fast_match.FastBot`, lower-variance learning rates,
+`--export-best`, and `--selection-warmup 4`. The CFR+/bucket path uses
+`--abstraction cfr-pokerbot` and `--bucket-update cfr-plus`, which are
+Fullhouse-compatible adaptations of compatible ideas from
+`jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not ported.
+
+For a serious but bounded run on a laptop, prefer:
+
+```bash
+RUN_ID=adversarial-opponents-$(date +%Y%m%d-%H%M%S) \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+OPPONENT_POOL=adversarial \
+EXPORT_BEST=1 \
+SELECTION_WARMUP=4 \
+PPO_GENERATIONS=36 \
+PPO_MATCHES_PER_GENERATION=96 \
+PPO_HANDS=180 \
+BUCKET_GENERATIONS=32 \
+BUCKET_MATCHES_PER_GENERATION=128 \
+BUCKET_HANDS=180 \
+scripts/train_opponents_real.sh
+```
 
 For unrestricted fast local bot-directory batches, use:
 

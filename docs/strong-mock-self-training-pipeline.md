@@ -142,6 +142,10 @@ actual Fullhouse engine rollouts instead of synthetic oracle labels. It supports
 - `--abstraction cfr-pokerbot`: Fullhouse-compatible abstraction inspired by
   `jeffelin/CFR_pokerbot`, excluding Toss Hold'em-only mechanics.
 - `--workers 0 --parallel-backend process`: process-parallel match collection.
+- `--opponent-pool adversarial`: mixes oracle/model/rollout opponents with
+  real local `bot.py` opponents loaded through the fast in-process runner.
+- `--export-best`: exports the best observed checkpoint instead of the last
+  generation.
 
 Real opponent training entrypoint:
 
@@ -154,10 +158,11 @@ Short smoke:
 ```bash
 PPO_GENERATIONS=1 PPO_MATCHES_PER_GENERATION=2 PPO_HANDS=8 \
 BUCKET_GENERATIONS=1 BUCKET_MATCHES_PER_GENERATION=2 BUCKET_HANDS=8 \
-WORKERS=1 scripts/train_opponents_real.sh
+FAST_SMOKE_REPEAT=1 STRONG_SCREEN_SEEDS=1 WORKERS=1 scripts/train_opponents_real.sh
 ```
 
-The script validates trained bots and runs a small parallel strong-screen after
+The script validates trained bots, runs a fast unrestricted batch through
+`training.fast_match`, and then runs a small parallel strong-screen after
 training. For serious training, leave `WORKERS=0` so the helper auto-selects
 local process workers.
 
@@ -166,8 +171,10 @@ graph TD
     Params["train_real_policy.py flags"] --> Mode{"kind"}
     Mode -->|ppo| MLP["MLP policy parameters"]
     Mode -->|bucket| Bucket["bucket preferences / regrets"]
-    Params --> OppPool["opponent pool\noracles, models, rollouts,\nsnapshots"]
+    Params --> OppPool["opponent pool\noracles, models, rollouts,\nsnapshots, bot.py"]
+    OppPool --> FastBot["FastBot adapter\nfor bot.py opponents"]
     OppPool --> Matches["independent Fullhouse matches"]
+    FastBot --> Matches
     MLP --> Matches
     Bucket --> Matches
     Matches --> Parallel["parallel collection\nmap_parallel workers"]

@@ -136,6 +136,12 @@ Training lineups include:
 - Existing model opponents.
 - Rollout-search opponents.
 - Previous snapshots of the trainable policy.
+- Optional submitted-style `bot.py` opponents through `training.fast_match.FastBot`.
+
+The default bash wrapper now uses `OPPONENT_POOL=adversarial`, which mixes
+oracles, rollout/model opponents, and real local bot directories such as
+`bots/heuristic`, `bots/shark`, `bots/mathematician`, `threshold_caller`,
+`equity_pressure`, and `bucket_overbet`.
 
 This is real self-play because current trainable seats play in the same
 Fullhouse match and older snapshots can also be sampled as opponents.
@@ -203,7 +209,7 @@ Default:
 
 ```text
 reward_scale = 1000
-reward_clip = [-10, 10]
+reward_clip = [-5, 5] in the bash wrapper
 ```
 
 Every trainable decision in the hand receives that hand's chip-delta reward.
@@ -230,6 +236,24 @@ Train real mock opponents:
 scripts/train_opponents_real.sh
 ```
 
+Recommended bounded adversarial run:
+
+```bash
+RUN_ID=adversarial-opponents-$(date +%Y%m%d-%H%M%S) \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+OPPONENT_POOL=adversarial \
+EXPORT_BEST=1 \
+SELECTION_WARMUP=4 \
+PPO_GENERATIONS=36 \
+PPO_MATCHES_PER_GENERATION=96 \
+PPO_HANDS=180 \
+BUCKET_GENERATIONS=32 \
+BUCKET_MATCHES_PER_GENERATION=128 \
+BUCKET_HANDS=180 \
+scripts/train_opponents_real.sh
+```
+
 Train heuristic variants through multi-heuristic self-play:
 
 ```bash
@@ -241,8 +265,14 @@ Both scripts accept env overrides. Example shorter run:
 ```bash
 PPO_GENERATIONS=4 \
 PPO_MATCHES_PER_GENERATION=8 \
+PPO_HANDS=40 \
 BUCKET_GENERATIONS=4 \
 BUCKET_MATCHES_PER_GENERATION=8 \
+BUCKET_HANDS=40 \
+FAST_SMOKE_REPEAT=2 \
+FAST_SMOKE_HANDS=40 \
+STRONG_SCREEN_SEEDS=2 \
+STRONG_SCREEN_HANDS=40 \
 scripts/train_opponents_real.sh
 ```
 
@@ -260,11 +290,22 @@ scripts/train_heuristics_selfplay.sh
 
 `scripts/train_opponents_real.sh` defaults:
 
-- PPO: 48 generations, 72 matches/generation, 120 hands/match.
-- Bucket: 40 generations, 96 matches/generation, 120 hands/match.
+- PPO: 48 generations, 96 matches/generation, 160 hands/match.
+- Bucket: 40 generations, 128 matches/generation, 160 hands/match.
 - 6-player tables, 2 trainable seats, process parallelism with `WORKERS=0`.
+- Default opponent pool is `adversarial`, including real local `bot.py`
+  opponents through the fast in-process runner.
+- PPO defaults are deliberately less aggressive than the first long run:
+  learning rate `0.002`, entropy `0.002`, temperature `0.82`, reward clip `5`.
+- Bucket defaults are learning rate `0.004`, temperature `0.80`, reward clip
+  `5`.
+- The trainer exports the best observed generation after a 4-generation
+  warmup, not blindly the final generation.
 - Bucket training uses `--abstraction cfr-pokerbot --bucket-update cfr-plus`
   by default in the bash script.
+- The script writes a fast unrestricted smoke to
+  `$RESULT_ROOT/fast_strong_mock_smoke.json` and the post-training
+  strong-screen to `$RESULT_ROOT/strong_screen_smoke.json`.
 
 `scripts/train_heuristics_selfplay.sh` defaults:
 
@@ -313,6 +354,33 @@ After real opponent training:
 
 Reviewed: 2026-05-27.
 
+Long run assessment from
+`/private/tmp/fullhouse_real_training/real-opponents-20260527-160134`:
+
+| Trainer | Generations | Avg Mean Train Delta | Last 10 Avg | Positive Generations | Best Generation | Final Generation |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| PPO | 48 | `-1896.44` | `-2177.32` | `6/48` | gen 44, `+4301.58` | gen 47, `-2916.67` |
+| Bucket | 40 | `-1725.70` | `-1401.87` | `6/40` | gen 5, `+1208.14` | gen 39, `-1759.74` |
+
+Conclusion: this run did not show significant training improvement. It did
+produce validator-clean benchmark artifacts, but the learning signal was
+unstable and the script exported final generations that were worse than the
+best observed generations. The post-training strong-screen was useful as an
+integration check (`baseline` score `1501.89`, mean-of-suite-means `5201.84`,
+zero busts/errors over 12 short runs), but that does not prove the opponents
+improved; it mainly says the heuristic could still beat the newly exported
+opponents in a small sample.
+
+Fix applied:
+
+- Add `--export-best` and `--selection-warmup` to export the best observed
+  checkpoint instead of the final generation.
+- Add `OPPONENT_POOL=adversarial` to train against real `bot.py` opponents via
+  `training.fast_match.FastBot`.
+- Reduce learning rates/reward clipping and increase per-generation sample
+  size.
+- Add fast unrestricted post-training smoke output.
+
 Smoke commands used temp outputs under `/private/tmp` so committed trained
 artifacts were not overwritten:
 
@@ -323,6 +391,10 @@ artifacts were not overwritten:
   `/private/tmp/fullhouse_real_bucket_smoke/policy.npz`.
 - Process-parallel CFR+ smoke: 1 generation, 2 matches, 4 hands,
   `--workers 2 --parallel-backend process`.
+- Adversarial PPO smoke: 2 generations, 2 matches/generation, 4 hands, real
+  `bot.py` opponents enabled, `--export-best`, zero bot errors.
+- Adversarial bucket smoke: 2 generations, 2 matches/generation, 4 hands, real
+  `bot.py` opponents enabled, `--export-best`, zero bot errors.
 
 Validation results:
 

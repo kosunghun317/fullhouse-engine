@@ -69,6 +69,10 @@ graph TD
 `BOT_PATH` and `BOT_DATA_DIR` during import so directory, single-file, and zip
 submissions behave like the official match runner.
 
+The real policy trainer also uses `FastBot` for `--opponent-pool adversarial`,
+so trainable PPO/bucket policies can learn against real local `bot.py`
+opponents without launching the official subprocess sandbox.
+
 ## Runtime Flow
 
 ```mermaid

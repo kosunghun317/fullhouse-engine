@@ -28,6 +28,7 @@ from tools.strong_mocks.abstractions import abstract_bucket_id
 from tools.strong_mocks.dataset import oracle_logits
 from tools.strong_mocks.features import FEATURE_NAMES, extract_features
 from tools.strong_mocks.policies import decide_rollout, logits_from_model
+from training.fast_match import FastBot
 
 
 DEFAULT_PPO_OUTPUT = ROOT / "bots" / "strong_mocks" / "ppo_policy" / "data" / "policy.npz"
@@ -39,6 +40,15 @@ MODEL_DIRS = {
     "ppo_model": ROOT / "bots" / "strong_mocks" / "ppo_policy" / "data",
     "cfr_model": ROOT / "bots" / "strong_mocks" / "cfr_bucket" / "data",
 }
+
+BOT_PATH_OPPONENTS = (
+    ROOT / "bots" / "heuristic",
+    ROOT / "bots" / "shark",
+    ROOT / "bots" / "mathematician",
+    ROOT / "bots" / "benchmarks" / "threshold_caller",
+    ROOT / "bots" / "mock_competitors" / "equity_pressure",
+    ROOT / "bots" / "mock_competitors" / "bucket_overbet",
+)
 
 
 @dataclass
@@ -189,8 +199,18 @@ def _model_action(name: str, state: dict) -> dict:
     return action_index_to_action(state, int(np.argmax(values)))
 
 
-def _opponent_action(spec: dict, state: dict, rng: random.Random) -> dict:
+def _opponent_action(
+    spec: dict,
+    state: dict,
+    rng: random.Random,
+    fast_bots: dict[str, FastBot] | None = None,
+    bot_id: str | None = None,
+) -> dict:
     kind = spec["kind"]
+    if kind == "bot_path":
+        if fast_bots is None or bot_id is None or bot_id not in fast_bots:
+            return _oracle_action("balanced", state, rng)
+        return fast_bots[bot_id].act(state)
     if kind == "oracle":
         return _oracle_action(spec["style"], state, rng)
     if kind == "rollout":
@@ -208,6 +228,13 @@ def _opponent_pool(mode: str) -> list[dict]:
         return base
     if mode == "fast":
         return base + [{"kind": "model", "name": "oracle_model"}]
+    bot_path_specs = [{"kind": "bot_path", "path": str(path)} for path in BOT_PATH_OPPONENTS]
+    if mode == "adversarial":
+        return base + [
+            {"kind": "rollout", "style": "rollout_pressure"},
+            {"kind": "rollout", "style": "rollout_deep"},
+            {"kind": "model", "name": "oracle_model"},
+        ] + bot_path_specs
     return base + [
         {"kind": "rollout", "style": "rollout_pressure"},
         {"kind": "rollout", "style": "rollout_deep"},
@@ -245,64 +272,75 @@ def _inject_match_log(state: dict, match_log: list[dict]) -> dict:
 def _run_training_match(task: dict) -> dict:
     rng = random.Random(int(task["seed"]))
     bot_ids, specs = _lineup(task, rng)
+    fast_bots: dict[str, FastBot] = {}
     stacks = {bot_id: STARTING_STACK for bot_id in bot_ids}
     dealer = 0
     match_log: list[dict] = []
     decisions: list[Decision] = []
     hand_count = 0
 
-    for hand_num in range(int(task["hands"])):
-        alive = [bot_id for bot_id in bot_ids if stacks[bot_id] > 0]
-        if len(alive) < 2:
-            break
-        hand_start = {bot_id: stacks[bot_id] for bot_id in alive}
-        hand_decisions: list[Decision] = []
-        hand_seed = int(task["seed"]) * 1_000_003 + hand_num
-        engine = PokerEngine(
-            hand_id=f"{task['match_id']}_h{hand_num:04d}",
-            bot_ids=alive,
-            dealer_seat=dealer % len(alive),
-            starting_stacks={bot_id: stacks[bot_id] for bot_id in alive},
-            seed=hand_seed,
-        )
-        state = _inject_match_log(engine.start_hand(), match_log)
-        steps = 0
-        while state.get("type") == "action_request":
-            seat = int(state["seat_to_act"])
-            bot_id = alive[seat]
-            spec = specs[bot_id]
-            if spec["kind"] == "current":
-                action, decision = _policy_action(task, state, rng, record=True)
-                if decision is not None:
-                    hand_decisions.append(decision)
-            else:
-                action = _opponent_action(spec, state, rng)
-            match_log.append({
-                "hand_num": hand_num,
-                "seat": seat,
-                "bot_id": bot_id,
-                "action": action.get("action"),
-                "amount": action.get("amount"),
-            })
-            state = _inject_match_log(engine.apply_action(seat, action), match_log)
-            steps += 1
-            if steps > 1000:
-                raise RuntimeError(f"hand exceeded 1000 actions: {task['match_id']} {hand_num}")
+    try:
+        for bot_id, spec in specs.items():
+            if spec["kind"] == "bot_path":
+                fast_bots[bot_id] = FastBot(bot_id, spec["path"])
+                fast_bots[bot_id].warmup()
 
-        final_stacks = state.get("final_stacks", {})
-        for bot_id, value in final_stacks.items():
-            stacks[bot_id] = int(value)
-        for decision in hand_decisions:
-            start = hand_start.get(decision.bot_id, STARTING_STACK)
-            final = int(final_stacks.get(decision.bot_id, start))
-            reward = (final - start) / max(1.0, float(task["reward_scale"]))
-            decision.reward = float(max(-task["reward_clip"], min(task["reward_clip"], reward)))
-            decisions.append(decision)
-        dealer += 1
-        hand_count += 1
+        for hand_num in range(int(task["hands"])):
+            alive = [bot_id for bot_id in bot_ids if stacks[bot_id] > 0]
+            if len(alive) < 2:
+                break
+            hand_start = {bot_id: stacks[bot_id] for bot_id in alive}
+            hand_decisions: list[Decision] = []
+            hand_seed = int(task["seed"]) * 1_000_003 + hand_num
+            engine = PokerEngine(
+                hand_id=f"{task['match_id']}_h{hand_num:04d}",
+                bot_ids=alive,
+                dealer_seat=dealer % len(alive),
+                starting_stacks={bot_id: stacks[bot_id] for bot_id in alive},
+                seed=hand_seed,
+            )
+            state = _inject_match_log(engine.start_hand(), match_log)
+            steps = 0
+            while state.get("type") == "action_request":
+                seat = int(state["seat_to_act"])
+                bot_id = alive[seat]
+                spec = specs[bot_id]
+                if spec["kind"] == "current":
+                    action, decision = _policy_action(task, state, rng, record=True)
+                    if decision is not None:
+                        hand_decisions.append(decision)
+                else:
+                    action = _opponent_action(spec, state, rng, fast_bots=fast_bots, bot_id=bot_id)
+                match_log.append({
+                    "hand_num": hand_num,
+                    "seat": seat,
+                    "bot_id": bot_id,
+                    "action": action.get("action"),
+                    "amount": action.get("amount"),
+                })
+                state = _inject_match_log(engine.apply_action(seat, action), match_log)
+                steps += 1
+                if steps > 1000:
+                    raise RuntimeError(f"hand exceeded 1000 actions: {task['match_id']} {hand_num}")
+
+            final_stacks = state.get("final_stacks", {})
+            for bot_id, value in final_stacks.items():
+                stacks[bot_id] = int(value)
+            for decision in hand_decisions:
+                start = hand_start.get(decision.bot_id, STARTING_STACK)
+                final = int(final_stacks.get(decision.bot_id, start))
+                reward = (final - start) / max(1.0, float(task["reward_scale"]))
+                decision.reward = float(max(-task["reward_clip"], min(task["reward_clip"], reward)))
+                decisions.append(decision)
+            dealer += 1
+            hand_count += 1
+    finally:
+        for bot in fast_bots.values():
+            bot.stop()
 
     train_ids = [bot_id for bot_id in bot_ids if specs[bot_id]["kind"] == "current"]
     train_deltas = {bot_id: stacks.get(bot_id, 0) - STARTING_STACK for bot_id in train_ids}
+    bot_error_count = sum(len(bot.errors) for bot in fast_bots.values())
     return {
         "decisions": [
             {
@@ -317,6 +355,7 @@ def _run_training_match(task: dict) -> dict:
         "hands": hand_count,
         "train_deltas": train_deltas,
         "mean_train_delta": float(sum(train_deltas.values()) / max(1, len(train_deltas))),
+        "bot_error_count": bot_error_count,
     }
 
 
@@ -498,6 +537,26 @@ def _snapshot(kind: str, params: dict | None, mean: np.ndarray, scale: np.ndarra
     }
 
 
+def _export_state(
+    kind: str,
+    params: dict | None,
+    mean: np.ndarray,
+    scale: np.ndarray,
+    prefs: np.ndarray | None,
+    strategy_sum: np.ndarray | None,
+) -> dict:
+    if kind == "ppo":
+        return {
+            "params": {key: value.copy() for key, value in params.items()},
+            "mean": mean.copy(),
+            "scale": scale.copy(),
+        }
+    return {
+        "prefs": prefs.copy(),
+        "strategy_sum": strategy_sum.copy(),
+    }
+
+
 def _append_jsonl(path: str | None, row: dict) -> None:
     if not path:
         return
@@ -522,7 +581,11 @@ def train(args) -> dict:
     rng = np.random.default_rng(args.seed)
     snapshots: list[dict] = []
     reports = []
+    best_metric = -float("inf")
+    best_state: dict | None = None
+    best_row: dict | None = None
     for generation in range(args.generations):
+        pre_update_state = _export_state(args.kind, params, mean, scale, prefs, strategy_sum)
         tasks = []
         for match_index in range(args.matches_per_generation):
             task = {
@@ -555,6 +618,23 @@ def train(args) -> dict:
             backend=args.parallel_backend,
         )
         data = _flatten_decisions(matches)
+        mean_delta = float(np.mean([match["mean_train_delta"] for match in matches])) if matches else 0.0
+        bot_error_count = int(sum(match.get("bot_error_count", 0) for match in matches))
+        row = {
+            "generation": generation,
+            "kind": args.kind,
+            "matches": len(matches),
+            "hands": int(sum(match["hands"] for match in matches)),
+            "decisions": int(data["reward"].shape[0]),
+            "mean_train_delta": round(mean_delta, 3),
+            "mean_decision_reward": round(float(np.mean(data["reward"])) if data["reward"].size else 0.0, 5),
+            "bot_error_count": bot_error_count,
+        }
+        if generation >= args.selection_warmup and mean_delta > best_metric:
+            best_metric = mean_delta
+            best_state = pre_update_state
+            best_row = dict(row)
+
         if args.kind == "ppo":
             loss = _update_ppo(
                 params,
@@ -576,17 +656,7 @@ def train(args) -> dict:
                 args.bucket_update,
                 generation + 1,
             )
-        mean_delta = float(np.mean([match["mean_train_delta"] for match in matches])) if matches else 0.0
-        row = {
-            "generation": generation,
-            "kind": args.kind,
-            "matches": len(matches),
-            "hands": int(sum(match["hands"] for match in matches)),
-            "decisions": int(data["reward"].shape[0]),
-            "mean_train_delta": round(mean_delta, 3),
-            "mean_decision_reward": round(float(np.mean(data["reward"])) if data["reward"].size else 0.0, 5),
-            "update_loss": round(float(loss), 6),
-        }
+        row["update_loss"] = round(float(loss), 6)
         reports.append(row)
         _append_jsonl(args.log_jsonl, row)
         if args.progress:
@@ -605,15 +675,35 @@ def train(args) -> dict:
         "hands": args.hands,
         "players": args.players,
         "train_seats": args.train_seats,
-        "mean_train_delta": reports[-1]["mean_train_delta"] if reports else 0.0,
+        "final_mean_train_delta": reports[-1]["mean_train_delta"] if reports else 0.0,
+        "mean_train_delta": (
+            best_row["mean_train_delta"]
+            if args.export_best and best_row is not None
+            else reports[-1]["mean_train_delta"] if reports else 0.0
+        ),
+        "exported_generation": (
+            best_row["generation"]
+            if args.export_best and best_row is not None
+            else reports[-1]["generation"] if reports else None
+        ),
+        "best_generation": best_row["generation"] if best_row is not None else None,
+        "best_mean_train_delta": best_row["mean_train_delta"] if best_row is not None else None,
         "abstraction": args.abstraction,
         "bucket_update": args.bucket_update,
         "reports": reports[-5:],
     }
+    export_state = best_state if args.export_best and best_state is not None else _export_state(
+        args.kind,
+        params,
+        mean,
+        scale,
+        prefs,
+        strategy_sum,
+    )
     if args.kind == "ppo":
-        _export_ppo(output, params, mean, scale, report)
+        _export_ppo(output, export_state["params"], export_state["mean"], export_state["scale"], report)
     else:
-        _export_bucket(output, prefs, strategy_sum, report)
+        _export_bucket(output, export_state["prefs"], export_state["strategy_sum"], report)
     return report
 
 
@@ -636,7 +726,7 @@ def main() -> None:
     parser.add_argument("--temperature", type=float, default=0.92)
     parser.add_argument("--reward-scale", type=float, default=1000.0)
     parser.add_argument("--reward-clip", type=float, default=10.0)
-    parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed"], default="mixed")
+    parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed", "adversarial"], default="mixed")
     parser.add_argument("--snapshot-interval", type=int, default=2)
     parser.add_argument("--max-snapshots", type=int, default=6)
     parser.add_argument("--snapshot-prob", type=float, default=0.35)
@@ -646,6 +736,8 @@ def main() -> None:
     parser.add_argument("--output", default=None)
     parser.add_argument("--log-jsonl", default=None)
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--export-best", action="store_true")
+    parser.add_argument("--selection-warmup", type=int, default=2)
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
