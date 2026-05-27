@@ -81,6 +81,55 @@ Important limits:
 - If you still have chips, your next call in a later hand includes the rolling `match_action_log`, so you can observe public actions that happened after you folded, subject to the 200-entry cap.
 - If you bust to zero chips, you are not seated in later hands of that match.
 
+## State And Memory Flow
+
+```mermaid
+graph TD
+    Engine["PokerEngine builds action_request"] --> PublicState["Public game_state\nhole cards for hero only\nboard, pot, stacks, action_log"]
+    Match["sandbox/match.py"] --> RollingLog["match_action_log\nlatest 200 public actions"]
+    RollingLog --> PublicState
+    PublicState --> Decide["bot.decide(game_state)"]
+
+    subgraph BotMemory["Module-level in-process memory"]
+        Opp["OPPONENTS\nrates and pressure responses"]
+        Seen["SEEN_ACTIONS\ndeduplicate rolling log"]
+        Cache["EQUITY_CACHE\nbounded Monte Carlo memo"]
+        Tables["data/tables.npz\nread-only import-time lookup"]
+    end
+
+    Decide --> Seen
+    Seen --> Opp
+    Decide --> Cache
+    Tables --> Decide
+    Opp --> Profile["table / opponent profile"]
+    Cache --> Equity["equity estimate"]
+    Profile --> Policy["preflop or postflop policy"]
+    Equity --> Policy
+    Policy --> Action["legal action intent"]
+    Action --> Sanitizer["single action sanitizer"]
+    Sanitizer --> EngineAction["fold / check / call / raise / all_in"]
+    EngineAction --> Engine
+```
+
+```mermaid
+sequenceDiagram
+    participant H as Hand N
+    participant B as Bot memory
+    participant L as match_action_log
+    participant N as Hand N+1
+
+    H->>B: update OPPONENTS from public actions
+    H->>B: cache equity estimates
+    H-->>L: append every public action
+    alt hero remains active
+        H->>B: next decision sees current-hand changes
+    else hero folds but still has chips
+        N->>B: next hand sees recent post-fold public actions via match_action_log
+    else hero busts
+        N-->>B: no future calls in that match
+    end
+```
+
 ## What Happens After Your Decision
 
 If you remain active in a hand, the next call to `decide()` will reflect all public changes that occurred before your next turn:

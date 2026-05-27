@@ -86,6 +86,42 @@ with `np.load(..., allow_pickle=False)`.
 falls back to the numpy implementation otherwise. MLX is a dev dependency only;
 do not import it from `bots/heuristic/bot.py`.
 
+```mermaid
+graph TB
+    subgraph Bootstrap["Synthetic/bootstrap trainers"]
+        Imitation["train_imitation.py\nsklearn MLP imitation"]
+        MCCFR["train_mccfr.py\ncoarse CFR-like table"]
+        PPOBootstrap["train_ppo.py\nsynthetic policy gradient / MLX"]
+    end
+
+    subgraph Artifacts["Strong mock artifacts"]
+        Oracle["oracle_imitation/data/policy.npz"]
+        OracleValue["oracle_imitation/data/policy_value.npz"]
+        CFR["cfr_bucket/data/policy.npz"]
+        PPO["ppo_policy/data/policy.npz"]
+    end
+
+    subgraph Runtime["Runtime benchmark bots"]
+        OracleBot["bots/strong_mocks/oracle_imitation"]
+        CFRBot["bots/strong_mocks/cfr_bucket"]
+        PPOBot["bots/strong_mocks/ppo_policy"]
+        Rollout["bots/strong_mocks/rollout_search"]
+        Ensemble["bots/strong_mocks/ensemble"]
+    end
+
+    Imitation --> Oracle
+    Imitation --> OracleValue
+    MCCFR --> CFR
+    PPOBootstrap --> PPO
+    Oracle --> OracleBot
+    CFR --> CFRBot
+    PPO --> PPOBot
+    OracleBot --> Ensemble
+    CFRBot --> Ensemble
+    PPOBot --> Ensemble
+    Rollout --> Ensemble
+```
+
 ## Real Fullhouse Training
 
 `tools/strong_mocks/train_real_policy.py` trains benchmark opponents from
@@ -117,6 +153,27 @@ The script validates trained bots and runs a small parallel strong-screen after
 training. For serious training, leave `WORKERS=0` so the helper auto-selects
 local process workers.
 
+```mermaid
+graph TD
+    Params["train_real_policy.py flags"] --> Mode{"kind"}
+    Mode -->|ppo| MLP["MLP policy parameters"]
+    Mode -->|bucket| Bucket["bucket preferences / regrets"]
+    Params --> OppPool["opponent pool\noracles, models, rollouts,\nsnapshots"]
+    OppPool --> Matches["independent Fullhouse matches"]
+    MLP --> Matches
+    Bucket --> Matches
+    Matches --> Parallel["parallel collection\nmap_parallel workers"]
+    Parallel --> Decisions["decision records\nfeatures, legal mask,\naction, bucket, reward"]
+    Decisions --> Reward["per-hand chip-delta reward"]
+    Reward --> Update{"update"}
+    Update -->|ppo| PG["policy-gradient update"]
+    Update -->|bucket + cfr-plus| CFRPlus["positive regret clipping\nlinear average strategy"]
+    PG --> ExportPPO["ppo_policy/data/policy.npz"]
+    CFRPlus --> ExportCFR["cfr_bucket/data/policy.npz"]
+    ExportPPO --> StrongScreen["strong-screen benchmark"]
+    ExportCFR --> StrongScreen
+```
+
 ## Self-Training
 
 `tools/strong_mocks/self_train_heuristic.py` evolves named heuristic configs.
@@ -126,6 +183,18 @@ Each generated bot directory copies the wrapper template and writes
 That config sets environment variables before importing `bots.heuristic.bot`.
 Because Fullhouse runs each bot in its own process, 2 or 3 heuristic variants
 can sit in the same 6-player match with independent settings.
+
+```mermaid
+graph TD
+    Seed["Seed population\nbaseline, legacy,\npressure, SPR, random"] --> Generate["Write generated wrapper bots\nwith data/config.json"]
+    Generate --> Lineups["Build 6-max lineups\n2-3 heuristic variants\nplus strong/reference fillers"]
+    Lineups --> Parallel["Run matches in parallel\nprocess or thread workers"]
+    Parallel --> Score["Score by chip delta\nmean and min per variant"]
+    Score --> Elite["Keep elites"]
+    Elite --> Mutate["Mutate env knobs\nrisk, bluff, sizing,\npostflop feature controls"]
+    Mutate --> Generate
+    Score --> Results["Write generation results JSON"]
+```
 
 Smoke command:
 

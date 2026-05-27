@@ -87,6 +87,33 @@ The compatible parts are adapted as:
 - Explicit Fullhouse board/hand abstraction.
 - Modular exported artifacts usable by `bots/strong_mocks/ensemble`.
 
+```mermaid
+graph TB
+    subgraph Sources["Adapted ideas, not copied code"]
+        RLCard["RLCard\nrollout + legal mask patterns"]
+        OpenSpiel["OpenSpiel Deep CFR\nself-play / buffers / masks"]
+        Pokers["Reinforcement-Poker pokers\nin-process environment stepping"]
+        CFRPokerbot["jeffelin/CFR_pokerbot\nCFR+ abstraction and hybrid policy idea"]
+    end
+
+    subgraph FullhouseAdaptation["Fullhouse-specific implementation"]
+        Engine["engine.game.PokerEngine\nreal NLHE hand loop"]
+        Actions["tools/strong_mocks/actions.py\n8-action abstraction"]
+        Features["tools/strong_mocks/features.py\npublic state vector"]
+        Abstractions["tools/strong_mocks/abstractions.py\nfeature or cfr-pokerbot buckets"]
+        Trainer["tools/strong_mocks/train_real_policy.py"]
+    end
+
+    RLCard --> Trainer
+    OpenSpiel --> Trainer
+    Pokers --> Engine
+    CFRPokerbot --> Abstractions
+    Engine --> Trainer
+    Actions --> Trainer
+    Features --> Trainer
+    Abstractions --> Trainer
+```
+
 Training lineups include:
 
 - 2 current trainable seats by default.
@@ -127,6 +154,24 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
 Use `PARALLEL_BACKEND=thread` only for short smoke runs where process startup
 overhead dominates. Use process workers for serious training because engine
 simulation and rollout opponents are CPU-bound.
+
+```mermaid
+graph TD
+    Generation["Training generation"] --> Tasks["Create N independent match tasks"]
+    Tasks --> Workers{"workers"}
+    Workers -->|process| P1["Process worker 1"]
+    Workers -->|process| P2["Process worker 2"]
+    Workers -->|process| Pn["Process worker N"]
+    P1 --> R1["rollout records"]
+    P2 --> R2["rollout records"]
+    Pn --> Rn["rollout records"]
+    R1 --> Merge["merge decisions and rewards"]
+    R2 --> Merge
+    Rn --> Merge
+    Merge --> Update["single policy update\nMLP or CFR+ table"]
+    Update --> Snapshot["optional snapshot opponent"]
+    Snapshot --> Generation
+```
 
 ## Reward
 

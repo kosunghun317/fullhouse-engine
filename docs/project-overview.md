@@ -46,6 +46,97 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `demo.py`: Flask demo UI showing local reference-bot matches.
 - `tests/`: Engine unit tests.
 
+## Architecture Diagram
+
+```mermaid
+graph TB
+    User["Developer / participant"] --> Tools["Local tooling"]
+    User --> Submission["Submitted bot package"]
+
+    subgraph Core["Fullhouse engine"]
+        Game["engine/game.py\nhand engine"]
+        Tournament["engine/tournament.py\nSwiss / standings"]
+    end
+
+    subgraph Sandbox["Sandbox runtime"]
+        Validator["sandbox/validator.py\nstatic + runtime checks"]
+        Match["sandbox/match.py\nmulti-hand match"]
+        Runner["sandbox/runner.py\nbot subprocess protocol"]
+        Docker["sandbox/Dockerfile\nproduction-like container"]
+    end
+
+    subgraph Bots["Bot directories"]
+        Heuristic["bots/heuristic\ncompetition bot"]
+        Data["bots/heuristic/data/tables.npz\nread-only lookup data"]
+        Mock["bots/mock_competitors\nlocal benchmark families"]
+        Strong["bots/strong_mocks\ntrained / rollout opponents"]
+        SelfTrain["bots/self_training\ngenerated heuristic wrappers"]
+    end
+
+    subgraph Tooling["Tools and scripts"]
+        Eval["tools/evaluate_heuristic.py\nsuite runner"]
+        Select["tools/select_heuristic_config.py\nrisk-aware ranking"]
+        Package["tools/package_heuristic.py\nzip builder"]
+        Harden["tools/harden_submission.py\nsubmission hardening"]
+        RealTrain["tools/strong_mocks/train_real_policy.py\nreal self-play trainer"]
+        Scripts["scripts/train_*.sh\nlarge training entrypoints"]
+    end
+
+    Tools --> Eval
+    Tools --> Select
+    Tools --> Package
+    Tools --> Harden
+    Tools --> RealTrain
+    Tools --> Scripts
+
+    Eval --> Match
+    Select --> Match
+    Match --> Game
+    Match --> Runner
+    Runner --> Heuristic
+    Runner --> Mock
+    Runner --> Strong
+    Validator --> Heuristic
+    Package --> Heuristic
+    Package --> Data
+    Harden --> Validator
+    RealTrain --> Game
+    RealTrain --> Strong
+    Scripts --> RealTrain
+    Scripts --> SelfTrain
+    Submission --> Validator
+    Submission --> Runner
+```
+
+## Runtime Flow
+
+```mermaid
+sequenceDiagram
+    participant M as sandbox/match.py
+    participant E as PokerEngine
+    participant R as sandbox/runner.py
+    participant B as bot.py
+
+    M->>R: start bot process
+    M->>R: warmup call
+    R->>B: decide({"type": "warmup"})
+    B-->>R: safe action ignored
+    loop each hand until 400 hands or only one stack remains
+        M->>E: start_hand()
+        E-->>M: action_request state
+        loop while action_request
+            M->>R: JSON state with match_action_log
+            R->>B: decide(game_state)
+            B-->>R: action dict
+            R-->>M: newline-delimited JSON action
+            M->>E: apply_action(seat, action)
+            E-->>M: next action_request or hand_complete
+        end
+        M->>M: update stacks and rolling match_action_log
+    end
+    M-->>User: chip_delta, final_stacks, bot_errors
+```
+
 ## Bot Contract
 
 Valid returned actions:

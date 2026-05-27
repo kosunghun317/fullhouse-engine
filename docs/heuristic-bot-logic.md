@@ -46,6 +46,44 @@ The current implementation:
 
 This makes reliability a first-class strategy feature: crashes, malformed returns, and timeouts are often worse than a slightly conservative fold.
 
+## Decision Flow
+
+```mermaid
+graph TD
+    Start["decide(game_state)"] --> Warmup{"warmup?"}
+    Warmup -->|yes| WarmupAction["return check"]
+    Warmup -->|no| Try["start guarded try block\nrecord time budget"]
+    Try --> Memory["update OPPONENTS from match_action_log"]
+    Memory --> Street{"street"}
+    Street -->|preflop| Preflop["preflop policy\n169-class score + position + profile"]
+    Street -->|flop / turn / river| Equity["bounded eval7 equity\ncache + sample budget"]
+    Equity --> Features["board texture and hand features"]
+    Features --> Postflop["postflop policy\nvalue / call / bluff / check"]
+    Preflop --> Intent["policy intent"]
+    Postflop --> Intent
+    Intent --> Sanitize["_sanitize_action()\nonly final action gateway"]
+    Sanitize --> Return["return legal action dict"]
+    Try --> Error{"exception?"}
+    Error -->|yes| Fallback["safe fallback\ncheck, cheap call, or fold"]
+    Fallback --> Return
+```
+
+## Policy Layers
+
+```mermaid
+graph LR
+    State["Public state"] --> Parse["state parsing\npot odds, stack, position"]
+    Parse --> Opponent["opponent model\nnit / station / maniac / abc / mixed"]
+    Parse --> Strength["hand strength\npreflop table or eval7 equity"]
+    Parse --> Texture["board texture\nwet / dry / medium"]
+    Opponent --> Thresholds["threshold adjustments\ncall margin, risk guard,\nfold pressure"]
+    Strength --> Thresholds
+    Texture --> Thresholds
+    Thresholds --> ActionClass["action class\nvalue, thin value,\nsemi-bluff, bluff,\ncall, fold, check"]
+    ActionClass --> Sizing["sizing policy\nSPR, off-bucket,\npot-odds suspicion"]
+    Sizing --> Sanitizer["action sanitizer"]
+```
+
 ## Constants And Tunables
 
 Important constants:
@@ -239,6 +277,25 @@ raise, have enough pressure-response observations, and show both call and fold
 responses. When suspicion crosses the env-tunable threshold, bluffs/semi-bluffs
 are sized at least slightly above half pot and value/thin-value sizes are capped
 near half pot unless the table profile is station.
+
+```mermaid
+graph TD
+    Log["match_action_log\nlatest 200 public actions"] --> Dedup["deduplicate by hand/seat/action/amount"]
+    Dedup --> Counters["per-bot counters\nraises, calls, folds, checks,\nall-ins, raise sizes"]
+    Counters --> Pressure["pressure events\nfolds/calls after prior raise/all-in"]
+    Counters --> Rates["smoothed rates"]
+    Pressure --> Rates
+    Rates --> Classify{"profile rules"}
+    Classify --> Unknown["unknown\nnot enough data"]
+    Classify --> Maniac["maniac\nhigh raise/all-in/raise size"]
+    Classify --> Station["station\nhigh call, low fold"]
+    Classify --> Nit["nit\nhigh fold, low raise"]
+    Classify --> ABC["abc\nlow aggression"]
+    Rates --> FoldPressure["_fold_pressure()"]
+    Rates --> PotOddsSuspicion["_pot_odds_suspicion()"]
+    FoldPressure --> Bluffing["bluff / semi-bluff eligibility"]
+    PotOddsSuspicion --> Sizing["half-pot threshold sizing adjustments"]
+```
 
 ## Equity Engine
 

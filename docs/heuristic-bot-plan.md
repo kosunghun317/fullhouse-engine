@@ -53,6 +53,46 @@ Planned `bot.py` sections:
 
 Design rule: every policy function returns an intent, and only `sanitize_action()` produces the final action dict. This prevents legal-action fixes from being scattered through the bot.
 
+## Strategy Architecture
+
+```mermaid
+graph TB
+    subgraph Submitted["Submitted bot: bots/heuristic/bot.py"]
+        Entry["decide(game_state)"]
+        Memory["in-memory opponent model"]
+        Preflop["preflop chart / 169-class table"]
+        Equity["bounded postflop equity"]
+        Postflop["postflop heuristic policy"]
+        Sizing["exploit sizing"]
+        Sanitizer["legal action sanitizer"]
+    end
+
+    subgraph Data["Optional read-only data"]
+        Tables["data/tables.npz\npreflop scores, bet arms,\nreserved priors"]
+    end
+
+    subgraph Offline["Offline-only tooling"]
+        Bench["benchmark suites"]
+        Configs["named env configs"]
+        Mocks["mock competitors"]
+        RealTrain["real strong-mock training"]
+    end
+
+    Tables --> Preflop
+    Entry --> Memory
+    Entry --> Preflop
+    Entry --> Equity
+    Equity --> Postflop
+    Memory --> Postflop
+    Preflop --> Sanitizer
+    Postflop --> Sizing
+    Sizing --> Sanitizer
+    Bench --> Configs
+    Mocks --> Bench
+    RealTrain --> Mocks
+    Configs -.env vars.-> Entry
+```
+
 ## State And Memory Design
 
 Use module-level memory only:

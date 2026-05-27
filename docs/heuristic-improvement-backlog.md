@@ -35,6 +35,29 @@ Effort scale:
 | 17 | Postflop feature candidate controls | 3 | Top-pair/overpair, board-pair danger, blocker bluff, delayed probe, and pot-odds-like sizing knobs are implemented and benchmarkable. | Keep default guarded; run candidate/promotion screens before promotion. | Implemented, not promoted |
 | 18 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
 
+## Improvement Dependency Map
+
+```mermaid
+graph TD
+    Safety["Safety shell and validator pass"] --> Preflop["Explicit 169-class table"]
+    Safety --> Equity["Bounded eval7 equity"]
+    Safety --> Opponent["Public opponent model"]
+    Preflop --> SPR["SPR-aware commitment"]
+    Equity --> HandFeatures["Postflop hand features"]
+    Opponent --> Pressure["Pressure-fold and pot-odds suspicion"]
+    SPR --> Promoted["Promoted baseline defaults"]
+    Pressure --> Promoted
+    HandFeatures --> Candidate["Candidate-only controls\nline-aware, blocker-probe, pair-danger"]
+    Promoted --> Benchmarks["100-seed acceptance matrix"]
+    Candidate --> Gate["candidate / promotion / final gates"]
+    Benchmarks --> Backlog["Deferred work"]
+    Gate --> Backlog
+    Backlog --> PreflopMatrix["Full preflop action matrix"]
+    Backlog --> RangeEquity["Range-weighted equity"]
+    Backlog --> StreetStats["Street-specific opponent stats"]
+    Backlog --> RuntimeBandit["Runtime safe-mode bandit"]
+```
+
 ## Pro-Heuristic Gaps
 
 The current bot has basic position, pot odds, equity, board texture, and opponent profile logic. It does not yet encode several common high-level tactics used by strong human players and modern solver-informed strategy.

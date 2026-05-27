@@ -98,6 +98,45 @@ Recommended tiers:
 
 For long screens, pass `--progress` so each config/suite boundary is printed to stderr.
 
+## Promotion Gate Flow
+
+```mermaid
+graph TD
+    Idea["New bot idea or parameter change"] --> Implement["Add env-tunable candidate\nor benchmark-only opponent"]
+    Implement --> Smoke["Smoke validation\nvalidator + short match"]
+    Smoke --> SmokeOK{"No errors?"}
+    SmokeOK -->|no| Fix["Fix reliability first"]
+    Fix --> Smoke
+    SmokeOK -->|yes| Candidate["Candidate screen\n~10 seeds, targeted suites"]
+    Candidate --> CandidateWin{"Improves target\nwithout obvious regression?"}
+    CandidateWin -->|no| KeepKnob["Keep as diagnostic only\nor reject"]
+    CandidateWin -->|yes| Promotion["Promotion gate\n~30 seeds, core + stress + mocks"]
+    Promotion --> PromotionWin{"Risk-aware score,\nmean, busts acceptable?"}
+    PromotionWin -->|no| KeepKnob
+    PromotionWin -->|yes| Final["Final acceptance\n100 seeds x 400 hands"]
+    Final --> FinalOK{"All suites positive mean\nand zero bot errors?"}
+    FinalOK -->|no| KeepKnob
+    FinalOK -->|yes| Default["Promote into baseline defaults"]
+    Default --> Docs["Update docs and skill workflow"]
+```
+
+## Benchmark Suite Map
+
+```mermaid
+graph LR
+    Baseline["heuristic baseline"] --> Core["core suites\nreference, mutant,\nheads-up reference"]
+    Baseline --> Stress["stress suites\nsizing, pressure,\ntight, mixed, threshold"]
+    Baseline --> MockFamily["mock family suites\nequity, bucket,\ntrained numpy, anti-heuristic"]
+    Baseline --> Strong["strong suites\nMLP, PPO, CFR bucket,\nrollout, ensemble"]
+
+    Core --> Selector["select_heuristic_config.py"]
+    Stress --> Selector
+    MockFamily --> Selector
+    Strong --> Selector
+    Selector --> Metrics["mean, median, stdev,\nmin, positive runs,\nbusts, errors"]
+    Metrics --> Decision["promote / reject / keep candidate"]
+```
+
 ## Expanded Mock Competitor Families
 
 Reviewed: 2026-05-27.

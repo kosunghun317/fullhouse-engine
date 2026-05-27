@@ -114,6 +114,25 @@ These mocks are benchmark-only and intentionally not submission-shaped as a
 single portable package because several variants import shared local helpers.
 Run them locally through the benchmark harness.
 
+## External-To-Local Adaptation Flow
+
+```mermaid
+graph TD
+    External["Public poker AI project"] --> Fit{"Rule fit?"}
+    Fit -->|same interface / useful weights| Adapter["Optional benchmark-only adapter"]
+    Fit -->|different engine or rules| Ideas["Port ideas only"]
+    Ideas --> LocalTrain["Fullhouse real trainer\ntrain_real_policy.py"]
+    Ideas --> MockDesign["mock competitor design"]
+    Adapter --> LocalBench["Fullhouse benchmark harness"]
+    LocalTrain --> StrongMocks["bots/strong_mocks artifacts"]
+    MockDesign --> MockBots["bots/mock_competitors"]
+    StrongMocks --> LocalBench
+    MockBots --> LocalBench
+    LocalBench --> Decision{"Heuristic change?"}
+    Decision -->|yes| CandidateGate["candidate / promotion / final gates"]
+    Decision -->|no| Docs["document as diagnostic"]
+```
+
 ## Candidate Ranking
 
 | Rank | Candidate | Practical Status | Fit For Our Goal | Verdict |
