@@ -106,6 +106,9 @@ overwrite threshold. The CFR+/bucket path uses
 `--abstraction cfr-pokerbot` and `--bucket-update cfr-plus`, which are
 Fullhouse-compatible adaptations of compatible ideas from
 `jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not ported.
+PPO strong mocks use sampled-softmax inference, recorded behavior temperatures
+for PPO ratios, frozen feature normalization by default, risk-adjusted
+checkpoint selection, and strategic all-in / large-call-off masks.
 
 For a serious but bounded run on a laptop, prefer:
 

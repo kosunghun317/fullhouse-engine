@@ -46,21 +46,21 @@ PPO_ARMS = {
     "stable": {
         "learning_rate": 0.0015,
         "entropy_coef": 0.0025,
-        "temperature": 0.82,
+        "temperature": 0.62,
         "ppo_clip_ratio": 0.20,
         "ppo_value_coef": 0.35,
     },
     "explore": {
         "learning_rate": 0.0022,
         "entropy_coef": 0.0060,
-        "temperature": 0.92,
+        "temperature": 0.75,
         "ppo_clip_ratio": 0.22,
         "ppo_value_coef": 0.25,
     },
     "conservative": {
         "learning_rate": 0.0010,
         "entropy_coef": 0.0015,
-        "temperature": 0.78,
+        "temperature": 0.50,
         "ppo_clip_ratio": 0.16,
         "ppo_value_coef": 0.45,
     },
@@ -303,6 +303,7 @@ def train_ppo_candidate(
         selection_warmup=args.selection_warmup,
         early_stop_patience=args.early_stop_patience,
         early_stop_min_delta=args.early_stop_min_delta,
+        selection_bust_penalty=args.selection_bust_penalty,
         min_export_mean_delta=-1_000_000_000.0,
         progress=args.progress,
         json=True,
@@ -538,7 +539,7 @@ def main() -> None:
     parser.add_argument("--ppo-epochs", type=int, default=3)
     parser.add_argument("--ppo-batch-size", type=int, default=4096)
     parser.add_argument("--ppo-max-grad-norm", type=float, default=0.75)
-    parser.add_argument("--ppo-feature-norm-momentum", type=float, default=0.08)
+    parser.add_argument("--ppo-feature-norm-momentum", type=float, default=0.0)
     parser.add_argument("--ppo-replay-generations", type=int, default=4)
     parser.add_argument("--ppo-replay-max-decisions", type=int, default=24000)
     parser.add_argument("--heuristic-population", type=int, default=10)
@@ -554,6 +555,7 @@ def main() -> None:
     parser.add_argument("--selection-warmup", type=int, default=1)
     parser.add_argument("--early-stop-patience", type=int, default=0)
     parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
+    parser.add_argument("--selection-bust-penalty", type=float, default=8000.0)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--seed", type=int, default=12000)

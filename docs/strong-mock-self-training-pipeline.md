@@ -153,8 +153,10 @@ actual Fullhouse engine rollouts instead of synthetic oracle labels. It supports
   checkpoint is below the overwrite threshold. New candidate output paths are
   still exported so league dry-runs can be evaluated.
 - PPO-specific rollout learning now uses a value baseline, clipped policy
-  ratios, recent replay batches, rollout-derived feature normalization,
-  gradient clipping, and a strategic all-in guard.
+  ratios with recorded behavior temperature, recent replay batches, frozen
+  feature normalization by default, sampled-softmax mock inference,
+  risk-adjusted checkpoint selection, gradient clipping, and a strategic
+  all-in / large-call-off guard.
 
 Real opponent training entrypoint:
 

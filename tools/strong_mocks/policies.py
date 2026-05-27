@@ -27,6 +27,52 @@ def _softmax(logits: np.ndarray) -> np.ndarray:
     return exp / max(1e-9, float(np.sum(exp)))
 
 
+def _softmax_masked(logits: np.ndarray, mask: np.ndarray, temperature: float = 1.0) -> np.ndarray:
+    values = np.asarray(logits, dtype=float).copy()
+    values[~mask] = -30.0
+    values /= max(1e-6, float(temperature))
+    values -= np.max(values)
+    exp = np.exp(values)
+    exp[~mask] = 0.0
+    total = float(np.sum(exp))
+    if total <= 0:
+        probs = np.zeros_like(exp)
+        legal = np.flatnonzero(mask)
+        probs[legal] = 1.0 / max(1, len(legal))
+        return probs
+    return exp / total
+
+
+def _state_rng(state: dict, salt: str = "") -> random.Random:
+    action_log = state.get("action_log", [])
+    parts = [
+        salt,
+        str(state.get("hand_id", "")),
+        str(state.get("seat_to_act", "")),
+        str(len(action_log)),
+        str(state.get("street", "")),
+        str(state.get("pot", "")),
+        str(state.get("amount_owed", "")),
+        ",".join(map(str, state.get("your_cards", []) or [])),
+        ",".join(map(str, state.get("community_cards", []) or [])),
+    ]
+    seed = 0
+    for ch in "|".join(parts):
+        seed = (seed * 131 + ord(ch)) & 0xFFFFFFFF
+    return random.Random(seed)
+
+
+def _sample_index(probs: np.ndarray, rng: random.Random) -> int:
+    draw = rng.random()
+    total = 0.0
+    for index, prob in enumerate(probs):
+        total += float(prob)
+        if draw <= total:
+            return int(index)
+    legal = np.flatnonzero(probs > 0)
+    return int(legal[-1]) if legal.size else 0
+
+
 @lru_cache(maxsize=32)
 def _load_npz(path: str):
     if not path or not os.path.isfile(path):
@@ -80,6 +126,28 @@ def logits_from_model(state: dict, data_dir: str, fallback_style: str = "balance
 def decide_model(state: dict, data_dir: str, fallback_style: str = "balanced") -> dict:
     logits = logits_from_model(state, data_dir, fallback_style)
     return action_index_to_action(state, masked_argmax(logits, state))
+
+
+def decide_model_sampled(
+    state: dict,
+    data_dir: str,
+    fallback_style: str = "balanced",
+    default_temperature: float = 0.62,
+) -> dict:
+    logits = logits_from_model(state, data_dir, fallback_style)
+    model = _load_npz(_policy_path(data_dir))
+    temperature = default_temperature
+    if model is not None and "temperature" in model:
+        try:
+            temperature = float(np.asarray(model["temperature"]).reshape(-1)[0])
+        except Exception:
+            temperature = default_temperature
+    from tools.strong_mocks.actions import strategic_mask
+
+    mask = strategic_mask(state)
+    probs = _softmax_masked(logits, mask, temperature)
+    rng = _state_rng(state, salt=str(data_dir))
+    return action_index_to_action(state, _sample_index(probs, rng))
 
 
 def decide_cfr(state: dict, data_dir: str, fallback_style: str = "pressure") -> dict:

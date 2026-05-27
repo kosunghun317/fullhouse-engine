@@ -138,9 +138,15 @@ update:
 - value head for a baseline,
 - clipped policy-ratio update,
 - replay over recent decision batches,
-- feature normalization from collected rollouts,
+- fixed/imported feature normalization by default, avoiding PPO ratio drift,
+- behavior-temperature tracking so old/current policy ratios use the same
+  rollout temperature,
+- sampled-softmax PPO mock inference so evaluation matches rollout training
+  better than brittle argmax collapse,
+- risk-adjusted checkpoint selection that penalizes training-seat bust rate,
 - gradient clipping,
-- strategic all-in masking during PPO training and model inference,
+- strategic all-in and large-call-off masking during PPO training and model
+  inference,
 - checkpoint export gates and early stopping from the previous training fix.
 
 The submitted heuristic bot does not import this trainer. The trained PPO

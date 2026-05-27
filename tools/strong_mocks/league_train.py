@@ -42,7 +42,7 @@ KIND_CONFIG = {
         "entropy_coef": 0.002,
         "epochs": 3,
         "batch_size": 4096,
-        "temperature": 0.82,
+        "temperature": 0.62,
     },
     "bucket": {
         "source_bot": STRONG_ROOT / "cfr_bucket" / "bot.py",
@@ -275,6 +275,7 @@ def _train_args(args, stage_name: str, stage: dict, kind: str, output: Path, ext
         selection_warmup=args.selection_warmup,
         early_stop_patience=args.early_stop_patience,
         early_stop_min_delta=args.early_stop_min_delta,
+        selection_bust_penalty=args.selection_bust_penalty,
         min_export_mean_delta=args.min_export_mean_delta,
         progress=args.progress,
         json=True,
@@ -391,7 +392,7 @@ def main() -> None:
     parser.add_argument("--ppo-clip-ratio", type=float, default=0.20)
     parser.add_argument("--ppo-value-coef", type=float, default=0.35)
     parser.add_argument("--max-grad-norm", type=float, default=0.75)
-    parser.add_argument("--feature-norm-momentum", type=float, default=0.08)
+    parser.add_argument("--feature-norm-momentum", type=float, default=0.0)
     parser.add_argument("--replay-generations", type=int, default=4)
     parser.add_argument("--replay-max-decisions", type=int, default=24000)
     parser.add_argument("--snapshot-interval", type=int, default=2)
@@ -399,6 +400,7 @@ def main() -> None:
     parser.add_argument("--selection-warmup", type=int, default=2)
     parser.add_argument("--early-stop-patience", type=int, default=0)
     parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
+    parser.add_argument("--selection-bust-penalty", type=float, default=8000.0)
     parser.add_argument("--min-export-mean-delta", type=float, default=-1_000_000_000.0)
     parser.add_argument("--promote-margin", type=float, default=250.0)
     parser.add_argument("--risk-weight", type=float, default=0.35)

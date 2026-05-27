@@ -314,7 +314,8 @@ scripts/train_heuristics_selfplay.sh
 - Default opponent pool is `adversarial`, including real local `bot.py`
   opponents through the fast in-process runner.
 - PPO defaults are deliberately less aggressive than the first long run:
-  learning rate `0.002`, entropy `0.002`, temperature `0.82`, reward clip `5`.
+  learning rate `0.002`, entropy `0.002`, temperature `0.62`, reward clip `5`,
+  and frozen feature normalization unless explicitly overridden.
 - Bucket defaults are learning rate `0.004`, temperature `0.80`, reward clip
   `5`.
 - The trainer exports the best observed generation after a 4-generation
@@ -436,10 +437,12 @@ Third fix applied:
 
 - Add a value head to PPO training and use it as a baseline.
 - Add clipped PPO-style policy-ratio updates, replay over recent rollout
-  batches, feature normalization from collected decisions, and gradient
-  clipping.
-- Add a strategic all-in guard to PPO training and model inference so all-in is
-  not treated as a normal deep-stack action.
+  batches, recorded behavior temperatures, frozen feature normalization by
+  default, sampled-softmax mock inference, risk-adjusted checkpoint selection,
+  and gradient clipping.
+- Add strategic all-in and large-call-off guards to PPO training and model
+  inference so stack-risking actions are not treated as normal deep-stack
+  actions.
 - Add `tools/coevolve_training.py` and `scripts/train_e2e_coevolution.sh` for
   alternating PPO and heuristic fine tuning.
 - Add `tools/plot_training_progress.py` to generate an SVG EV/progress plot

@@ -60,6 +60,7 @@ class Decision:
     bucket: int
     old_logprob: float = 0.0
     old_value: float = 0.0
+    temperature: float = 1.0
     reward: float = 0.0
 
 
@@ -189,7 +190,8 @@ def _policy_action(task: dict, state: dict, rng: random.Random, record: bool) ->
     else:
         b = abstract_bucket_id(state, int(task["bucket_count"]), task.get("abstraction", "feature"))
         logits = np.maximum(task["prefs"][b], 0.0) if task.get("bucket_update") == "cfr-plus" else task["prefs"][b]
-    probs = _softmax_masked(logits, mask, task["temperature"])
+    temperature = float(task["temperature"])
+    probs = _softmax_masked(logits, mask, temperature)
     action_index = _sample_index(probs, rng)
     action = action_index_to_action(state, action_index)
     if not record:
@@ -202,6 +204,7 @@ def _policy_action(task: dict, state: dict, rng: random.Random, record: bool) ->
         bucket=abstract_bucket_id(state, int(task["bucket_count"]), task.get("abstraction", "feature")),
         old_logprob=float(np.log(max(1e-8, probs[action_index]))),
         old_value=value,
+        temperature=temperature,
     )
 
 
@@ -376,6 +379,7 @@ def _run_training_match(task: dict) -> dict:
 
     train_ids = [bot_id for bot_id in bot_ids if specs[bot_id]["kind"] == "current"]
     train_deltas = {bot_id: stacks.get(bot_id, 0) - STARTING_STACK for bot_id in train_ids}
+    train_busts = sum(1 for bot_id in train_ids if stacks.get(bot_id, 0) <= 0)
     bot_error_count = sum(len(bot.errors) for bot in fast_bots.values())
     return {
         "decisions": [
@@ -386,6 +390,7 @@ def _run_training_match(task: dict) -> dict:
                 "bucket": decision.bucket,
                 "old_logprob": decision.old_logprob,
                 "old_value": decision.old_value,
+                "temperature": decision.temperature,
                 "reward": decision.reward,
             }
             for decision in decisions
@@ -393,6 +398,8 @@ def _run_training_match(task: dict) -> dict:
         "hands": hand_count,
         "train_deltas": train_deltas,
         "mean_train_delta": float(sum(train_deltas.values()) / max(1, len(train_deltas))),
+        "train_bust_count": train_busts,
+        "train_seat_count": len(train_ids),
         "bot_error_count": bot_error_count,
     }
 
@@ -407,6 +414,7 @@ def _flatten_decisions(matches: list[dict]) -> dict[str, np.ndarray]:
             "bucket": np.zeros(0, dtype=np.int64),
             "old_logprob": np.zeros(0, dtype=np.float64),
             "old_value": np.zeros(0, dtype=np.float64),
+            "temperature": np.ones(0, dtype=np.float64),
             "reward": np.zeros(0, dtype=np.float64),
         }
     return {
@@ -416,6 +424,7 @@ def _flatten_decisions(matches: list[dict]) -> dict[str, np.ndarray]:
         "bucket": np.asarray([row["bucket"] for row in rows], dtype=np.int64),
         "old_logprob": np.asarray([row.get("old_logprob", 0.0) for row in rows], dtype=np.float64),
         "old_value": np.asarray([row.get("old_value", 0.0) for row in rows], dtype=np.float64),
+        "temperature": np.asarray([row.get("temperature", 1.0) for row in rows], dtype=np.float64),
         "reward": np.asarray([row["reward"] for row in rows], dtype=np.float64),
     }
 
@@ -503,6 +512,7 @@ def _update_ppo(
     targets = data["reward"]
     old_logprob = data.get("old_logprob", np.zeros_like(targets))
     old_value = data.get("old_value", np.zeros_like(targets))
+    temperatures = np.maximum(1e-6, data.get("temperature", np.ones_like(targets)))
     adv = _normalized_advantage(targets - old_value)
     n = x.shape[0]
     losses = []
@@ -516,10 +526,11 @@ def _update_ppo(
             advb = adv[idx]
             targetb = targets[idx]
             old_logprob_b = old_logprob[idx]
+            tempb = temperatures[idx]
             hidden, logits = _forward(params, xb, mean, scale)
             probs = np.zeros_like(logits, dtype=np.float64)
             for row in range(logits.shape[0]):
-                probs[row] = _softmax_masked(logits[row], maskb[row], 1.0)
+                probs[row] = _softmax_masked(logits[row], maskb[row], tempb[row])
             selected = np.maximum(1e-8, probs[np.arange(len(idx)), actionb])
             log_selected = np.log(selected)
             ratio = np.exp(np.clip(log_selected - old_logprob_b, -6.0, 6.0))
@@ -534,12 +545,13 @@ def _update_ppo(
             active[(advb < 0) & (ratio < 1.0 - clip_ratio)] = False
             coeff = np.zeros(len(idx), dtype=np.float64)
             coeff[active] = advb[active] * ratio[active]
-            grad_logits = probs * coeff[:, None]
-            grad_logits[np.arange(len(idx)), actionb] -= coeff
+            scaled_coeff = coeff / tempb
+            grad_logits = probs * scaled_coeff[:, None]
+            grad_logits[np.arange(len(idx)), actionb] -= scaled_coeff
             if entropy_coef:
                 entropy_grad = probs * (np.log(np.maximum(1e-8, probs)) + 1.0)
                 entropy_grad[~maskb] = 0.0
-                grad_logits += entropy_coef * entropy_grad
+                grad_logits += entropy_coef * entropy_grad / tempb[:, None]
             grad_logits /= max(1, len(idx))
 
             z = (xb - mean) / np.maximum(1e-6, scale)
@@ -610,6 +622,8 @@ def _export_ppo(output: Path, params: dict[str, np.ndarray], mean: np.ndarray, s
         classes=np.arange(len(ACTION_LABELS), dtype=np.int8),
         feature_names=np.asarray(FEATURE_NAMES),
         action_labels=np.asarray(ACTION_LABELS),
+        temperature=np.asarray([report.get("temperature", 0.62)], dtype=np.float32),
+        inference_mode=np.asarray(["sampled_softmax"]),
         train_accuracy=np.asarray([0.0], dtype=np.float32),
         average_reward=np.asarray([report.get("mean_train_delta", 0.0)], dtype=np.float32),
         generations=np.asarray([report.get("generations", 0)], dtype=np.int32),
@@ -754,16 +768,11 @@ def train(args) -> dict:
             backend=args.parallel_backend,
         )
         data = _flatten_decisions(matches)
-        if args.kind == "ppo":
-            mean, scale = _update_feature_norm(
-                mean,
-                scale,
-                data["x"],
-                generation,
-                args.feature_norm_momentum,
-                args.resume,
-            )
         mean_delta = float(np.mean([match["mean_train_delta"] for match in matches])) if matches else 0.0
+        train_bust_count = int(sum(match.get("train_bust_count", 0) for match in matches))
+        train_seat_count = int(sum(match.get("train_seat_count", 0) for match in matches))
+        train_bust_rate = train_bust_count / max(1, train_seat_count)
+        selection_score = mean_delta - float(args.selection_bust_penalty) * train_bust_rate
         bot_error_count = int(sum(match.get("bot_error_count", 0) for match in matches))
         row = {
             "generation": generation,
@@ -772,16 +781,26 @@ def train(args) -> dict:
             "hands": int(sum(match["hands"] for match in matches)),
             "decisions": int(data["reward"].shape[0]),
             "mean_train_delta": round(mean_delta, 3),
+            "selection_score": round(selection_score, 3),
+            "train_bust_count": train_bust_count,
+            "train_bust_rate": round(train_bust_rate, 4),
             "mean_decision_reward": round(float(np.mean(data["reward"])) if data["reward"].size else 0.0, 5),
             "bot_error_count": bot_error_count,
         }
+        if data["action"].size:
+            counts = np.bincount(data["action"], minlength=len(ACTION_LABELS))
+            row["action_counts"] = {
+                ACTION_LABELS[index]: int(counts[index])
+                for index in range(len(ACTION_LABELS))
+                if int(counts[index]) > 0
+            }
         if generation >= args.selection_warmup:
             previous_best = best_metric
-            if mean_delta > best_metric:
-                best_metric = mean_delta
+            if selection_score > best_metric:
+                best_metric = selection_score
                 best_state = pre_update_state
                 best_row = dict(row)
-            if previous_best == -float("inf") or mean_delta > previous_best + args.early_stop_min_delta:
+            if previous_best == -float("inf") or selection_score > previous_best + args.early_stop_min_delta:
                 stale_generations = 0
             elif args.early_stop_patience > 0:
                 stale_generations += 1
@@ -811,6 +830,14 @@ def train(args) -> dict:
                 args.ppo_clip_ratio,
                 args.ppo_value_coef,
                 args.max_grad_norm,
+            )
+            mean, scale = _update_feature_norm(
+                mean,
+                scale,
+                data["x"],
+                generation,
+                args.feature_norm_momentum,
+                args.resume,
             )
         else:
             loss = _update_bucket(
@@ -881,7 +908,9 @@ def train(args) -> dict:
         "stop_generation": stop_generation,
         "early_stop_patience": args.early_stop_patience,
         "early_stop_min_delta": args.early_stop_min_delta,
+        "selection_bust_penalty": getattr(args, "selection_bust_penalty", None),
         "best_generation": best_row["generation"] if best_row is not None else None,
+        "best_selection_score": best_row["selection_score"] if best_row is not None else None,
         "best_mean_train_delta": best_row["mean_train_delta"] if best_row is not None else None,
         "abstraction": args.abstraction,
         "bucket_update": args.bucket_update,
@@ -890,6 +919,7 @@ def train(args) -> dict:
         "feature_norm_momentum": getattr(args, "feature_norm_momentum", None),
         "replay_generations": getattr(args, "replay_generations", None),
         "replay_max_decisions": getattr(args, "replay_max_decisions", None),
+        "temperature": getattr(args, "temperature", None),
         "reports": reports[-5:],
     }
     export_state = best_state if args.export_best and best_state is not None else _export_state(
@@ -927,10 +957,10 @@ def main() -> None:
     parser.add_argument("--max-grad-norm", type=float, default=0.75)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=2048)
-    parser.add_argument("--feature-norm-momentum", type=float, default=0.08)
+    parser.add_argument("--feature-norm-momentum", type=float, default=0.0)
     parser.add_argument("--replay-generations", type=int, default=4)
     parser.add_argument("--replay-max-decisions", type=int, default=24000)
-    parser.add_argument("--temperature", type=float, default=0.92)
+    parser.add_argument("--temperature", type=float, default=0.62)
     parser.add_argument("--reward-scale", type=float, default=1000.0)
     parser.add_argument("--reward-clip", type=float, default=10.0)
     parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed", "adversarial"], default="mixed")
@@ -948,6 +978,7 @@ def main() -> None:
     parser.add_argument("--selection-warmup", type=int, default=2)
     parser.add_argument("--early-stop-patience", type=int, default=0)
     parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
+    parser.add_argument("--selection-bust-penalty", type=float, default=8000.0)
     parser.add_argument("--min-export-mean-delta", type=float, default=-1_000_000_000.0)
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")

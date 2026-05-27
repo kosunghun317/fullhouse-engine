@@ -103,7 +103,16 @@ def strategic_mask(state: dict) -> np.ndarray:
     owed = int(state.get("amount_owed", 0) or 0)
     pot = max(1, int(state.get("pot", 0) or 0))
     total_stack = stack + invested
-    if total_stack <= 15 * BIG_BLIND or owed >= max(1, int(stack * 0.55)):
+    if owed > 0 and not state.get("can_check"):
+        large_call = owed >= max(4 * BIG_BLIND, int(stack * 0.35), int(pot * 0.75))
+        if large_call and total_stack > 15 * BIG_BLIND:
+            if state.get("street") == "preflop":
+                call_allowed = _preflop_strength(list(state.get("your_cards", []) or [])) >= 0.82
+            else:
+                call_allowed = _postflop_commit_signal(state) >= 0.58
+            if not call_allowed:
+                mask[1] = False
+    if total_stack <= 15 * BIG_BLIND:
         return mask
     if state.get("street") == "preflop":
         if _preflop_strength(list(state.get("your_cards", []) or [])) >= 0.86:
