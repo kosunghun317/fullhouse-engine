@@ -31,7 +31,13 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `tools/evaluate_heuristic.py`: Seeded benchmark harness for core, stress, and mock suites.
 - `tools/select_heuristic_config.py`: Risk-aware config ranking and promotion-screen harness.
 - `tools/strong_mocks/`: Shared feature/action abstractions, strong mock trainers, and evolutionary self-training pipeline.
+- `tools/strong_mocks/train_real_policy.py`: Fullhouse in-process real
+  self-play trainer for PPO-style and CFR+/bucket strong mock policies.
 - `tools/parallel.py`: Offline-only process/thread worker helper for seeded benchmark and self-training runs.
+- `scripts/train_opponents_real.sh`: Large real-training entrypoint for mock
+  opponents.
+- `scripts/train_heuristics_selfplay.sh`: Large self-play entrypoint for
+  heuristic env-config evolution.
 - `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
 - `tools/build_heuristic_tables.py`: Optional read-only data table builder.
 - `tools/harden_submission.py`: Full heuristic submission hardening command for table rebuild, packaging, validation, zip inspection, and sanity matches.
@@ -120,3 +126,6 @@ The newest postflop feature controls add richer hand flags and candidate-only
 blocker/probe lines, but the latest focused screen kept the promoted
 `baseline` default unchanged. See `docs/heuristic-benchmark-results.md` before
 promoting any of those knobs.
+The real-training pipeline adds process-parallel Fullhouse rollouts for
+benchmark opponents and adapts compatible CFR+ abstraction ideas from
+`jeffelin/CFR_pokerbot`; see `docs/real-training-pipeline-plan.md`.

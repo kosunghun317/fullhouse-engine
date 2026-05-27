@@ -16,6 +16,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/heuristic-parameter-audit.md` before tuning heuristic thresholds or bet sizes.
 - Read `docs/four-day-execution-plan.md` before starting larger heuristic implementation work.
 - Read `docs/external-poker-ai-benchmarks.md` before adding any external poker AI benchmark opponent.
+- Read `docs/real-training-pipeline-plan.md` before changing real Fullhouse
+  self-play trainers, CFR+ abstractions, or large training scripts.
 - Read `docs/strong-mock-self-training-pipeline.md` before changing strong mock opponents, mock training scripts, or self-training heuristic variants.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic changes against the latest recorded benchmark run.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
@@ -77,10 +79,28 @@ poetry run python tools/strong_mocks/train_ppo.py --backend auto --iterations 64
 poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --workers 0 --parallel-backend process --progress
 ```
 
+For real Fullhouse self-play opponent training, use the bash wrapper:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
+```
+
+It trains PPO-style and CFR+/bucket strong mocks from actual Fullhouse
+rollouts. The CFR+/bucket path uses `--abstraction cfr-pokerbot` and
+`--bucket-update cfr-plus`, which are Fullhouse-compatible adaptations of
+compatible ideas from `jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not
+ported.
+
 For multi-heuristic self-training, run a smoke first:
 
 ```bash
 poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --generations 1 --population 4 --elite 2 --matches-per-generation 2 --hands 12 --seed 22 --generated-root /private/tmp/fullhouse_self_training/generated --result-root /private/tmp/fullhouse_self_training/results --json
+```
+
+For larger parallel heuristic self-training, use:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
 ```
 
 For faster offline validations, prefer `--workers 0 --parallel-backend process`.

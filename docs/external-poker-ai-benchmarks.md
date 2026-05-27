@@ -121,12 +121,13 @@ Run them locally through the benchmark harness.
 | 1 | AlphaNLHoldem | Provides week-trained checkpoints through Google Drive/Baidu; runnable against its neural-net UI; TensorFlow/Ray; heads-up only. | Useful as a heads-up neural opponent and bet-sizing sanity check. | Best pretrained option, but not rule-matched. |
 | 2 | DeepCFR 6-player NLHE repo by dberweger2017 | Source-first, 6-player NLHE, PyTorch, `pokers` environment, checkpoint play supported; no official pretrained checkpoint in repo. | Best shape match to Fullhouse if we can train a small checkpoint locally. | Best trainable option; run only if install/training is smooth. |
 | 3 | DecisionHoldem | Strong heads-up agent; blueprint data distributed through Baidu; C++/compiled components; AGPL; workstation-scale original training. | Potentially strong heads-up baseline if data and Mac build work. | High setup risk on Mac; not first choice. |
-| 4 | Slumbot | Strong public heads-up benchmark through website/API. | Useful outside Fullhouse for sanity checks only. | Not rule-matched; network API cannot be part of Fullhouse local match/sandbox. |
-| 5 | RLCard | Excellent research toolkit; supports no-limit-holdem and algorithms; model zoo mostly Leduc/limit/rule models. | Good for experiments, poor as a ready NLHE opponent. | Do not use as primary benchmark unless training a toy model. |
-| 6 | OpenSpiel | High-quality game/RL framework with poker examples and algorithms. | Useful for theory and toy poker; not a pretrained NLHE opponent. | Not a practical benchmark opponent this week. |
-| 7 | DeeperStack | Implements DeepStack-like HUNL; full counterfactual value models are not included. | Interesting architecture reference. | Reject for this week. |
-| 8 | Pluribus clones | Public clones exist, but no credible released Pluribus policy/weights. | Tempting because 6-max, but not runnable as a real benchmark. | Reject. |
-| 9 | G5 poker bot | Public C++/C# code; ACPC 6-max winner; Windows/Visual Studio oriented. | Strong historical opponent if buildable. | Too much platform/build risk on Mac this week. |
+| 4 | jeffelin/CFR_pokerbot | MIT Pokerbots 2026 Toss Hold'em CFR+ and hybrid architecture. | Useful ideas: CFR+, explicit abstraction, opponent categories, hybrid selector. | Port concepts only; Toss rules are incompatible with Fullhouse. |
+| 5 | Slumbot | Strong public heads-up benchmark through website/API. | Useful outside Fullhouse for sanity checks only. | Not rule-matched; network API cannot be part of Fullhouse local match/sandbox. |
+| 6 | RLCard | Excellent research toolkit; supports no-limit-holdem and algorithms; model zoo mostly Leduc/limit/rule models. | Good for experiments, poor as a ready NLHE opponent. | Do not use as primary benchmark unless training a toy model. |
+| 7 | OpenSpiel | High-quality game/RL framework with poker examples and algorithms. | Useful for theory and toy poker; not a pretrained NLHE opponent. | Not a practical benchmark opponent this week. |
+| 8 | DeeperStack | Implements DeepStack-like HUNL; full counterfactual value models are not included. | Interesting architecture reference. | Reject for this week. |
+| 9 | Pluribus clones | Public clones exist, but no credible released Pluribus policy/weights. | Tempting because 6-max, but not runnable as a real benchmark. | Reject. |
+| 10 | G5 poker bot | Public C++/C# code; ACPC 6-max winner; Windows/Visual Studio oriented. | Strong historical opponent if buildable. | Too much platform/build risk on Mac this week. |
 
 ## Candidate Notes
 
@@ -195,6 +196,34 @@ Limitations:
 Recommendation:
 
 - Defer unless AlphaNLHoldem fails and a strong HUNL baseline is still needed.
+
+### jeffelin/CFR_pokerbot
+
+Source: https://github.com/jeffelin/CFR_pokerbot
+
+Why it matters:
+
+- It documents a CFR+ / hybrid CFR architecture with explicit hand/board
+  abstraction, Bayesian opponent categories, and a strategy selector.
+- It is closer to hackathon-style practical bot design than a pure academic
+  solver.
+
+Limitations:
+
+- The repo targets MIT Pokerbots 2026 Toss Hold'em, not normal two-card
+  Fullhouse NLHE.
+- Toss Hold'em gives three hole cards and includes a face-up discard after the
+  flop. Those mechanics do not exist in Fullhouse.
+- MIT engine protocol and bot file layout are not compatible with
+  `decide(game_state)`.
+
+Adaptation:
+
+- Do not copy Toss-specific code.
+- Port the compatible training ideas into local Fullhouse tools:
+  `--bucket-update cfr-plus` and `--abstraction cfr-pokerbot` in
+  `tools/strong_mocks/train_real_policy.py`.
+- Keep it benchmark-only under `bots/strong_mocks/cfr_bucket/data/policy.npz`.
 
 ### Slumbot
 

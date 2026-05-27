@@ -10,8 +10,9 @@ import eval7
 import numpy as np
 
 from tools.strong_mocks.actions import ACTION_LABELS, action_index_to_action, masked_argmax
+from tools.strong_mocks.abstractions import abstract_bucket_id
 from tools.strong_mocks.dataset import oracle_logits
-from tools.strong_mocks.features import bucket_id, extract_features
+from tools.strong_mocks.features import extract_features
 
 
 RANKS = "23456789TJQKA"
@@ -67,7 +68,8 @@ def logits_from_model(state: dict, data_dir: str, fallback_style: str = "balance
     model_type = str(model.get("model_type", np.asarray(["mlp"]))[0])
     if model_type == "cfr_table":
         table = model["policy_table"].astype(float)
-        idx = bucket_id(state, int(table.shape[0]))
+        abstraction = str(model.get("abstraction", np.asarray(["feature"]))[0])
+        idx = abstract_bucket_id(state, int(table.shape[0]), abstraction)
         probs = table[idx]
         return np.log(np.maximum(1e-6, probs))
     if model_type in ("mlp", "ppo_mlp"):

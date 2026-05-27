@@ -22,6 +22,7 @@ and experimental opponents live outside that path.
 
 ```text
 tools/strong_mocks/
+  abstractions.py
   features.py
   actions.py
   dataset.py
@@ -29,6 +30,7 @@ tools/strong_mocks/
   train_imitation.py
   train_mccfr.py
   train_ppo.py
+  train_real_policy.py
   self_train_heuristic.py
 
 bots/strong_mocks/
@@ -67,7 +69,7 @@ Future refactor trigger:
 
 ## Strong Mock Training
 
-Generate or refresh default strong-mock artifacts:
+Generate or refresh default synthetic/bootstrap strong-mock artifacts:
 
 ```bash
 poetry run python tools/strong_mocks/train_imitation.py --samples 6000 --hidden 32 --seed 4242 --style balanced --output bots/strong_mocks/oracle_imitation/data/policy.npz --json
@@ -83,6 +85,37 @@ with `np.load(..., allow_pickle=False)`.
 `train_ppo.py --backend auto` uses MLX on Apple Silicon when available and
 falls back to the numpy implementation otherwise. MLX is a dev dependency only;
 do not import it from `bots/heuristic/bot.py`.
+
+## Real Fullhouse Training
+
+`tools/strong_mocks/train_real_policy.py` trains benchmark opponents from
+actual Fullhouse engine rollouts instead of synthetic oracle labels. It supports:
+
+- `--kind ppo`: policy-gradient updates for the exported MLP policy.
+- `--kind bucket`: bucketed policy training for `cfr_bucket`.
+- `--bucket-update cfr-plus`: positive-regret clipping and linear
+  average-strategy weighting adapted from CFR+ style systems.
+- `--abstraction cfr-pokerbot`: Fullhouse-compatible abstraction inspired by
+  `jeffelin/CFR_pokerbot`, excluding Toss Hold'em-only mechanics.
+- `--workers 0 --parallel-backend process`: process-parallel match collection.
+
+Real opponent training entrypoint:
+
+```bash
+scripts/train_opponents_real.sh
+```
+
+Short smoke:
+
+```bash
+PPO_GENERATIONS=1 PPO_MATCHES_PER_GENERATION=2 PPO_HANDS=8 \
+BUCKET_GENERATIONS=1 BUCKET_MATCHES_PER_GENERATION=2 BUCKET_HANDS=8 \
+WORKERS=1 scripts/train_opponents_real.sh
+```
+
+The script validates trained bots and runs a small parallel strong-screen after
+training. For serious training, leave `WORKERS=0` so the helper auto-selects
+local process workers.
 
 ## Self-Training
 
