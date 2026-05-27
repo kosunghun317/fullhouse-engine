@@ -89,6 +89,12 @@ Local tuning env vars:
 | `HEURISTIC_MIXED_PRESSURE_*` | `0.0` | Candidate-only call/risk guard bonuses for mixed high-pressure 6-max tables. |
 | `HEURISTIC_HU_LEAD_MANIAC_*` | `0.04` / `0.08` | Heads-up stack-lead protection against maniacs; env-tunable for screens. |
 | `HEURISTIC_TRAP_CHECK_*` | off by default | Candidate-only strong-hand trap checks versus maniac/mixed profiles. |
+| `HEURISTIC_BLOCKER_BLUFF_*` | off by default | Candidate-only rare blocker/gutshot bluff line. |
+| `HEURISTIC_DELAYED_PROBE_*` | off by default | Candidate-only turn probe/delayed c-bet line after checked weakness. |
+| `HEURISTIC_TOP_PAIR_VALUE_DISCOUNT` | `0.0` | Candidate-only lower value threshold for top pair good kicker on non-wet boards. |
+| `HEURISTIC_OVERPAIR_VALUE_DISCOUNT` | `0.0` | Candidate-only lower value threshold for overpairs. |
+| `HEURISTIC_BOARD_PAIR_DANGER_PENALTY` | `0.0` | Candidate-only penalty for one-pair hands on paired boards. |
+| `HEURISTIC_POT_ODDS_SIZING_*` | enabled, guarded | Threshold-caller suspicion and value/bluff sizing adjustments. |
 | `HEURISTIC_*_SAMPLES` | `520/700/900` | Flop, turn, and river Monte Carlo sample counts. |
 | `HEURISTIC_PROFILE_*` | varies | Opponent profile classification thresholds. |
 
@@ -186,6 +192,7 @@ For each opponent, it tracks:
 - `pressure_events`
 - `pressure_folds`
 - `pressure_calls`
+- passive threshold-caller suspicion derived from low raise rate and mixed pressure call/fold responses
 
 Actions ignored:
 
@@ -224,6 +231,14 @@ Current behavior profiles:
 This value controls selective bluffing and semi-bluffing.
 
 If enough direct pressure observations are available, `_fold_pressure()` uses the average observed pressure-fold rate of active opponents instead of the profile fallback. This is more useful than raw fold rate because it measures how players respond after another player raises or moves all-in.
+
+`_pot_odds_suspicion()` is a guarded threshold-caller detector. Because
+`match_action_log` does not include pot size or street, it cannot prove that an
+opponent is a pot-odds bot. It only raises suspicion for opponents who rarely
+raise, have enough pressure-response observations, and show both call and fold
+responses. When suspicion crosses the env-tunable threshold, bluffs/semi-bluffs
+are sized at least slightly above half pot and value/thin-value sizes are capped
+near half pot unless the table profile is station.
 
 ## Equity Engine
 
@@ -285,8 +300,12 @@ Texture adjusts value betting and bluffing:
 - Made-hand class from `eval7.handtype()`, ranked from high card through straight flush.
 - Flush draw when hero+board have four cards of one suit before the river.
 - Straight draw when hero+board cover four cards in a five-rank window before the river.
+- Gutshot draw when hero+board have three ranks inside a five-rank window.
+- Top pair, top pair with broadway kicker, second pair, and overpair flags.
+- Paired-board danger for weak one-pair hands.
+- Nut-flush blocker when hero holds the ace of a suit represented on the board.
 
-Made straights or better slightly lower value thresholds. Wet-board semi-bluffs now require an actual flush or straight draw rather than only medium raw equity.
+Made straights or better slightly lower value thresholds. Wet-board semi-bluffs now require an actual flush, straight, or gutshot draw rather than only medium raw equity. The top-pair, overpair, board-pair, blocker-bluff, and delayed-probe adjustments are implemented as env-tunable candidate controls; their default values keep the promoted baseline behavior unless a benchmark config enables them.
 
 ## Bet Sizing
 
@@ -309,6 +328,7 @@ There are two sizing helpers:
 
 - Applies stack-to-pot and off-bucket sizing adjustments.
 - Low-SPR value spots can use a larger fraction when equity is at least `0.74`.
+- Against likely passive threshold callers, bluffs/semi-bluffs are pushed to at least `0.56` pot and value/thin-value is capped near `0.48` pot unless the profile is station.
 - Against possible bucket/threshold bots, the bot occasionally shifts bluffs to `0.56+` pot and tight-value bets toward `0.49` pot.
 - The promoted default off-bucket rate is intentionally small: `12%` of eligible sizing decisions.
 
@@ -396,6 +416,8 @@ Adjustments:
 - Maniacs slightly reduce value thresholds.
 - Wet boards increase value threshold by `0.025`.
 - Made straights or better reduce value and thin-value thresholds.
+- Candidate controls can reduce value thresholds for overpairs and top pair good kicker.
+- Candidate controls can add caution for one-pair hands on paired boards.
 - Low-SPR spots lower value/call thresholds slightly.
 - High-SPR large-bet calls receive a small extra margin.
 
@@ -403,6 +425,8 @@ When checking is legal:
 
 - Strong equity value-bets.
 - Thin value-bets against stations and maniacs.
+- Candidate delayed-probe line can bet turn after checked weakness when fold pressure, equity/draw quality, and profile guards pass.
+- Candidate blocker-bluff line can bluff with nut-flush blocker, straight draw, or gutshot against fold-prone non-station tables.
 - Medium equity may bluff dry boards if fold pressure is high.
 - Wet-board semi-bluffs require a real draw, enough equity, and non-station opponents.
 - Otherwise the bot checks.
@@ -505,9 +529,9 @@ This fallback is deliberately simple and legal.
 
    Stack-lead protection reduces avoidable calls, but aggressor-heavy heads-up spots can still swing hard over short samples.
 
-5. Board and hand features are still coarse.
+5. Board and hand features are better but still coarse.
 
-   The bot recognizes made-hand class, flush draws, and straight draws, but not top pair, overpair, blockers, nut advantage, pair blockers, or draw quality.
+   The bot recognizes top pair, overpair, gutshot, paired-board danger, and a nut-flush blocker. It still does not model full nut advantage, pair blockers to full houses, exact kicker distributions, or opponent range interaction.
 
 6. Bet sizing is coarse.
 
@@ -544,14 +568,17 @@ This can still be done with simple weighted sampling, without building a neural 
 
 ### 3. Richer Hand Category Detection
 
-The bot already detects made-hand class, flush draw, and straight draw. Future work should add:
+Partially implemented. The bot now detects:
 
 - Overpair and top pair.
 - Gutshots.
 - Board-pair danger.
 - Nut blockers.
 
-Then use these features to adjust equity thresholds and bluff choices.
+Current use is deliberately guarded by env knobs. Future work should add richer
+pair-blocker/full-house danger, exact kicker categories, four-liner straight
+blockers, and suite-specific nut advantage before promoting more aggressive
+defaults.
 
 ### 4. Street-Specific Opponent Model
 
@@ -610,6 +637,12 @@ Future work can expand the named configurations or replace them with random/grid
 - Bet fractions.
 
 Score with mean chip delta, worst-run result, bust rate, and bot errors.
+
+Latest postflop feature screen:
+
+- `line-aware`, `blocker-probe`, and `pair-danger` are implemented as named candidate configs.
+- `blocker-probe` won a tiny 3-seed screen but lost the larger focused 5-seed screen to baseline due to worse reference/aggressor performance and higher bust count.
+- Keep the promoted baseline defaults unchanged; use the new knobs as diagnostics until a larger promotion gate proves otherwise.
 
 ### 9. Submission Packaging Check
 

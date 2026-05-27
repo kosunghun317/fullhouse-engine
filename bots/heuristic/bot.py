@@ -110,6 +110,21 @@ HU_LEAD_MANIAC_RISK_BONUS = _float_env("HEURISTIC_HU_LEAD_MANIAC_RISK_BONUS", 0.
 TRAP_CHECK_PROB = _float_env("HEURISTIC_TRAP_CHECK_PROB", 0.0)
 TRAP_CHECK_MIN_EQUITY = _float_env("HEURISTIC_TRAP_CHECK_MIN_EQUITY", 0.78)
 TRAP_CHECK_SPR_MAX = _float_env("HEURISTIC_TRAP_CHECK_SPR_MAX", 3.5)
+BLOCKER_BLUFF_PROB = _float_env("HEURISTIC_BLOCKER_BLUFF_PROB", 0.0)
+BLOCKER_BLUFF_MIN_EQUITY = _float_env("HEURISTIC_BLOCKER_BLUFF_MIN_EQUITY", 0.28)
+BLOCKER_BLUFF_FOLD_PRESSURE = _float_env("HEURISTIC_BLOCKER_BLUFF_FOLD_PRESSURE", 0.58)
+BLOCKER_BLUFF_FRACTION = _float_env("HEURISTIC_BLOCKER_BLUFF_FRACTION", 0.56)
+DELAYED_PROBE_PROB = _float_env("HEURISTIC_DELAYED_PROBE_PROB", 0.0)
+DELAYED_PROBE_MIN_EQUITY = _float_env("HEURISTIC_DELAYED_PROBE_MIN_EQUITY", 0.36)
+DELAYED_PROBE_FOLD_PRESSURE = _float_env("HEURISTIC_DELAYED_PROBE_FOLD_PRESSURE", 0.52)
+DELAYED_PROBE_FRACTION = _float_env("HEURISTIC_DELAYED_PROBE_FRACTION", 0.46)
+TOP_PAIR_VALUE_DISCOUNT = _float_env("HEURISTIC_TOP_PAIR_VALUE_DISCOUNT", 0.0)
+OVERPAIR_VALUE_DISCOUNT = _float_env("HEURISTIC_OVERPAIR_VALUE_DISCOUNT", 0.0)
+BOARD_PAIR_DANGER_PENALTY = _float_env("HEURISTIC_BOARD_PAIR_DANGER_PENALTY", 0.0)
+POT_ODDS_SIZING_ENABLED = _float_env("HEURISTIC_POT_ODDS_SIZING_ENABLED", 1.0)
+POT_ODDS_SIZING_THRESHOLD = _float_env("HEURISTIC_POT_ODDS_SIZING_THRESHOLD", 0.58)
+POT_ODDS_BLUFF_FRACTION = _float_env("HEURISTIC_POT_ODDS_BLUFF_FRACTION", 0.56)
+POT_ODDS_VALUE_FRACTION = _float_env("HEURISTIC_POT_ODDS_VALUE_FRACTION", 0.48)
 FLOP_SAMPLES = _int_env("HEURISTIC_FLOP_SAMPLES", 520)
 TURN_SAMPLES = _int_env("HEURISTIC_TURN_SAMPLES", 700)
 RIVER_SAMPLES = _int_env("HEURISTIC_RIVER_SAMPLES", 900)
@@ -663,6 +678,45 @@ def _fold_pressure(state):
     return 0.45
 
 
+def _pot_odds_suspicion(state):
+    """Crude detector for passive threshold callers.
+
+    The public rolling match log does not include pot size or street, so this
+    cannot prove an opponent is using pot odds. It only identifies players who
+    rarely raise, face pressure often, and show both call/fold responses.
+    """
+    if POT_ODDS_SIZING_ENABLED <= 0:
+        return 0.0
+    hero_seat = state.get("seat_to_act")
+    scores = []
+    for player in state.get("players", []):
+        if player.get("seat") == hero_seat or player.get("is_folded"):
+            continue
+        stats = OPPONENTS.get(player.get("bot_id"))
+        if not stats or stats.get("actions", 0) < 8:
+            continue
+        raise_rate = _rate(stats, "raises")
+        call_rate = _rate(stats, "calls")
+        pressure_events = stats.get("pressure_events", 0)
+        if pressure_events < 3:
+            continue
+        pressure_fold = (stats.get("pressure_folds", 0) + 1) / (pressure_events + 3)
+        pressure_call = (stats.get("pressure_calls", 0) + 1) / (pressure_events + 3)
+        score = 0.0
+        if raise_rate < 0.22:
+            score += 0.28
+        if call_rate > 0.24:
+            score += 0.16
+        if pressure_events >= 6:
+            score += 0.18
+        if 0.25 <= pressure_fold <= 0.78:
+            score += 0.23
+        if pressure_call >= 0.20:
+            score += 0.15
+        scores.append(score)
+    return max(scores or [0.0])
+
+
 # ---------------------------------------------------------------------------
 # Equity engine
 # ---------------------------------------------------------------------------
@@ -784,10 +838,37 @@ def _straight_draw(ranks):
     return False
 
 
+def _gutshot_draw(ranks):
+    vals = set(ranks)
+    if 14 in vals:
+        vals.add(1)
+    for start in range(1, 11):
+        window = {start, start + 1, start + 2, start + 3, start + 4}
+        if len(window & vals) == 3:
+            return True
+    return False
+
+
 def _hand_features(state):
-    cards = state.get("your_cards", []) + state.get("community_cards", [])
+    hero_cards = state.get("your_cards", [])
+    board = state.get("community_cards", [])
+    cards = hero_cards + board
+    empty = {
+        "made_rank": 0,
+        "hand_type": "unknown",
+        "flush_draw": False,
+        "straight_draw": False,
+        "gutshot_draw": False,
+        "top_pair": False,
+        "top_pair_good_kicker": False,
+        "second_pair": False,
+        "overpair": False,
+        "board_paired": False,
+        "nut_flush_blocker": False,
+        "board_pair_danger": False,
+    }
     if len(cards) < 5:
-        return {"made_rank": 0, "hand_type": "unknown", "flush_draw": False, "straight_draw": False}
+        return empty
     try:
         eval_cards = [eval7.Card(card) for card in cards]
         score = eval7.evaluate(eval_cards)
@@ -818,14 +899,50 @@ def _hand_features(state):
     for card in cards:
         suits[card[1]] = suits.get(card[1], 0) + 1
         ranks.append(_rank_value(card))
+    board_ranks = [_rank_value(card) for card in board]
+    hero_ranks = [_rank_value(card) for card in hero_cards]
+    board_suits = {}
+    for card in board:
+        board_suits[card[1]] = board_suits.get(card[1], 0) + 1
     board_len = len(state.get("community_cards", []))
     flush_draw = board_len < 5 and max(suits.values() or [0]) >= 4 and made_rank < 5
     straight_draw = board_len < 5 and _straight_draw(ranks) and made_rank < 4
+    gutshot_draw = board_len < 5 and not straight_draw and _gutshot_draw(ranks) and made_rank < 4
+    board_paired = len(set(board_ranks)) < len(board_ranks) if board_ranks else False
+    board_high = max(board_ranks) if board_ranks else 0
+    board_unique = sorted(set(board_ranks), reverse=True)
+    board_second = board_unique[1] if len(board_unique) > 1 else 0
+    top_pair = made_rank == 1 and board_high > 0 and any(rank == board_high for rank in hero_ranks)
+    second_pair = made_rank == 1 and board_second > 0 and any(rank == board_second for rank in hero_ranks)
+    overpair = (
+        len(hero_ranks) >= 2
+        and hero_ranks[0] == hero_ranks[1]
+        and board_high > 0
+        and hero_ranks[0] > board_high
+        and made_rank == 1
+    )
+    kicker = 0
+    if top_pair and len(hero_ranks) >= 2:
+        kicker = max((rank for rank in hero_ranks if rank != board_high), default=0)
+    top_pair_good_kicker = top_pair and kicker >= 11
+    nut_flush_blocker = any(
+        count >= 2 and ("A" + suit) in hero_cards and made_rank < 5
+        for suit, count in board_suits.items()
+    )
+    board_pair_danger = board_paired and made_rank <= 1
     return {
         "made_rank": made_rank,
         "hand_type": hand_type,
         "flush_draw": flush_draw,
         "straight_draw": straight_draw,
+        "gutshot_draw": gutshot_draw,
+        "top_pair": top_pair,
+        "top_pair_good_kicker": top_pair_good_kicker,
+        "second_pair": second_pair,
+        "overpair": overpair,
+        "board_paired": board_paired,
+        "nut_flush_blocker": nut_flush_blocker,
+        "board_pair_danger": board_pair_danger,
     }
 
 
@@ -857,9 +974,16 @@ def _raise_to_preflop(state, big_blinds):
 def _sizing_fraction(state, fraction, purpose, profile, texture, equity):
     shaped = float(fraction)
     spr = _stack_to_pot_ratio(state)
+    pot_odds_like = _pot_odds_suspicion(state)
 
     if purpose == "value" and spr <= SPR_LOW and equity >= SPR_COMMIT_EQUITY:
         shaped += SPR_LOW_RAISE_FRACTION_BONUS
+
+    if pot_odds_like >= POT_ODDS_SIZING_THRESHOLD and profile != "station":
+        if purpose in ("bluff", "semi_bluff"):
+            shaped = max(shaped, POT_ODDS_BLUFF_FRACTION)
+        elif purpose in ("value", "thin_value"):
+            shaped = min(shaped, POT_ODDS_VALUE_FRACTION)
 
     if OFF_BUCKET_SIZING_PROB > 0 and random.random() < OFF_BUCKET_SIZING_PROB:
         if purpose in ("bluff", "semi_bluff") and profile in ("nit", "abc", "mixed", "unknown"):
@@ -1063,8 +1187,9 @@ def _passes_risk_guard(state, equity, profile):
     return equity >= required
 
 
-def _adjust_equity_for_context(state, raw_equity, profile):
+def _adjust_equity_for_context(state, raw_equity, profile, features=None):
     adjusted = raw_equity
+    features = features or {}
     if not state.get("can_check"):
         if profile == "nit":
             adjusted += EQUITY_ADJ_NIT
@@ -1082,6 +1207,13 @@ def _adjust_equity_for_context(state, raw_equity, profile):
             and profile in ("unknown", "abc", "nit", "mixed")
         ):
             adjusted -= EXTRA_LARGE_BET_EQUITY_PENALTY
+        if (
+            BOARD_PAIR_DANGER_PENALTY > 0
+            and features.get("board_pair_danger")
+            and current_bet > pot * 0.35
+            and profile != "maniac"
+        ):
+            adjusted -= BOARD_PAIR_DANGER_PENALTY
     adjusted += EQUITY_ADJ_MULTIWAY * max(0, _active_opponent_count(state) - 2)
     return _clamp(adjusted, 0.02, 0.98)
 
@@ -1102,11 +1234,63 @@ def _should_trap_check(state, profile, equity, value_threshold, features, spr):
     return random.random() < TRAP_CHECK_PROB
 
 
+def _hero_has_prior_raise(state):
+    hero_seat = state.get("seat_to_act")
+    return any(
+        action.get("seat") == hero_seat and action.get("action") in ("raise", "all_in")
+        for action in state.get("action_log", [])
+    )
+
+
+def _should_delayed_probe(state, profile, equity, features, fold_pressure, texture):
+    if DELAYED_PROBE_PROB <= 0:
+        return False
+    if state.get("street") != "turn":
+        return False
+    if not state.get("can_check") or int(state.get("current_bet", 0) or 0) > 0:
+        return False
+    if profile == "station" or _active_opponent_count(state) > 2:
+        return False
+    if fold_pressure < DELAYED_PROBE_FOLD_PRESSURE:
+        return False
+    has_draw = features.get("flush_draw") or features.get("straight_draw") or features.get("gutshot_draw")
+    if equity < DELAYED_PROBE_MIN_EQUITY and not has_draw:
+        return False
+    if texture == "wet" and not has_draw and not features.get("nut_flush_blocker"):
+        return False
+    if not _hero_has_prior_raise(state) and equity < DELAYED_PROBE_MIN_EQUITY + 0.06:
+        return False
+    return random.random() < DELAYED_PROBE_PROB
+
+
+def _should_blocker_bluff(state, profile, equity, features, fold_pressure, texture):
+    if BLOCKER_BLUFF_PROB <= 0:
+        return False
+    if profile == "station" or _active_opponent_count(state) > 2:
+        return False
+    if fold_pressure < BLOCKER_BLUFF_FOLD_PRESSURE:
+        return False
+    if features.get("made_rank", 0) >= 2:
+        return False
+    has_relevant_blocker = (
+        features.get("nut_flush_blocker")
+        or features.get("straight_draw")
+        or features.get("gutshot_draw")
+    )
+    if not has_relevant_blocker:
+        return False
+    if texture == "wet" and not (features.get("nut_flush_blocker") or features.get("straight_draw")):
+        return False
+    if equity < BLOCKER_BLUFF_MIN_EQUITY and not (features.get("flush_draw") or features.get("straight_draw")):
+        return False
+    return random.random() < BLOCKER_BLUFF_PROB
+
+
 def _postflop_policy(state, equity):
     profile = _table_profile(state)
-    equity = _adjust_equity_for_context(state, equity, profile)
     texture = _board_texture(state)
     features = _hand_features(state)
+    equity = _adjust_equity_for_context(state, equity, profile, features)
     odds = _pot_odds(state)
     owed = int(state.get("amount_owed", 0) or 0)
     pot = max(1, int(state.get("pot", 0) or 0))
@@ -1130,6 +1314,14 @@ def _postflop_policy(state, equity):
     if features["made_rank"] >= 4:
         value_threshold -= 0.035
         thin_value -= 0.020
+    if features.get("overpair"):
+        value_threshold -= OVERPAIR_VALUE_DISCOUNT
+        thin_value -= OVERPAIR_VALUE_DISCOUNT * 0.6
+    elif features.get("top_pair_good_kicker") and texture != "wet":
+        value_threshold -= TOP_PAIR_VALUE_DISCOUNT
+        thin_value -= TOP_PAIR_VALUE_DISCOUNT * 0.6
+    if features.get("board_pair_danger") and features.get("made_rank", 0) <= 1:
+        value_threshold += BOARD_PAIR_DANGER_PENALTY * 0.5
 
     if can_check:
         if equity >= value_threshold:
@@ -1141,7 +1333,13 @@ def _postflop_policy(state, equity):
         if equity >= thin_value and profile in ("station", "maniac"):
             frac = _sizing_fraction(state, THIN_VALUE_FRACTION, "thin_value", profile, texture, equity)
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
-        has_draw = features["flush_draw"] or features["straight_draw"]
+        has_draw = features["flush_draw"] or features["straight_draw"] or features["gutshot_draw"]
+        if _should_delayed_probe(state, profile, equity, features, fold_pressure, texture):
+            frac = _sizing_fraction(state, DELAYED_PROBE_FRACTION, "semi_bluff", profile, texture, equity)
+            return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
+        if _should_blocker_bluff(state, profile, equity, features, fold_pressure, texture):
+            frac = _sizing_fraction(state, BLOCKER_BLUFF_FRACTION, "bluff", profile, texture, equity)
+            return {"action": "raise", "amount": _raise_to_fraction(state, frac)}
         if equity >= 0.42 and texture != "wet" and fold_pressure >= 0.55 and random.random() < DRY_BLUFF_PROB:
             frac = _sizing_fraction(state, DRY_BLUFF_FRACTION, "bluff", profile, texture, equity)
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}

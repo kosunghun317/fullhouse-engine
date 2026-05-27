@@ -19,13 +19,13 @@ This plan classifies the attached strategy suggestions by what is realistically 
 | Mock competitor bot zoo | Implement now | Low risk, directly improves tests against likely field strategies. | Add `bots/mock_competitors/` and benchmark suites. |
 | Preflop lookup table | Done | Explicit 169-class table is already embedded. | Keep generator and tune thresholds around it. |
 | Data-package lookup tables | Done | Useful, simple, and allowed by rules. | Optional `data/tables.npz` support and package inclusion are implemented. |
-| Pot-odds threshold detector | Implement soon | Concrete exploit, easy to validate. | Track small/large pressure responses and adjust sizing. |
+| Pot-odds threshold detector | Implemented | Concrete exploit, easy to validate. | Track pressure responses and adjust sizing when behavior looks threshold-like. |
 | SPR-aware risk/value logic | Promoted | Improved pressure/mixed/mock suites in 30-seed promotion and 100-seed final screens. | Defaults now include low-SPR value/call adjustments. |
 | Off-bucket sizing mix | Promoted | Direct counter to bucketed CFR/NN policies. | Defaults now include guarded low-frequency sizing variation. |
-| Low-frequency trap checks | Implement soon | Simple anti-maniac/anti-modeling improvement. | Strong-hand checks vs aggressive profiles only. |
-| Delayed c-bet / probe logic | Prototype if time | Needs action-line state parsing, but manageable. | Turn bet after flop checks through and opponent checks again. |
-| Blocker-based bluffs | Prototype if time | Requires careful board/card feature extraction. | Only rare bluffs with nut blockers, never vs stations. |
-| Online contextual bandit | Prototype if time | Reward attribution in 400 hands is noisy. | Start benchmark-only or cluster Thompson over safe modes. |
+| Low-frequency trap checks | Candidate-only | Simple anti-maniac/anti-modeling improvement; broad candidate did not promote. | Strong-hand checks vs aggressive profiles only. |
+| Delayed c-bet / probe logic | Candidate-only | Broad turn-probe logic exists; exact line parsing still needs work. | Turn bet after checked weakness with fold-pressure and draw/equity guards. |
+| Blocker-based bluffs | Candidate-only | Cheap blocker/draw flags exist, but first bundled candidate did not promote. | Only rare bluffs with nut blocker/draw flags, never vs stations. |
+| Online contextual bandit | Defer | Reward attribution in 400 hands is noisy and current offline config selection is safer. | Revisit only after feature-specific candidate screens stabilize. |
 | LinUCB over expert arms | Defer unless time remains | More moving parts and high regression risk. | Document feature vector; avoid raw-action bandit. |
 | Postflop bucket equity table | Defer | Generation quality/time tradeoff is uncertain. | Keep selective `eval7` Monte Carlo for now. |
 | CFR/NN/RL mock training | Implement as benchmark-only | Useful for stronger tests if kept outside the submitted bot. | Added strong mock trainers and self-training pipeline. |
@@ -140,6 +140,9 @@ Current status:
   large-bet equity penalties, heads-up maniac lead protection, and trap checks.
 - A 10-seed targeted screen advanced `pressure-control`, but a 30-seed gate
   rejected it. Defaults remain unchanged.
+- Postflop feature controls were added for blocker bluffs, delayed probes,
+  top-pair/overpair discounts, board-pair danger, and pot-odds-like sizing
+  suspicion. A focused five-seed screen rejected `blocker-probe` as a default.
 - Future pressure work should use more specific action-line features instead
   of broad table-profile caution.
 

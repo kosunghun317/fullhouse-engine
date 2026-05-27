@@ -116,3 +116,7 @@ The strong-mock/self-training pipeline adds benchmark-only trained opponents
 under `bots/strong_mocks/` and generated multi-heuristic config matches through
 `tools/strong_mocks/self_train_heuristic.py`; see
 `docs/strong-mock-self-training-pipeline.md`.
+The newest postflop feature controls add richer hand flags and candidate-only
+blocker/probe lines, but the latest focused screen kept the promoted
+`baseline` default unchanged. See `docs/heuristic-benchmark-results.md` before
+promoting any of those knobs.

@@ -32,7 +32,8 @@ Effort scale:
 | 14 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Promoted |
 | 15 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
 | 16 | Weak-spot candidate controls | 2 | Pressure/large-bet/trap knobs exist and are benchmarkable without default changes. | Add env knobs and named configs; run 10-seed candidate and 30-seed gate. | Rejected as default |
-| 17 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
+| 17 | Postflop feature candidate controls | 3 | Top-pair/overpair, board-pair danger, blocker bluff, delayed probe, and pot-odds-like sizing knobs are implemented and benchmarkable. | Keep default guarded; run candidate/promotion screens before promotion. | Implemented, not promoted |
+| 18 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
 
 ## Pro-Heuristic Gaps
 
@@ -52,9 +53,9 @@ Sources checked:
 | ---: | --- | --- | --- | --- |
 | 1 | SPR-aware commitment | Use stack-to-pot ratio to decide when one-pair/value hands are stack-off candidates and when pot control is better. | Add `_spr(state)` and adjust risk guard/value sizing by SPR bands: `<2`, `2-5`, `>5`. | Reduce busts in `pressure_6max` and `mixed_stress_6max` without lowering `reference_6max` mean. |
 | 2 | Nut advantage/range advantage | C-bet more on boards favorable to opener/range, slow down on boards favoring caller/defender. | Add board-class features: high-card dry, low-connected, monotone, paired, broadway-heavy; combine with preflop aggressor flag from action log. | Improve `tight_6max` and `sizing_6max` positive-run rate. |
-| 3 | Blockers/card removal | Choose bluffs with cards that block opponent nut/value combos and avoid bluffing cards that block opponent folds. | Add cheap blocker flags: ace of flush suit, king of flush suit, pair/blocker to board-paired full houses, straight blockers on four-liner boards. | Improve bluff EV in `heads_up_threshold` and reduce failed bluffs into stations. |
+| 3 | Blockers/card removal | Choose bluffs with cards that block opponent nut/value combos and avoid bluffing cards that block opponent folds. | Implemented candidate-only ace-of-flush-suit/gutshot/straight blocker branch; next add pair/full-house and four-liner straight blockers. | Improve bluff EV in `heads_up_threshold` and reduce failed bluffs into stations. |
 | 4 | Polarized vs merged sizing | Use larger sizes with polarized value/bluff ranges; smaller sizes with merged thin-value/protection ranges. | Split postflop action into `polarized_value`, `merged_value`, `semi_bluff`, `pure_bluff` buckets and map to env-tunable size families. | Beat baseline on `sizing_6max` over at least 30 seeds. |
-| 5 | Delayed c-bet/probe logic | Sometimes check back flop with medium strength, then bet turn after opponent checks twice. | Track previous-street check sequences from `action_log`; add turn probe/delayed-cbet branch. | Improve mean delta in `tight_6max`; no increase in errors/time. |
+| 5 | Delayed c-bet/probe logic | Sometimes check back flop with medium strength, then bet turn after opponent checks twice. | Implemented candidate-only turn probe guarded by fold pressure, profile, equity/draw quality, and prior hero aggression. Next step is exact previous-street line parsing. | Improve mean delta in `tight_6max`; no increase in errors/time. |
 | 6 | MDF-inspired anti-bluff defense | Continue enough versus aggressive bet sizes to avoid being exploited by any-two-card bluffs, but overfold versus honest populations. | Approximate MDF from `pot/(pot+bet)` and blend it with equity/pot-odds only against maniac/high-bluff profiles. | Improve `heads_up_aggressor` without harming 6-max acceptance run. |
 | 7 | Tournament stack pressure | Humans tighten stack-off decisions when chip survival has nonlinear value and loosen when short. | Add stack percentile/table-chip share features; tighten calls when healthy, widen value jams when short. | Reduce 100-run bust count in core 6-max suites. |
 | 8 | Slowplay/trap frequency | Strong players sometimes check strong hands against aggressive opponents to induce bluffs. | Add very low-frequency trap with strong made hands vs maniac when can check and SPR is low/medium. | Improve `pressure_6max` while keeping station value extraction positive. |
@@ -89,6 +90,11 @@ Implemented candidate status:
   rerun promotion/final gates before changing defaults.
 - Weak-spot controls are implemented as diagnostics, but `pressure-control`
   lost the 30-seed promotion gate to baseline. Keep defaults unchanged.
+- Postflop feature controls are implemented as candidate diagnostics:
+  `line-aware`, `blocker-probe`, and `pair-danger`. A 3-seed screen briefly
+  favored `blocker-probe`, but a focused 5-seed screen favored baseline with
+  lower bust count and stronger reference/aggressor results. Keep defaults
+  unchanged.
 
 ## Expected Competitor Strategies
 

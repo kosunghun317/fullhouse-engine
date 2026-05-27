@@ -22,6 +22,11 @@ The bot now exposes env vars for the major audited knobs. This makes benchmark s
 | Equity context correction | Adjustments such as `-0.045` vs nit, `+0.025` vs maniac | Transparent but hand-authored replacement for true range-weighted equity. | Sweep corrections; reject if heads-up gain harms 6-max acceptance run. |
 | Mixed pressure guard | Default extra mixed-table pressure call/risk bonuses are `0.0` | Candidate testing did not beat baseline at 30 seeds, but pressure-heavy tables remain high variance. | Retest only with a more specific detector than table profile `mixed`. |
 | Trap checks | Default `HEURISTIC_TRAP_CHECK_PROB=0.0` | Low-frequency traps are plausible versus aggressive models, but first candidate hurt pressure/mixed robustness. | Reintroduce only with stronger hand/action-line filters and a candidate screen. |
+| Blocker bluffs | Default `HEURISTIC_BLOCKER_BLUFF_PROB=0.0` | Blocker-based bluffs are plausible but the first candidate increased core-suite variance. | Retest only with exact blocker categories and larger 10/30-seed gate. |
+| Delayed probe | Default `HEURISTIC_DELAYED_PROBE_PROB=0.0` | The current detector is broad turn-weakness logic, not exact flop-check-through line parsing. | Add precise action-line features before promotion; reject if reference/aggressor busts rise. |
+| Top-pair/overpair value discounts | Defaults `0.0` | Lowering thresholds for one-pair value can overplay hands on hostile boards. | Tune separately from blocker/probe bluffs; require no rise in 6-max bust count. |
+| Board-pair danger penalty | Default `0.0` | More caution on paired boards can save calls but may under-realize equity versus loose opponents. | Sweep penalty independently in pressure/equity suites. |
+| Pot-odds sizing suspicion | Enabled with `0.58` threshold | Public logs lack pot size/street, so the detector is only behavioral suspicion. | Compare threshold `0.45/0.58/0.70` against threshold/bucket/equity mocks. |
 | Monte Carlo samples | `520/700/900`, reduced 25% for 4+ opponents | Designed for speed, not profiled against accuracy/error in Fullhouse states. | Sample random decision states; compare action stability at 200/500/1000/2000 samples under 2s budget. |
 
 ## Bet Sizing Clarification
@@ -46,6 +51,9 @@ Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 - `conservative`
 - `equity-control`
 - `legacy-baseline`
+- `line-aware`
+- `blocker-probe`
+- `pair-danger`
 - `pressure-control`
 - `spr-anti-bucket`
 - `spr-aware`
@@ -77,6 +85,10 @@ Latest tuning decision:
   `weakspot-control` are candidate-only configs from the weak-spot screen.
   `pressure-control` won the 10-seed targeted screen but lost the 30-seed
   promotion gate to baseline, so no default changed.
+- `line-aware`, `blocker-probe`, and `pair-danger` are candidate-only configs
+  for postflop feature controls. The focused 5-seed screen kept baseline as
+  default because `blocker-probe` regressed reference/aggressor suites and had
+  more busts, even though it helped strong/equity mock spots.
 
 Quick smoke:
 
@@ -124,5 +136,7 @@ Avoid:
 3. Prioritize high-variance watch items from the 100-seed matrix: `pressure_6max`, `heads_up_equity_mc`, and `heads_up_aggressor`.
 4. Keep the weak-spot controls as tuning knobs only; the 30-seed gate rejected
    `pressure-control` as a default.
-5. Treat external neural/RL baselines as diagnostic opponents, not final acceptance criteria.
-6. Promote any new default only after candidate, promotion, and final acceptance screens.
+5. Keep the postflop feature controls as tuning knobs only; the focused
+   5-seed screen rejected `blocker-probe` as a default.
+6. Treat external neural/RL baselines as diagnostic opponents, not final acceptance criteria.
+7. Promote any new default only after candidate, promotion, and final acceptance screens.

@@ -348,6 +348,158 @@ Decision:
   future pressure work should use a more specific detector or action-line
   feature rather than table profile alone.
 
+## Postflop Feature Candidate Screen
+
+Reviewed: 2026-05-27.
+
+Goal:
+
+- Implement richer postflop features without changing the accepted default.
+- Test whether blocker bluffs, delayed probes, top-pair/overpair discounts,
+  board-pair caution, and pot-odds-like sizing suspicion improve the current
+  watch suites.
+
+Implemented controls:
+
+- Top pair, top pair good kicker, second pair, overpair, gutshot, paired-board
+  danger, and nut-flush blocker flags in `_hand_features()`.
+- Candidate-only `HEURISTIC_BLOCKER_BLUFF_*` branch.
+- Candidate-only `HEURISTIC_DELAYED_PROBE_*` branch.
+- Candidate-only top-pair/overpair value-threshold discounts and paired-board
+  danger penalty.
+- Guarded pot-odds-like sizing suspicion that pushes bluffs over half pot and
+  caps value near half pot when opponent pressure responses look threshold-like.
+
+MLX policy-gradient mock smoke:
+
+```bash
+poetry run python tools/strong_mocks/train_ppo.py \
+  --backend auto \
+  --iterations 32 \
+  --batch-size 512 \
+  --hidden 32 \
+  --seed 6262 \
+  --output /private/tmp/fullhouse_policy_tuning_smoke.npz \
+  --json
+```
+
+Result:
+
+- Backend: MLX, `Device(gpu, 0)`.
+- Oracle agreement: `0.6136`.
+- Average reward: `0.6748`.
+
+This confirms the Apple Silicon accelerated training path still works for
+benchmark-only mock policy refreshes. It does not directly change the heuristic
+bot default.
+
+Small self-training smoke:
+
+```bash
+poetry run python tools/strong_mocks/self_train_heuristic.py \
+  --run-id postflop-smoke \
+  --generations 2 \
+  --population 6 \
+  --elite 2 \
+  --matches-per-generation 3 \
+  --hands 80 \
+  --seed 9301 \
+  --workers 3 \
+  --parallel-backend process \
+  --generated-root /private/tmp/fullhouse_self_training/generated \
+  --result-root /private/tmp/fullhouse_self_training/results \
+  --json
+```
+
+Result:
+
+- Generation 0 top candidates: `legacy` mean `8,632`, `spr_anti_bucket` mean
+  `7,766`, `pressure` mean `3,061`.
+- Generation 1 top candidate: `legacy_m2` mean `2,290.5` over two games.
+- The winning mutation was still conservative and legacy-like; sample size was
+  too small and noisy to promote any setting.
+
+Three-seed candidate screen:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --config line-aware \
+  --config blocker-probe \
+  --config pair-danger \
+  --suite reference_6max \
+  --suite pressure_6max \
+  --suite heads_up_aggressor \
+  --suite heads_up_equity_mc \
+  --suite mock_policy_family_6max \
+  --suite strong_mock_6max \
+  --suite heads_up_strong_rollout \
+  --seed-start 9401 \
+  --seed-count 3 \
+  --hands 120 \
+  --workers 3 \
+  --parallel-backend process \
+  --json
+```
+
+Aggregate result:
+
+| Config | Score | Mean Of Suite Means | Positive Runs | Busts | Errors | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `blocker-probe` | 3,316.46 | 7,242.95 | 14/21 | 3 | 0 | Advance to focused check |
+| `line-aware` | 2,383.43 | 6,690.10 | 14/21 | 3 | 0 | Keep candidate |
+| `baseline` | 1,130.13 | 5,956.33 | 13/21 | 3 | 0 | Defend in focused check |
+| `pair-danger` | -3,567.00 | 3,558.43 | 10/21 | 6 | 0 | Reject as default |
+
+Focused five-seed screen:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --config blocker-probe \
+  --suite reference_6max \
+  --suite pressure_6max \
+  --suite heads_up_aggressor \
+  --suite heads_up_equity_mc \
+  --suite mock_policy_family_6max \
+  --suite strong_mock_6max \
+  --suite heads_up_strong_rollout \
+  --seed-start 9501 \
+  --seed-count 5 \
+  --hands 160 \
+  --workers 5 \
+  --parallel-backend process \
+  --json
+```
+
+Aggregate result:
+
+| Config | Score | Mean Of Suite Means | Median Of Suite Medians | Positive Runs | Busts | Errors | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: | --- |
+| `baseline` | 3,877.58 | 7,763.69 | 7,725 | 29/35 | 4 | 0 | Keep default |
+| `blocker-probe` | 2,052.37 | 7,562.34 | 10,000 | 28/35 | 6 | 0 | Reject as default |
+
+Key suite comparison:
+
+| Suite | Baseline Mean / Busts | `blocker-probe` Mean / Busts | Direction |
+| --- | ---: | ---: | --- |
+| `reference_6max` | 13,234.4 / 0 | 9,290.6 / 1 | Worse |
+| `pressure_6max` | 4,548.0 / 1 | 3,598.0 / 1 | Worse |
+| `heads_up_aggressor` | 10,000.0 / 0 | 6,000.0 / 1 | Worse |
+| `heads_up_equity_mc` | 5,298.6 / 0 | 6,141.2 / 0 | Better |
+| `mock_policy_family_6max` | 16,498.8 / 0 | 15,396.2 / 0 | Worse |
+| `strong_mock_6max` | 4,462.8 / 1 | 10,510.4 / 1 | Better |
+| `heads_up_strong_rollout` | 303.2 / 2 | 2,000.0 / 2 | Better |
+
+Decision:
+
+- Do not promote `blocker-probe`, `line-aware`, or `pair-danger`.
+- Keep the new postflop feature code and env knobs because they validate and
+  are useful for later screens.
+- Keep the submitted default behavior at the accepted promoted `baseline`.
+- The next version should isolate value-threshold, blocker-bluff, and delayed
+  probe effects instead of bundling them together.
+
 ## SPR / Anti-Bucket Candidate Screen
 
 Reviewed: 2026-05-27.

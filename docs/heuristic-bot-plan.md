@@ -182,6 +182,8 @@ Against pot-odds bots:
 - Bluff sizes should deny simple odds.
 - Value sizes should invite dominated calls.
 - Avoid giving cheap river calls when strong.
+- Current implementation uses a public-action-only suspicion score, so this is
+  an exploit hint rather than a hard classification.
 
 ## Bet Sizing
 
@@ -194,6 +196,7 @@ Use a small fixed size family with low-frequency off-bucket deviations:
 - pressure/value around `0.75` pot.
 - rare high-equity raises around `0.85` pot.
 - occasional `0.49`/`0.56+` pot deviations to stress threshold and bucketed policies.
+- candidate-only delayed probes and blocker bluffs, currently off by default.
 - `all_in`
 
 Convert all size intents through one function:

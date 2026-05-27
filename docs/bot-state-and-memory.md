@@ -173,3 +173,9 @@ For cross-hand strategy inside a match, module-level memory is the right tool. F
 The promoted strategy uses only public state, in-memory counters, bounded
 Monte Carlo, and import-time read-only numpy data. It does not write files or
 persist state across matches.
+
+Recent postflop feature work also derives a pot-odds-like sizing suspicion from
+the same public pressure-response counters. This is intentionally approximate:
+the rolling match log has action and amount fields but no pot-size or street
+labels, so the bot cannot build true street-specific fold-to-size stats during
+live play.

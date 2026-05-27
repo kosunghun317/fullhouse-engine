@@ -129,6 +129,13 @@ For weak-spot candidate checks, use at least a 10-seed candidate screen and a
 `pressure-control`, `equity-control`, `trap-control`, and `weakspot-control`;
 none are promoted as defaults.
 
+For postflop feature candidate checks, the latest tested configs are
+`line-aware`, `blocker-probe`, and `pair-danger`. They exercise richer hand
+features, blocker bluffs, delayed probes, paired-board caution, and
+pot-odds-like sizing suspicion. The latest focused screen kept `baseline` as
+the default, so treat these configs as diagnostics until a promotion gate says
+otherwise.
+
 For regenerating the explicit 169-class preflop table, run:
 
 ```bash

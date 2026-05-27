@@ -184,6 +184,7 @@ Trained artifact smoke:
 | `oracle_imitation/data/policy_value.npz` | 6,000 samples, value style, train accuracy `0.9893` |
 | `cfr_bucket/data/policy.npz` | 180 iterations, 2,048 batch, 4,096 buckets |
 | `ppo_policy/data/policy.npz` | MLX GPU backend, 64 iterations, oracle agreement `0.6278`, average reward `0.6779` |
+| `/private/tmp/fullhouse_policy_tuning_smoke.npz` | MLX GPU backend, 32 iterations, oracle agreement `0.6136`, average reward `0.6748` |
 
 Strong bot validators:
 
@@ -206,3 +207,13 @@ Selector smoke:
   wiring passed with no heuristic errors.
 - The short run produced negative values and one bust for both configs, so it
   is an integration check only, not a strategy decision.
+
+Postflop feature self-training smoke:
+
+- `postflop-smoke`, 2 generations, 6 candidates, 3 matches/generation, 80
+  hands, process parallelism.
+- Generation 0 favored `legacy` and `spr_anti_bucket` variants.
+- Generation 1 top mutation remained conservative/legacy-like and used only
+  small postflop feature adjustments.
+- Decision: keep this as a pipeline validation only. The sample is too small
+  to promote heuristic defaults.
