@@ -318,6 +318,11 @@ scripts/train_heuristics_selfplay.sh
   `5`.
 - The trainer exports the best observed generation after a 4-generation
   warmup, not blindly the final generation.
+- The bash wrapper stops stale runs early by default: PPO patience `14`,
+  bucket patience `24`, and required meaningful improvement `250` chip delta.
+- Existing repo artifacts are overwritten only when the selected checkpoint
+  reaches `MIN_EXPORT_MEAN_DELTA`, default `1500`. New output paths are still
+  exported below the threshold so candidate dry-runs remain evaluable.
 - Bucket training uses `--abstraction cfr-pokerbot --bucket-update cfr-plus`
   by default in the bash script.
 - The script writes a fast unrestricted smoke to
@@ -397,6 +402,34 @@ Fix applied:
 - Reduce learning rates/reward clipping and increase per-generation sample
   size.
 - Add fast unrestricted post-training smoke output.
+
+Second adversarial run assessment from
+`/private/tmp/fullhouse_real_training/adversarial-opponents-20260527-163343`:
+
+| Trainer | Generations | Avg Mean Train Delta | Last 10 Avg | Positive Generations | Best Generation | Final Generation |
+| --- | ---: | ---: | ---: | ---: | --- | --- |
+| PPO | 36 | `-2014.68` | `-2260.92` | `1/36` | gen 16, `+1106.25` | gen 35, `-951.90` |
+| Bucket | 128 | `-2019.74` | `-1335.12` | `10/128` | gen 25, `+1301.00` | gen 127, `-2090.08` |
+
+This run was integration-clean but still did not prove opponent improvement.
+Both trainers produced validator-clean artifacts with zero bot errors, but
+training remained high-variance and the best checkpoints were below the new
+default artifact overwrite threshold. The strong-screen after training favored
+the heuristic (`baseline` mean-of-suite-means `6300.30`, score `1232.37`,
+positive runs `14/20`), which means the current heuristic still farms these
+trained opponents in short screens.
+
+Second fix applied:
+
+- Add `--early-stop-patience` and `--early-stop-min-delta` to stop after the
+  best metric has not improved meaningfully for a configured number of
+  generations.
+- Add `--min-export-mean-delta` so long adversarial runs do not overwrite an
+  existing benchmark artifact with a checkpoint below a minimum quality bar.
+- Wire the same options through `scripts/train_opponents_real.sh` and
+  `tools/strong_mocks/league_train.py`.
+- Keep league candidate exports permissive by default; league promotion is
+  still controlled by held-out candidate-vs-incumbent evaluation.
 
 Smoke commands used temp outputs under `/private/tmp` so committed trained
 artifacts were not overwritten:

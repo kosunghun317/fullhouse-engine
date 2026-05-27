@@ -13,12 +13,15 @@ PARALLEL_BACKEND="${PARALLEL_BACKEND:-process}"
 OPPONENT_POOL="${OPPONENT_POOL:-adversarial}"
 EXPORT_BEST="${EXPORT_BEST:-1}"
 SELECTION_WARMUP="${SELECTION_WARMUP:-4}"
+EARLY_STOP_MIN_DELTA="${EARLY_STOP_MIN_DELTA:-250}"
+MIN_EXPORT_MEAN_DELTA="${MIN_EXPORT_MEAN_DELTA:-1500}"
 EXPORT_BEST_FLAG=()
 if [[ "$EXPORT_BEST" != "0" && "$EXPORT_BEST" != "false" ]]; then
   EXPORT_BEST_FLAG=(--export-best)
 fi
 
 PPO_GENERATIONS="${PPO_GENERATIONS:-48}"
+PPO_EARLY_STOP_PATIENCE="${PPO_EARLY_STOP_PATIENCE:-14}"
 PPO_MATCHES_PER_GENERATION="${PPO_MATCHES_PER_GENERATION:-96}"
 PPO_HANDS="${PPO_HANDS:-160}"
 PPO_HIDDEN="${PPO_HIDDEN:-128}"
@@ -30,6 +33,7 @@ PPO_TEMPERATURE="${PPO_TEMPERATURE:-0.82}"
 PPO_REWARD_CLIP="${PPO_REWARD_CLIP:-5.0}"
 
 BUCKET_GENERATIONS="${BUCKET_GENERATIONS:-40}"
+BUCKET_EARLY_STOP_PATIENCE="${BUCKET_EARLY_STOP_PATIENCE:-24}"
 BUCKET_MATCHES_PER_GENERATION="${BUCKET_MATCHES_PER_GENERATION:-128}"
 BUCKET_HANDS="${BUCKET_HANDS:-160}"
 BUCKET_COUNT="${BUCKET_COUNT:-32768}"
@@ -64,6 +68,9 @@ poetry run python tools/strong_mocks/train_real_policy.py \
   --max-snapshots 8 \
   --snapshot-prob 0.35 \
   --selection-warmup "$SELECTION_WARMUP" \
+  --early-stop-patience "$PPO_EARLY_STOP_PATIENCE" \
+  --early-stop-min-delta "$EARLY_STOP_MIN_DELTA" \
+  --min-export-mean-delta "$MIN_EXPORT_MEAN_DELTA" \
   --workers "$WORKERS" \
   --parallel-backend "$PARALLEL_BACKEND" \
   --seed 6161 \
@@ -92,6 +99,9 @@ poetry run python tools/strong_mocks/train_real_policy.py \
   --max-snapshots 8 \
   --snapshot-prob 0.35 \
   --selection-warmup "$SELECTION_WARMUP" \
+  --early-stop-patience "$BUCKET_EARLY_STOP_PATIENCE" \
+  --early-stop-min-delta "$EARLY_STOP_MIN_DELTA" \
+  --min-export-mean-delta "$MIN_EXPORT_MEAN_DELTA" \
   --workers "$WORKERS" \
   --parallel-backend "$PARALLEL_BACKEND" \
   --seed 5151 \

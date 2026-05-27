@@ -124,6 +124,7 @@ MATCH_SCALE=1.0 \
 HAND_SCALE=1.0 \
 EVAL_SEEDS=8 \
 EVAL_HANDS=160 \
+EARLY_STOP_PATIENCE=0 \
 PROMOTE=1 \
 scripts/train_opponents_league.sh
 ```
@@ -142,6 +143,12 @@ EVAL_HANDS=120 \
 scripts/train_opponents_league.sh
 ```
 
+`EARLY_STOP_PATIENCE` and `EARLY_STOP_MIN_DELTA` are passed through to the
+underlying real trainer. They default to off for league runs because stages are
+short and candidate quality is decided by held-out promotion. Turn them on for
+large scaled league runs if a stage keeps drifting long after its best
+training checkpoint.
+
 ## Why This Is Better Than The Previous Wrapper
 
 The previous wrapper trained PPO and bucket policies sequentially against one
@@ -152,6 +159,7 @@ before promotion.
 This reduces two failure modes observed in the previous long run:
 
 - exporting a late bad generation after an earlier good generation,
+- overwriting an incumbent artifact with a below-threshold training checkpoint,
 - mistaking "our heuristic beats the trained opponent" for "the opponent
   improved."
 

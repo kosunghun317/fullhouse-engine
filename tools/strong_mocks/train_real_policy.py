@@ -567,8 +567,16 @@ def _append_jsonl(path: str | None, row: dict) -> None:
         handle.write(json.dumps(row, sort_keys=True) + "\n")
 
 
+def should_export_policy(selected_mean_delta: float | None, output_exists: bool, min_export_mean_delta: float) -> bool:
+    """Return whether a trained checkpoint may overwrite an existing artifact."""
+    if selected_mean_delta is None:
+        return not output_exists
+    return (not output_exists) or float(selected_mean_delta) >= float(min_export_mean_delta)
+
+
 def train(args) -> dict:
     output = Path(args.output or (DEFAULT_PPO_OUTPUT if args.kind == "ppo" else DEFAULT_BUCKET_OUTPUT))
+    output_exists_before_training = output.is_file()
     params = None
     mean = np.zeros(len(FEATURE_NAMES), dtype=np.float64)
     scale = np.ones(len(FEATURE_NAMES), dtype=np.float64)
@@ -585,6 +593,9 @@ def train(args) -> dict:
     best_metric = -float("inf")
     best_state: dict | None = None
     best_row: dict | None = None
+    stale_generations = 0
+    early_stopped = False
+    stop_generation = None
     for generation in range(args.generations):
         pre_update_state = _export_state(args.kind, params, mean, scale, prefs, strategy_sum)
         tasks = []
@@ -632,10 +643,16 @@ def train(args) -> dict:
             "mean_decision_reward": round(float(np.mean(data["reward"])) if data["reward"].size else 0.0, 5),
             "bot_error_count": bot_error_count,
         }
-        if generation >= args.selection_warmup and mean_delta > best_metric:
-            best_metric = mean_delta
-            best_state = pre_update_state
-            best_row = dict(row)
+        if generation >= args.selection_warmup:
+            previous_best = best_metric
+            if mean_delta > best_metric:
+                best_metric = mean_delta
+                best_state = pre_update_state
+                best_row = dict(row)
+            if previous_best == -float("inf") or mean_delta > previous_best + args.early_stop_min_delta:
+                stale_generations = 0
+            elif args.early_stop_patience > 0:
+                stale_generations += 1
 
         if args.kind == "ppo":
             loss = _update_ppo(
@@ -666,28 +683,58 @@ def train(args) -> dict:
         if args.snapshot_interval > 0 and (generation + 1) % args.snapshot_interval == 0:
             snapshots.append(_snapshot(args.kind, params, mean, scale, prefs, args))
             snapshots = snapshots[-args.max_snapshots:]
+        if (
+            args.early_stop_patience > 0
+            and generation >= args.selection_warmup
+            and stale_generations >= args.early_stop_patience
+        ):
+            early_stopped = True
+            stop_generation = generation
+            break
 
+    selected_mean_delta = (
+        best_row["mean_train_delta"]
+        if args.export_best and best_row is not None
+        else reports[-1]["mean_train_delta"] if reports else None
+    )
+    selected_generation = (
+        best_row["generation"]
+        if args.export_best and best_row is not None
+        else reports[-1]["generation"] if reports else None
+    )
+    export_allowed = should_export_policy(
+        selected_mean_delta,
+        output_exists_before_training,
+        args.min_export_mean_delta,
+    )
+    export_skipped_reason = None
+    if not export_allowed:
+        export_skipped_reason = (
+            f"selected mean_train_delta {selected_mean_delta} is below "
+            f"min_export_mean_delta {args.min_export_mean_delta}; kept existing artifact"
+        )
     report = {
         "mode": "real_fullhouse_self_play",
         "kind": args.kind,
         "output": str(output),
         "seed": args.seed,
-        "generations": args.generations,
+        "generations": len(reports),
+        "generations_requested": args.generations,
         "matches_per_generation": args.matches_per_generation,
         "hands": args.hands,
         "players": args.players,
         "train_seats": args.train_seats,
         "final_mean_train_delta": reports[-1]["mean_train_delta"] if reports else 0.0,
-        "mean_train_delta": (
-            best_row["mean_train_delta"]
-            if args.export_best and best_row is not None
-            else reports[-1]["mean_train_delta"] if reports else 0.0
-        ),
-        "exported_generation": (
-            best_row["generation"]
-            if args.export_best and best_row is not None
-            else reports[-1]["generation"] if reports else None
-        ),
+        "mean_train_delta": selected_mean_delta if selected_mean_delta is not None else 0.0,
+        "exported_generation": selected_generation,
+        "exported": bool(export_allowed),
+        "output_existed_before_training": bool(output_exists_before_training),
+        "min_export_mean_delta": args.min_export_mean_delta,
+        "export_skipped_reason": export_skipped_reason,
+        "early_stopped": bool(early_stopped),
+        "stop_generation": stop_generation,
+        "early_stop_patience": args.early_stop_patience,
+        "early_stop_min_delta": args.early_stop_min_delta,
         "best_generation": best_row["generation"] if best_row is not None else None,
         "best_mean_train_delta": best_row["mean_train_delta"] if best_row is not None else None,
         "abstraction": args.abstraction,
@@ -702,10 +749,11 @@ def train(args) -> dict:
         prefs,
         strategy_sum,
     )
-    if args.kind == "ppo":
-        _export_ppo(output, export_state["params"], export_state["mean"], export_state["scale"], report)
-    else:
-        _export_bucket(output, export_state["prefs"], export_state["strategy_sum"], report)
+    if export_allowed:
+        if args.kind == "ppo":
+            _export_ppo(output, export_state["params"], export_state["mean"], export_state["scale"], report)
+        else:
+            _export_bucket(output, export_state["prefs"], export_state["strategy_sum"], report)
     return report
 
 
@@ -741,6 +789,9 @@ def main() -> None:
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--export-best", action="store_true")
     parser.add_argument("--selection-warmup", type=int, default=2)
+    parser.add_argument("--early-stop-patience", type=int, default=0)
+    parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
+    parser.add_argument("--min-export-mean-delta", type=float, default=-1_000_000_000.0)
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()

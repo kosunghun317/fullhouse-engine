@@ -16,6 +16,9 @@ EVAL_SEEDS="${EVAL_SEEDS:-8}"
 EVAL_HANDS="${EVAL_HANDS:-160}"
 PROMOTE_MARGIN="${PROMOTE_MARGIN:-250}"
 PROMOTE="${PROMOTE:-1}"
+EARLY_STOP_PATIENCE="${EARLY_STOP_PATIENCE:-0}"
+EARLY_STOP_MIN_DELTA="${EARLY_STOP_MIN_DELTA:-0}"
+MIN_EXPORT_MEAN_DELTA="${MIN_EXPORT_MEAN_DELTA:--1000000000}"
 
 PROMOTE_FLAG=()
 if [[ "$PROMOTE" != "0" && "$PROMOTE" != "false" ]]; then
@@ -37,6 +40,9 @@ poetry run python tools/strong_mocks/league_train.py \
   --eval-seeds "$EVAL_SEEDS" \
   --eval-hands "$EVAL_HANDS" \
   --promote-margin "$PROMOTE_MARGIN" \
+  --early-stop-patience "$EARLY_STOP_PATIENCE" \
+  --early-stop-min-delta "$EARLY_STOP_MIN_DELTA" \
+  --min-export-mean-delta "$MIN_EXPORT_MEAN_DELTA" \
   --workers "$WORKERS" \
   --parallel-backend "$PARALLEL_BACKEND" \
   --progress \

@@ -147,6 +147,11 @@ actual Fullhouse engine rollouts instead of synthetic oracle labels. It supports
   real local `bot.py` opponents loaded through the fast in-process runner.
 - `--export-best`: exports the best observed checkpoint instead of the last
   generation.
+- `--early-stop-patience` and `--early-stop-min-delta`: stop stale long runs
+  after the best metric has not improved meaningfully.
+- `--min-export-mean-delta`: keep an existing repo artifact when the selected
+  checkpoint is below the overwrite threshold. New candidate output paths are
+  still exported so league dry-runs can be evaluated.
 
 Real opponent training entrypoint:
 
@@ -165,7 +170,10 @@ FAST_SMOKE_REPEAT=1 STRONG_SCREEN_SEEDS=1 WORKERS=1 scripts/train_opponents_real
 The script validates trained bots, runs a fast unrestricted batch through
 `training.fast_match`, and then runs a small parallel strong-screen after
 training. For serious training, leave `WORKERS=0` so the helper auto-selects
-local process workers.
+local process workers. The default real-training wrapper uses a `1500`
+minimum mean train-delta threshold before overwriting existing strong-mock
+artifacts; lower it only when intentionally accepting weaker but more diverse
+benchmark opponents.
 
 ```mermaid
 graph TD

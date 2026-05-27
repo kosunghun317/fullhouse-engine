@@ -267,6 +267,9 @@ def _train_args(args, stage_name: str, stage: dict, kind: str, output: Path, ext
         resume=args.resume,
         export_best=True,
         selection_warmup=args.selection_warmup,
+        early_stop_patience=args.early_stop_patience,
+        early_stop_min_delta=args.early_stop_min_delta,
+        min_export_mean_delta=args.min_export_mean_delta,
         progress=args.progress,
         json=True,
     )
@@ -382,6 +385,9 @@ def main() -> None:
     parser.add_argument("--snapshot-interval", type=int, default=2)
     parser.add_argument("--max-snapshots", type=int, default=8)
     parser.add_argument("--selection-warmup", type=int, default=2)
+    parser.add_argument("--early-stop-patience", type=int, default=0)
+    parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
+    parser.add_argument("--min-export-mean-delta", type=float, default=-1_000_000_000.0)
     parser.add_argument("--promote-margin", type=float, default=250.0)
     parser.add_argument("--risk-weight", type=float, default=0.35)
     parser.add_argument("--min-weight", type=float, default=0.10)

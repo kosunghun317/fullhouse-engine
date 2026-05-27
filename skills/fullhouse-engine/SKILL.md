@@ -99,7 +99,8 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
 It trains PPO-style and CFR+/bucket strong mocks from actual Fullhouse
 rollouts. Defaults use `OPPONENT_POOL=adversarial`, real `bot.py` opponents
 through `training.fast_match.FastBot`, lower-variance learning rates,
-`--export-best`, and `--selection-warmup 4`. The CFR+/bucket path uses
+`--export-best`, `--selection-warmup 4`, early stopping, and an artifact
+overwrite threshold. The CFR+/bucket path uses
 `--abstraction cfr-pokerbot` and `--bucket-update cfr-plus`, which are
 Fullhouse-compatible adaptations of compatible ideas from
 `jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not ported.
@@ -113,14 +114,22 @@ PARALLEL_BACKEND=process \
 OPPONENT_POOL=adversarial \
 EXPORT_BEST=1 \
 SELECTION_WARMUP=4 \
+EARLY_STOP_MIN_DELTA=250 \
+MIN_EXPORT_MEAN_DELTA=1500 \
+PPO_EARLY_STOP_PATIENCE=14 \
 PPO_GENERATIONS=36 \
 PPO_MATCHES_PER_GENERATION=96 \
 PPO_HANDS=180 \
+BUCKET_EARLY_STOP_PATIENCE=24 \
 BUCKET_GENERATIONS=32 \
 BUCKET_MATCHES_PER_GENERATION=128 \
 BUCKET_HANDS=180 \
 scripts/train_opponents_real.sh
 ```
+
+If the final report says `"exported": false`, the run completed but kept the
+existing repo artifact because the selected checkpoint did not clear
+`MIN_EXPORT_MEAN_DELTA`.
 
 For league-style staged opponent training with held-out promotion gates, use:
 
