@@ -120,12 +120,12 @@ EARLY_STOP_MIN_DELTA=250 \
 MIN_EXPORT_MEAN_DELTA=1500 \
 PPO_EARLY_STOP_PATIENCE=14 \
 PPO_GENERATIONS=36 \
-PPO_MATCHES_PER_GENERATION=96 \
-PPO_HANDS=180 \
+PPO_MATCHES_PER_GENERATION=128 \
+PPO_HANDS=400 \
 BUCKET_EARLY_STOP_PATIENCE=24 \
 BUCKET_GENERATIONS=32 \
 BUCKET_MATCHES_PER_GENERATION=128 \
-BUCKET_HANDS=180 \
+BUCKET_HANDS=400 \
 scripts/train_opponents_real.sh
 ```
 
@@ -142,8 +142,8 @@ PARALLEL_BACKEND=process \
 GENERATION_SCALE=1.0 \
 MATCH_SCALE=1.0 \
 HAND_SCALE=1.0 \
-EVAL_SEEDS=8 \
-EVAL_HANDS=160 \
+EVAL_SEEDS=128 \
+EVAL_HANDS=400 \
 PROMOTE=1 \
 scripts/train_opponents_league.sh
 ```
@@ -158,14 +158,14 @@ PPO_ARMS=stable,explore,conservative \
 PPO_INIT=auto \
 PPO_INIT_SAMPLES=80000 \
 PPO_GENERATIONS=8 \
-PPO_MATCHES_PER_GENERATION=48 \
-PPO_HANDS=140 \
+PPO_MATCHES_PER_GENERATION=128 \
+PPO_HANDS=400 \
 HEURISTIC_POPULATION=14 \
 HEURISTIC_ELITE=4 \
-HEURISTIC_MATCHES_PER_GENERATION=24 \
-HEURISTIC_HANDS=200 \
-EVAL_SEEDS=6 \
-EVAL_HANDS=180 \
+HEURISTIC_MATCHES_PER_GENERATION=64 \
+HEURISTIC_HANDS=400 \
+EVAL_SEEDS=128 \
+EVAL_HANDS=400 \
 scripts/train_e2e_coevolution.sh
 ```
 
@@ -228,7 +228,7 @@ poetry run python tools/train_mock_numpy_policy.py --all --samples 60000 --seed 
 For focused sizing/pressure benchmark checks, run:
 
 ```bash
-poetry run python tools/evaluate_heuristic.py --suite sizing_6max --suite pressure_6max --suite mixed_stress_6max --seed-count 10 --summary-only --json
+poetry run python tools/evaluate_heuristic.py --suite sizing_6max --suite pressure_6max --suite mixed_stress_6max --seed-count 128 --hands 400 --summary-only --json
 ```
 
 For heuristic submission packaging, run:
@@ -246,7 +246,7 @@ poetry run python tools/tune_heuristic_thresholds.py --json
 For threshold tuning summaries, run:
 
 ```bash
-poetry run python tools/tune_heuristic_thresholds.py --seed-count 100 --summary-only --json
+poetry run python tools/tune_heuristic_thresholds.py --seed-count 128 --summary-only --json
 ```
 
 For risk-aware config ranking, run:
@@ -255,8 +255,8 @@ For risk-aware config ranking, run:
 poetry run python tools/select_heuristic_config.py --preset candidate --progress
 ```
 
-For weak-spot candidate checks, use at least a 10-seed candidate screen and a
-30-seed gate before changing defaults. The latest tested weak-spot configs are
+For weak-spot candidate checks, use at least a 64-seed candidate screen and a
+128-seed gate before changing defaults. The latest tested weak-spot configs are
 `pressure-control`, `equity-control`, `trap-control`, and `weakspot-control`;
 none are promoted as defaults.
 

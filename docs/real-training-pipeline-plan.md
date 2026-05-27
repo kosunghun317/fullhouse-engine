@@ -263,11 +263,11 @@ OPPONENT_POOL=adversarial \
 EXPORT_BEST=1 \
 SELECTION_WARMUP=4 \
 PPO_GENERATIONS=36 \
-PPO_MATCHES_PER_GENERATION=96 \
-PPO_HANDS=180 \
+PPO_MATCHES_PER_GENERATION=128 \
+PPO_HANDS=400 \
 BUCKET_GENERATIONS=32 \
 BUCKET_MATCHES_PER_GENERATION=128 \
-BUCKET_HANDS=180 \
+BUCKET_HANDS=400 \
 scripts/train_opponents_real.sh
 ```
 
@@ -298,7 +298,7 @@ Example overnight-ish heuristic run:
 ```bash
 GENERATIONS=16 \
 POPULATION=30 \
-MATCHES_PER_GENERATION=72 \
+MATCHES_PER_GENERATION=128 \
 HANDS=400 \
 scripts/train_heuristics_selfplay.sh
 ```
@@ -307,8 +307,9 @@ scripts/train_heuristics_selfplay.sh
 
 `scripts/train_opponents_real.sh` defaults:
 
-- PPO: 48 generations, 96 matches/generation, 160 hands/match.
-- Bucket: 40 generations, 128 matches/generation, 160 hands/match.
+- PPO: 48 generations, 128 matches/generation, 400 hands/match.
+- Bucket: 40 generations, 128 matches/generation, 400 hands/match.
+- Strong-screen post-training validation: 128 seeds, 400 hands/seed.
 - 6-player tables, 2 trainable seats, process parallelism with `WORKERS=0`.
 - Default opponent pool is `adversarial`, including real local `bot.py`
   opponents through the fast in-process runner.

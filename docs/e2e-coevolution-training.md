@@ -51,14 +51,14 @@ PPO_ARMS=stable,explore,conservative \
 PPO_INIT=auto \
 PPO_INIT_SAMPLES=80000 \
 PPO_GENERATIONS=8 \
-PPO_MATCHES_PER_GENERATION=48 \
-PPO_HANDS=140 \
+PPO_MATCHES_PER_GENERATION=128 \
+PPO_HANDS=400 \
 HEURISTIC_POPULATION=14 \
 HEURISTIC_ELITE=4 \
-HEURISTIC_MATCHES_PER_GENERATION=24 \
-HEURISTIC_HANDS=200 \
-EVAL_SEEDS=6 \
-EVAL_HANDS=180 \
+HEURISTIC_MATCHES_PER_GENERATION=64 \
+HEURISTIC_HANDS=400 \
+EVAL_SEEDS=128 \
+EVAL_HANDS=400 \
 scripts/train_e2e_coevolution.sh
 ```
 
@@ -105,6 +105,11 @@ runs/fullhouse_coevolution/<run-id>/
 heuristic paths, the heuristic population, and Python RNG state. The script
 does not delete `metrics.jsonl` during normal operation, so plots accumulate
 across repeated invocations.
+
+Default sample sizes are deliberately large enough for selection runs rather
+than smoke tests: 400-hand matches, 128 held-out eval seeds, 128 PPO training
+matches per generation, and 64 heuristic matches per generation. Override them
+downward only for smoke checks.
 
 ## Flow
 

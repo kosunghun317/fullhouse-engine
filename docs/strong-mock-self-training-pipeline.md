@@ -276,7 +276,7 @@ poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --ge
 Real local run:
 
 ```bash
-poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local-$(date +%Y%m%d) --generations 4 --population 10 --elite 3 --matches-per-generation 8 --hands 240 --seed 8080 --workers 0 --parallel-backend process --json
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local-$(date +%Y%m%d) --generations 16 --population 30 --elite 8 --matches-per-generation 128 --hands 400 --seed 8080 --workers 0 --parallel-backend process --json
 ```
 
 For a generation to cover every candidate at least once, use:
@@ -285,7 +285,8 @@ For a generation to cover every candidate at least once, use:
 matches_per_generation >= ceil(population / max_heuristics)
 ```
 
-Default `10 / 3` needs at least 4 matches; the default 8 gives repeat samples.
+Default `30 / 3` needs at least 10 matches; the shell wrapper default of 128
+matches gives enough repeat samples for ranking rather than just smoke testing.
 
 ## Parallel Execution
 
@@ -293,10 +294,10 @@ The offline harnesses support independent-match parallelism:
 
 ```bash
 poetry run python -m training.fast_match bots/heuristic bots/strong_mocks/ensemble bots/shark --hands 400 --repeat 16 --workers 0 --parallel-backend process --json
-poetry run python tools/evaluate_heuristic.py --suite strong_mock_6max --seed-count 10 --hands 400 --workers 0 --parallel-backend process --summary-only
-poetry run python tools/evaluate_heuristic.py --suite heads_up_shark --seed-count 10 --hands 400 --workers 4 --parallel-backend thread --summary-only
+poetry run python tools/evaluate_heuristic.py --suite strong_mock_6max --seed-count 128 --hands 400 --workers 0 --parallel-backend process --summary-only
+poetry run python tools/evaluate_heuristic.py --suite heads_up_shark --seed-count 128 --hands 400 --workers 4 --parallel-backend thread --summary-only
 poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --workers 0 --parallel-backend process --progress
-poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local --generations 4 --population 10 --matches-per-generation 8 --workers 0 --parallel-backend process --json
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local --generations 16 --population 30 --matches-per-generation 128 --hands 400 --workers 0 --parallel-backend process --json
 ```
 
 Backend guidance:
@@ -326,7 +327,7 @@ Strong-mock suites are wired into `tools/evaluate_heuristic.py`:
 Focused selector preset:
 
 ```bash
-poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --config spr-anti-bucket --seed-count 10 --hands 400 --progress --json
+poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --config spr-anti-bucket --seed-count 128 --hands 400 --progress --json
 ```
 
 Do not promote a default from a smoke run. Use strong-screen results as an

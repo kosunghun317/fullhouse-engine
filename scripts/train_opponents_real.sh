@@ -22,8 +22,8 @@ fi
 
 PPO_GENERATIONS="${PPO_GENERATIONS:-48}"
 PPO_EARLY_STOP_PATIENCE="${PPO_EARLY_STOP_PATIENCE:-14}"
-PPO_MATCHES_PER_GENERATION="${PPO_MATCHES_PER_GENERATION:-96}"
-PPO_HANDS="${PPO_HANDS:-160}"
+PPO_MATCHES_PER_GENERATION="${PPO_MATCHES_PER_GENERATION:-128}"
+PPO_HANDS="${PPO_HANDS:-400}"
 PPO_HIDDEN="${PPO_HIDDEN:-128}"
 PPO_BATCH_SIZE="${PPO_BATCH_SIZE:-4096}"
 PPO_EPOCHS="${PPO_EPOCHS:-3}"
@@ -41,7 +41,7 @@ PPO_REWARD_CLIP="${PPO_REWARD_CLIP:-5.0}"
 BUCKET_GENERATIONS="${BUCKET_GENERATIONS:-40}"
 BUCKET_EARLY_STOP_PATIENCE="${BUCKET_EARLY_STOP_PATIENCE:-24}"
 BUCKET_MATCHES_PER_GENERATION="${BUCKET_MATCHES_PER_GENERATION:-128}"
-BUCKET_HANDS="${BUCKET_HANDS:-160}"
+BUCKET_HANDS="${BUCKET_HANDS:-400}"
 BUCKET_COUNT="${BUCKET_COUNT:-32768}"
 BUCKET_LR="${BUCKET_LR:-0.004}"
 BUCKET_TEMPERATURE="${BUCKET_TEMPERATURE:-0.80}"
@@ -49,8 +49,8 @@ BUCKET_REWARD_CLIP="${BUCKET_REWARD_CLIP:-5.0}"
 
 FAST_SMOKE_REPEAT="${FAST_SMOKE_REPEAT:-8}"
 FAST_SMOKE_HANDS="${FAST_SMOKE_HANDS:-160}"
-STRONG_SCREEN_SEEDS="${STRONG_SCREEN_SEEDS:-5}"
-STRONG_SCREEN_HANDS="${STRONG_SCREEN_HANDS:-160}"
+STRONG_SCREEN_SEEDS="${STRONG_SCREEN_SEEDS:-128}"
+STRONG_SCREEN_HANDS="${STRONG_SCREEN_HANDS:-400}"
 PPO_OUTPUT="${PPO_OUTPUT:-bots/strong_mocks/ppo_policy/data/policy.npz}"
 BUCKET_OUTPUT="${BUCKET_OUTPUT:-bots/strong_mocks/cfr_bucket/data/policy.npz}"
 
@@ -143,7 +143,7 @@ poetry run python -m training.fast_match \
   --seed-start 9001 \
   --json > "$RESULT_ROOT/fast_strong_mock_smoke.json"
 
-echo "==> Strong-screen smoke after real opponent training"
+echo "==> Strong-screen validation after real opponent training"
 poetry run python tools/select_heuristic_config.py \
   --preset strong-screen \
   --config baseline \
@@ -152,6 +152,6 @@ poetry run python tools/select_heuristic_config.py \
   --workers "$WORKERS" \
   --parallel-backend "$PARALLEL_BACKEND" \
   --progress \
-  --json > "$RESULT_ROOT/strong_screen_smoke.json"
+  --json > "$RESULT_ROOT/strong_screen_validation.json"
 
 echo "Training logs: $RESULT_ROOT"
