@@ -249,8 +249,14 @@ def _train_args(args, stage_name: str, stage: dict, kind: str, output: Path, ext
         bucket_update=cfg["bucket_update"],
         learning_rate=cfg["learning_rate"],
         entropy_coef=cfg["entropy_coef"],
+        ppo_clip_ratio=args.ppo_clip_ratio,
+        ppo_value_coef=args.ppo_value_coef,
+        max_grad_norm=args.max_grad_norm,
         epochs=cfg["epochs"],
         batch_size=cfg["batch_size"],
+        feature_norm_momentum=args.feature_norm_momentum,
+        replay_generations=args.replay_generations,
+        replay_max_decisions=args.replay_max_decisions,
         temperature=cfg["temperature"],
         reward_scale=args.reward_scale,
         reward_clip=args.reward_clip,
@@ -382,6 +388,12 @@ def main() -> None:
     parser.add_argument("--seed-start", type=int, default=11001)
     parser.add_argument("--reward-scale", type=float, default=1000.0)
     parser.add_argument("--reward-clip", type=float, default=5.0)
+    parser.add_argument("--ppo-clip-ratio", type=float, default=0.20)
+    parser.add_argument("--ppo-value-coef", type=float, default=0.35)
+    parser.add_argument("--max-grad-norm", type=float, default=0.75)
+    parser.add_argument("--feature-norm-momentum", type=float, default=0.08)
+    parser.add_argument("--replay-generations", type=int, default=4)
+    parser.add_argument("--replay-max-decisions", type=int, default=24000)
     parser.add_argument("--snapshot-interval", type=int, default=2)
     parser.add_argument("--max-snapshots", type=int, default=8)
     parser.add_argument("--selection-warmup", type=int, default=2)

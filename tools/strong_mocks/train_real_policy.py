@@ -23,7 +23,7 @@ if str(ROOT) not in sys.path:
 
 from engine.game import STARTING_STACK, PokerEngine
 from tools.parallel import map_parallel
-from tools.strong_mocks.actions import ACTION_LABELS, action_index_to_action, legal_mask
+from tools.strong_mocks.actions import ACTION_LABELS, action_index_to_action, legal_mask, strategic_mask
 from tools.strong_mocks.abstractions import abstract_bucket_id
 from tools.strong_mocks.dataset import oracle_logits
 from tools.strong_mocks.features import FEATURE_NAMES, extract_features
@@ -58,6 +58,8 @@ class Decision:
     mask: np.ndarray
     action: int
     bucket: int
+    old_logprob: float = 0.0
+    old_value: float = 0.0
     reward: float = 0.0
 
 
@@ -94,6 +96,8 @@ def _mlp_init(seed: int, hidden: int) -> dict[str, np.ndarray]:
         "b1": np.zeros(hidden, dtype=np.float64),
         "w2": rng.normal(0.0, 0.08, size=(hidden, len(ACTION_LABELS))).astype(np.float64),
         "b2": np.zeros(len(ACTION_LABELS), dtype=np.float64),
+        "wv": rng.normal(0.0, 0.04, size=(hidden,)).astype(np.float64),
+        "bv": np.zeros(1, dtype=np.float64),
     }
 
 
@@ -110,6 +114,24 @@ def _load_ppo(path: Path, hidden: int, seed: int, resume: bool) -> tuple[dict[st
                 "b2": data["b2"].astype(np.float64),
             }
             if params["w1"].shape == (len(FEATURE_NAMES), hidden):
+                if params["w2"].shape != (hidden, len(ACTION_LABELS)):
+                    classes = data["classes"].astype(int) if "classes" in data.files else np.arange(params["w2"].shape[1])
+                    full_w2 = np.zeros((hidden, len(ACTION_LABELS)), dtype=np.float64)
+                    full_b2 = np.full(len(ACTION_LABELS), -4.0, dtype=np.float64)
+                    for offset, cls in enumerate(classes):
+                        if 0 <= int(cls) < len(ACTION_LABELS) and offset < params["w2"].shape[1]:
+                            full_w2[:, int(cls)] = params["w2"][:, offset]
+                            full_b2[int(cls)] = params["b2"][offset]
+                    params["w2"] = full_w2
+                    params["b2"] = full_b2
+                if "wv" in data.files and data["wv"].shape == (hidden,):
+                    params["wv"] = data["wv"].astype(np.float64)
+                else:
+                    params["wv"] = np.zeros(hidden, dtype=np.float64)
+                if "bv" in data.files:
+                    params["bv"] = np.asarray(data["bv"], dtype=np.float64).reshape(1)
+                else:
+                    params["bv"] = np.zeros(1, dtype=np.float64)
                 if "mean" in data.files:
                     mean = data["mean"].astype(np.float64)
                 if "scale" in data.files:
@@ -147,12 +169,23 @@ def _forward(params: dict[str, np.ndarray], x: np.ndarray, mean: np.ndarray, sca
     return hidden, logits
 
 
+def _value_from_hidden(params: dict[str, np.ndarray], hidden: np.ndarray) -> np.ndarray:
+    wv = params.get("wv")
+    bv = params.get("bv")
+    if wv is None:
+        return np.zeros(hidden.shape[0] if hidden.ndim > 1 else 1, dtype=np.float64)
+    value = hidden @ wv + (float(np.asarray(bv).reshape(-1)[0]) if bv is not None else 0.0)
+    return np.asarray(value, dtype=np.float64)
+
+
 def _policy_action(task: dict, state: dict, rng: random.Random, record: bool) -> tuple[dict, Decision | None]:
     kind = task["kind"]
     x = extract_features(state)
-    mask = legal_mask(state)
+    mask = strategic_mask(state) if kind == "ppo" else legal_mask(state)
+    value = 0.0
     if kind == "ppo":
-        _hidden, logits = _forward(task["params"], x, task["mean"], task["scale"])
+        hidden, logits = _forward(task["params"], x, task["mean"], task["scale"])
+        value = float(_value_from_hidden(task["params"], hidden).reshape(-1)[0])
     else:
         b = abstract_bucket_id(state, int(task["bucket_count"]), task.get("abstraction", "feature"))
         logits = np.maximum(task["prefs"][b], 0.0) if task.get("bucket_update") == "cfr-plus" else task["prefs"][b]
@@ -167,6 +200,8 @@ def _policy_action(task: dict, state: dict, rng: random.Random, record: bool) ->
         mask=mask.astype(bool),
         action=action_index,
         bucket=abstract_bucket_id(state, int(task["bucket_count"]), task.get("abstraction", "feature")),
+        old_logprob=float(np.log(max(1e-8, probs[action_index]))),
+        old_value=value,
     )
 
 
@@ -349,6 +384,8 @@ def _run_training_match(task: dict) -> dict:
                 "mask": decision.mask,
                 "action": decision.action,
                 "bucket": decision.bucket,
+                "old_logprob": decision.old_logprob,
+                "old_value": decision.old_value,
                 "reward": decision.reward,
             }
             for decision in decisions
@@ -368,6 +405,8 @@ def _flatten_decisions(matches: list[dict]) -> dict[str, np.ndarray]:
             "mask": np.zeros((0, len(ACTION_LABELS)), dtype=bool),
             "action": np.zeros(0, dtype=np.int64),
             "bucket": np.zeros(0, dtype=np.int64),
+            "old_logprob": np.zeros(0, dtype=np.float64),
+            "old_value": np.zeros(0, dtype=np.float64),
             "reward": np.zeros(0, dtype=np.float64),
         }
     return {
@@ -375,8 +414,48 @@ def _flatten_decisions(matches: list[dict]) -> dict[str, np.ndarray]:
         "mask": np.stack([row["mask"] for row in rows]).astype(bool),
         "action": np.asarray([row["action"] for row in rows], dtype=np.int64),
         "bucket": np.asarray([row["bucket"] for row in rows], dtype=np.int64),
+        "old_logprob": np.asarray([row.get("old_logprob", 0.0) for row in rows], dtype=np.float64),
+        "old_value": np.asarray([row.get("old_value", 0.0) for row in rows], dtype=np.float64),
         "reward": np.asarray([row["reward"] for row in rows], dtype=np.float64),
     }
+
+
+def _concat_data(batches: list[dict[str, np.ndarray]], max_rows: int = 0, rng: np.random.Generator | None = None) -> dict[str, np.ndarray]:
+    valid = [batch for batch in batches if batch["reward"].shape[0] > 0]
+    if not valid:
+        return _flatten_decisions([])
+    out = {
+        key: np.concatenate([batch[key] for batch in valid], axis=0)
+        for key in valid[0]
+    }
+    if max_rows > 0 and out["reward"].shape[0] > max_rows:
+        chooser = rng or np.random.default_rng(0)
+        idx = chooser.choice(out["reward"].shape[0], size=max_rows, replace=False)
+        idx.sort()
+        out = {key: value[idx] for key, value in out.items()}
+    return out
+
+
+def _update_feature_norm(
+    mean: np.ndarray,
+    scale: np.ndarray,
+    x: np.ndarray,
+    generation: int,
+    momentum: float,
+    resume: bool,
+) -> tuple[np.ndarray, np.ndarray]:
+    if x.shape[0] == 0 or momentum <= 0:
+        return mean, scale
+    batch_mean = x.mean(axis=0)
+    batch_scale = x.std(axis=0)
+    batch_scale[batch_scale < 1e-6] = 1.0
+    if generation == 0 and not resume:
+        return batch_mean, batch_scale
+    alpha = max(0.0, min(1.0, momentum))
+    new_mean = (1.0 - alpha) * mean + alpha * batch_mean
+    new_scale = (1.0 - alpha) * scale + alpha * batch_scale
+    new_scale[new_scale < 1e-6] = 1.0
+    return new_mean, new_scale
 
 
 def _normalized_advantage(rewards: np.ndarray) -> np.ndarray:
@@ -389,6 +468,19 @@ def _normalized_advantage(rewards: np.ndarray) -> np.ndarray:
     return (clipped - float(np.mean(clipped))) / std
 
 
+def _clip_grads(grads: list[np.ndarray], max_norm: float) -> list[np.ndarray]:
+    if max_norm <= 0:
+        return grads
+    total = 0.0
+    for grad in grads:
+        total += float(np.sum(grad * grad))
+    norm = total ** 0.5
+    if norm <= max_norm or norm <= 1e-12:
+        return grads
+    scale = max_norm / norm
+    return [grad * scale for grad in grads]
+
+
 def _update_ppo(
     params: dict[str, np.ndarray],
     mean: np.ndarray,
@@ -399,13 +491,19 @@ def _update_ppo(
     entropy_coef: float,
     epochs: int,
     batch_size: int,
+    clip_ratio: float,
+    value_coef: float,
+    max_grad_norm: float,
 ) -> float:
     if data["x"].shape[0] == 0:
         return 0.0
     x = data["x"]
     masks = data["mask"]
     actions = data["action"]
-    adv = _normalized_advantage(data["reward"])
+    targets = data["reward"]
+    old_logprob = data.get("old_logprob", np.zeros_like(targets))
+    old_value = data.get("old_value", np.zeros_like(targets))
+    adv = _normalized_advantage(targets - old_value)
     n = x.shape[0]
     losses = []
     for _epoch in range(max(1, epochs)):
@@ -416,16 +514,28 @@ def _update_ppo(
             maskb = masks[idx]
             actionb = actions[idx]
             advb = adv[idx]
+            targetb = targets[idx]
+            old_logprob_b = old_logprob[idx]
             hidden, logits = _forward(params, xb, mean, scale)
             probs = np.zeros_like(logits, dtype=np.float64)
             for row in range(logits.shape[0]):
                 probs[row] = _softmax_masked(logits[row], maskb[row], 1.0)
             selected = np.maximum(1e-8, probs[np.arange(len(idx)), actionb])
-            losses.append(float(-np.mean(advb * np.log(selected))))
+            log_selected = np.log(selected)
+            ratio = np.exp(np.clip(log_selected - old_logprob_b, -6.0, 6.0))
+            clipped_ratio = np.clip(ratio, 1.0 - clip_ratio, 1.0 + clip_ratio)
+            value_pred = _value_from_hidden(params, hidden)
+            policy_loss = -np.mean(np.minimum(ratio * advb, clipped_ratio * advb))
+            value_loss = np.mean((value_pred - targetb) ** 2)
+            losses.append(float(policy_loss + value_coef * value_loss))
 
-            grad_logits = probs.copy()
-            grad_logits[np.arange(len(idx)), actionb] -= 1.0
-            grad_logits *= advb[:, None]
+            active = np.ones(len(idx), dtype=bool)
+            active[(advb > 0) & (ratio > 1.0 + clip_ratio)] = False
+            active[(advb < 0) & (ratio < 1.0 - clip_ratio)] = False
+            coeff = np.zeros(len(idx), dtype=np.float64)
+            coeff[active] = advb[active] * ratio[active]
+            grad_logits = probs * coeff[:, None]
+            grad_logits[np.arange(len(idx)), actionb] -= coeff
             if entropy_coef:
                 entropy_grad = probs * (np.log(np.maximum(1e-8, probs)) + 1.0)
                 entropy_grad[~maskb] = 0.0
@@ -436,12 +546,22 @@ def _update_ppo(
             grad_w2 = hidden.T @ grad_logits
             grad_b2 = grad_logits.sum(axis=0)
             grad_hidden = grad_logits @ params["w2"].T
+            grad_value = (2.0 * value_coef / max(1, len(idx))) * (value_pred - targetb)
+            grad_wv = hidden.T @ grad_value
+            grad_bv = np.asarray([grad_value.sum()], dtype=np.float64)
+            grad_hidden += grad_value[:, None] * params["wv"][None, :]
             grad_pre = grad_hidden * (1.0 - hidden * hidden)
             grad_w1 = z.T @ grad_pre
             grad_b1 = grad_pre.sum(axis=0)
 
+            grad_w1, grad_b1, grad_w2, grad_b2, grad_wv, grad_bv = _clip_grads(
+                [grad_w1, grad_b1, grad_w2, grad_b2, grad_wv, grad_bv],
+                max_grad_norm,
+            )
             params["w2"] -= learning_rate * grad_w2
             params["b2"] -= learning_rate * grad_b2
+            params["wv"] -= learning_rate * grad_wv
+            params["bv"] -= learning_rate * grad_bv
             params["w1"] -= learning_rate * grad_w1
             params["b1"] -= learning_rate * grad_b1
     return float(np.mean(losses)) if losses else 0.0
@@ -483,6 +603,8 @@ def _export_ppo(output: Path, params: dict[str, np.ndarray], mean: np.ndarray, s
         b1=params["b1"].astype(np.float32),
         w2=params["w2"].astype(np.float32),
         b2=params["b2"].astype(np.float32),
+        wv=params.get("wv", np.zeros(params["w1"].shape[1], dtype=np.float64)).astype(np.float32),
+        bv=params.get("bv", np.zeros(1, dtype=np.float64)).astype(np.float32),
         mean=mean.astype(np.float32),
         scale=scale.astype(np.float32),
         classes=np.arange(len(ACTION_LABELS), dtype=np.int8),
@@ -596,6 +718,7 @@ def train(args) -> dict:
     stale_generations = 0
     early_stopped = False
     stop_generation = None
+    replay_batches: list[dict[str, np.ndarray]] = []
     for generation in range(args.generations):
         pre_update_state = _export_state(args.kind, params, mean, scale, prefs, strategy_sum)
         tasks = []
@@ -631,6 +754,15 @@ def train(args) -> dict:
             backend=args.parallel_backend,
         )
         data = _flatten_decisions(matches)
+        if args.kind == "ppo":
+            mean, scale = _update_feature_norm(
+                mean,
+                scale,
+                data["x"],
+                generation,
+                args.feature_norm_momentum,
+                args.resume,
+            )
         mean_delta = float(np.mean([match["mean_train_delta"] for match in matches])) if matches else 0.0
         bot_error_count = int(sum(match.get("bot_error_count", 0) for match in matches))
         row = {
@@ -655,16 +787,30 @@ def train(args) -> dict:
                 stale_generations += 1
 
         if args.kind == "ppo":
+            replay_batches.append(data)
+            if args.replay_generations > 0:
+                replay_batches = replay_batches[-args.replay_generations:]
+                update_data = _concat_data(
+                    replay_batches,
+                    max_rows=args.replay_max_decisions,
+                    rng=rng,
+                )
+            else:
+                replay_batches = []
+                update_data = data
             loss = _update_ppo(
                 params,
                 mean,
                 scale,
-                data,
+                update_data,
                 rng,
                 args.learning_rate,
                 args.entropy_coef,
                 args.epochs,
                 args.batch_size,
+                args.ppo_clip_ratio,
+                args.ppo_value_coef,
+                args.max_grad_norm,
             )
         else:
             loss = _update_bucket(
@@ -739,6 +885,11 @@ def train(args) -> dict:
         "best_mean_train_delta": best_row["mean_train_delta"] if best_row is not None else None,
         "abstraction": args.abstraction,
         "bucket_update": args.bucket_update,
+        "ppo_clip_ratio": getattr(args, "ppo_clip_ratio", None),
+        "ppo_value_coef": getattr(args, "ppo_value_coef", None),
+        "feature_norm_momentum": getattr(args, "feature_norm_momentum", None),
+        "replay_generations": getattr(args, "replay_generations", None),
+        "replay_max_decisions": getattr(args, "replay_max_decisions", None),
         "reports": reports[-5:],
     }
     export_state = best_state if args.export_best and best_state is not None else _export_state(
@@ -771,8 +922,14 @@ def main() -> None:
     parser.add_argument("--bucket-update", choices=["policy-gradient", "cfr-plus"], default="policy-gradient")
     parser.add_argument("--learning-rate", type=float, default=0.006)
     parser.add_argument("--entropy-coef", type=float, default=0.004)
+    parser.add_argument("--ppo-clip-ratio", type=float, default=0.20)
+    parser.add_argument("--ppo-value-coef", type=float, default=0.35)
+    parser.add_argument("--max-grad-norm", type=float, default=0.75)
     parser.add_argument("--epochs", type=int, default=3)
     parser.add_argument("--batch-size", type=int, default=2048)
+    parser.add_argument("--feature-norm-momentum", type=float, default=0.08)
+    parser.add_argument("--replay-generations", type=int, default=4)
+    parser.add_argument("--replay-max-decisions", type=int, default=24000)
     parser.add_argument("--temperature", type=float, default=0.92)
     parser.add_argument("--reward-scale", type=float, default=1000.0)
     parser.add_argument("--reward-clip", type=float, default=10.0)

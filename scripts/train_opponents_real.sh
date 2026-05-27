@@ -29,6 +29,12 @@ PPO_BATCH_SIZE="${PPO_BATCH_SIZE:-4096}"
 PPO_EPOCHS="${PPO_EPOCHS:-3}"
 PPO_LR="${PPO_LR:-0.002}"
 PPO_ENTROPY="${PPO_ENTROPY:-0.002}"
+PPO_CLIP_RATIO="${PPO_CLIP_RATIO:-0.20}"
+PPO_VALUE_COEF="${PPO_VALUE_COEF:-0.35}"
+PPO_MAX_GRAD_NORM="${PPO_MAX_GRAD_NORM:-0.75}"
+PPO_FEATURE_NORM_MOMENTUM="${PPO_FEATURE_NORM_MOMENTUM:-0.08}"
+PPO_REPLAY_GENERATIONS="${PPO_REPLAY_GENERATIONS:-4}"
+PPO_REPLAY_MAX_DECISIONS="${PPO_REPLAY_MAX_DECISIONS:-24000}"
 PPO_TEMPERATURE="${PPO_TEMPERATURE:-0.82}"
 PPO_REWARD_CLIP="${PPO_REWARD_CLIP:-5.0}"
 
@@ -59,6 +65,12 @@ poetry run python tools/strong_mocks/train_real_policy.py \
   --hidden "$PPO_HIDDEN" \
   --learning-rate "$PPO_LR" \
   --entropy-coef "$PPO_ENTROPY" \
+  --ppo-clip-ratio "$PPO_CLIP_RATIO" \
+  --ppo-value-coef "$PPO_VALUE_COEF" \
+  --max-grad-norm "$PPO_MAX_GRAD_NORM" \
+  --feature-norm-momentum "$PPO_FEATURE_NORM_MOMENTUM" \
+  --replay-generations "$PPO_REPLAY_GENERATIONS" \
+  --replay-max-decisions "$PPO_REPLAY_MAX_DECISIONS" \
   --temperature "$PPO_TEMPERATURE" \
   --reward-clip "$PPO_REWARD_CLIP" \
   --epochs "$PPO_EPOCHS" \

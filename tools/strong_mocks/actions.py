@@ -25,6 +25,54 @@ RAISE_FRACTIONS = {
 }
 
 
+RANKS = "23456789TJQKA"
+BIG_BLIND = 100
+
+
+def _rank_value(card: str) -> int:
+    return RANKS.index(str(card)[0]) + 2 if card and str(card)[0] in RANKS else 2
+
+
+def _preflop_strength(cards: list[str]) -> float:
+    if len(cards or []) < 2:
+        return 0.10
+    values = sorted((_rank_value(card) for card in cards[:2]), reverse=True)
+    pair = values[0] == values[1]
+    suited = len(cards[0]) > 1 and len(cards[1]) > 1 and cards[0][1] == cards[1][1]
+    score = 0.42 * values[0] / 14.0 + 0.20 * values[1] / 14.0
+    if pair:
+        score += 0.30 + values[0] / 120.0
+    if suited:
+        score += 0.06
+    if values[0] == 14:
+        score += 0.06
+    return float(max(0.02, min(0.98, score)))
+
+
+def _postflop_commit_signal(state: dict) -> float:
+    cards = list(state.get("your_cards", []) or [])
+    board = list(state.get("community_cards", []) or [])
+    all_cards = cards + board
+    ranks = {}
+    suits = {}
+    for card in all_cards:
+        ranks[_rank_value(card)] = ranks.get(_rank_value(card), 0) + 1
+        if len(str(card)) > 1:
+            suits[str(card)[1]] = suits.get(str(card)[1], 0) + 1
+    pairish = 0.36 if any(count >= 2 for count in ranks.values()) else 0.0
+    trips = 0.26 if any(count >= 3 for count in ranks.values()) else 0.0
+    flush_draw = 0.16 if len(board) < 5 and max(suits.values(), default=0) >= 4 else 0.0
+    vals = set(ranks)
+    if 14 in vals:
+        vals.add(1)
+    straight_draw = 0.0
+    for start in range(1, 11):
+        if len(vals & {start, start + 1, start + 2, start + 3, start + 4}) >= 4:
+            straight_draw = 0.12
+            break
+    return min(1.0, pairish + trips + flush_draw + straight_draw)
+
+
 def legal_mask(state: dict) -> np.ndarray:
     mask = np.ones(len(ACTION_LABELS), dtype=bool)
     if state.get("can_check"):
@@ -36,6 +84,33 @@ def legal_mask(state: dict) -> np.ndarray:
         mask[2:] = False
     elif invested + stack <= min_raise:
         mask[2:7] = False
+    return mask
+
+
+def strategic_mask(state: dict) -> np.ndarray:
+    """Legal mask with a benchmark-policy all-in guard.
+
+    Strong mock neural policies are allowed to explore, but treating every
+    legal all-in as a normal action creates brittle benchmark opponents. This
+    keeps all-in available for short-stack, already-committed, and clearly
+    strong/draw-heavy states while removing it from ordinary deep-stack spots.
+    """
+    mask = legal_mask(state)
+    if not mask[7]:
+        return mask
+    stack = int(state.get("your_stack", 0) or 0)
+    invested = int(state.get("your_bet_this_street", 0) or 0)
+    owed = int(state.get("amount_owed", 0) or 0)
+    pot = max(1, int(state.get("pot", 0) or 0))
+    total_stack = stack + invested
+    if total_stack <= 15 * BIG_BLIND or owed >= max(1, int(stack * 0.55)):
+        return mask
+    if state.get("street") == "preflop":
+        if _preflop_strength(list(state.get("your_cards", []) or [])) >= 0.86:
+            return mask
+    elif _postflop_commit_signal(state) >= 0.62 and stack <= pot * 2.2:
+        return mask
+    mask[7] = False
     return mask
 
 
@@ -88,6 +163,6 @@ def action_index_to_action(state: dict, index: int) -> dict:
 
 def masked_argmax(logits: np.ndarray, state: dict) -> int:
     values = np.asarray(logits, dtype=float).copy()
-    mask = legal_mask(state)
+    mask = strategic_mask(state)
     values[~mask] = -1e9
     return int(np.argmax(values))

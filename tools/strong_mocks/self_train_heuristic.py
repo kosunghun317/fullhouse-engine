@@ -28,6 +28,13 @@ DEFAULT_GENERATED_ROOT = ROOT / "bots" / "self_training" / "generated"
 DEFAULT_RESULT_ROOT = ROOT / "tools" / "strong_mocks" / "results"
 
 MUTATION_SPACE = {
+    "HEURISTIC_PREFLOP_OPEN_SCORE": (56.0, 70.0),
+    "HEURISTIC_PREFLOP_LATE_PLAY_SCORE": (40.0, 58.0),
+    "HEURISTIC_PREFLOP_CHEAP_CALL_SCORE": (42.0, 58.0),
+    "HEURISTIC_PREFLOP_LATE_RAISE_CALL_SCORE": (50.0, 66.0),
+    "HEURISTIC_PREFLOP_OPEN_BB": (2.3, 3.4),
+    "HEURISTIC_PREFLOP_PREMIUM_OPEN_BB": (2.8, 4.0),
+    "HEURISTIC_PREFLOP_RERAISE_MULT": (1.8, 2.8),
     "HEURISTIC_CALL_MARGIN_BASE": (0.055, 0.105),
     "HEURISTIC_CALL_MARGIN_MULTIWAY": (0.020, 0.060),
     "HEURISTIC_RISK_REQ_LOW": (0.72, 0.83),
@@ -65,6 +72,19 @@ FILLER_OPPONENTS = [
     ("equity_pressure", "bots/mock_competitors/equity_pressure/bot.py"),
     ("bucket_overbet", "bots/mock_competitors/bucket_overbet/bot.py"),
 ]
+
+
+def parse_extra_opponents(items: list[str] | None) -> list[tuple[str, str]]:
+    specs = []
+    for index, item in enumerate(items or []):
+        if "=" in item:
+            label, path = item.split("=", 1)
+        else:
+            path = item
+            label = Path(path).name or f"extra_{index}"
+        label = "".join(ch if ch.isalnum() else "_" for ch in label) or f"extra_{index}"
+        specs.append((label, path))
+    return specs
 
 
 def _floatish(value):
@@ -137,6 +157,7 @@ def _lineup(
     min_heur: int,
     max_heur: int,
     forced: list[dict] | None = None,
+    extra_opponents: list[tuple[str, str]] | None = None,
 ) -> dict[str, str]:
     forced = forced or []
     heuristic_count = max(len(forced), rng.randint(min_heur, max_heur))
@@ -149,7 +170,13 @@ def _lineup(
     bots = {}
     for offset, item in enumerate(picked):
         bots[f"h{offset}_{item['name']}"] = write_variant(generated_root, run_id, generation, item)
-    fillers = rng.sample(FILLER_OPPONENTS, k=max(0, 6 - len(bots)))
+    extra_opponents = extra_opponents or []
+    filler_slots = max(0, 6 - len(bots))
+    fillers = list(extra_opponents[:filler_slots])
+    remaining_slots = max(0, filler_slots - len(fillers))
+    base_pool = [item for item in FILLER_OPPONENTS if item not in fillers]
+    if remaining_slots:
+        fillers.extend(rng.sample(base_pool, k=min(remaining_slots, len(base_pool))))
     for offset, (name, path) in enumerate(fillers):
         bots[f"opp{offset}_{name}"] = path
     return bots
@@ -182,6 +209,7 @@ def evaluate_generation(
     population: list[dict],
     args,
     rng: random.Random,
+    extra_opponents: list[tuple[str, str]] | None = None,
 ) -> dict:
     scores = {item["name"]: [] for item in population}
     tasks = []
@@ -200,6 +228,7 @@ def evaluate_generation(
             args.min_heuristics,
             args.max_heuristics,
             forced=forced,
+            extra_opponents=extra_opponents,
         )
         seed = args.seed * 100000 + generation * 1000 + match_index
         tasks.append({
@@ -269,6 +298,7 @@ def main():
     parser.add_argument("--seed", type=int, default=8080)
     parser.add_argument("--generated-root", default=str(DEFAULT_GENERATED_ROOT))
     parser.add_argument("--result-root", default=str(DEFAULT_RESULT_ROOT))
+    parser.add_argument("--extra-opponent", action="append", default=[])
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -276,9 +306,10 @@ def main():
     result_root = Path(args.result_root)
     rng = random.Random(args.seed)
     population = seed_population(args.population, rng)
+    extra_opponents = parse_extra_opponents(args.extra_opponent)
     history = []
     for generation in range(args.generations):
-        report = evaluate_generation(generated_root, args.run_id, generation, population, args, rng)
+        report = evaluate_generation(generated_root, args.run_id, generation, population, args, rng, extra_opponents)
         save_json(result_root / args.run_id / f"generation_{generation:03d}.json", report)
         history.append({"generation": generation, "top": report["ranked"][: min(5, len(report["ranked"]))]})
         population = next_population(report["ranked"], args.population, args.elite, rng)

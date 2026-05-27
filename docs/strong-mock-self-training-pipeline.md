@@ -152,6 +152,9 @@ actual Fullhouse engine rollouts instead of synthetic oracle labels. It supports
 - `--min-export-mean-delta`: keep an existing repo artifact when the selected
   checkpoint is below the overwrite threshold. New candidate output paths are
   still exported so league dry-runs can be evaluated.
+- PPO-specific rollout learning now uses a value baseline, clipped policy
+  ratios, recent replay batches, rollout-derived feature normalization,
+  gradient clipping, and a strategic all-in guard.
 
 Real opponent training entrypoint:
 
@@ -222,6 +225,23 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_league.sh
 
 Use `PROMOTE=0` for dry runs that archive candidates without changing
 `bots/strong_mocks/*/data/policy.npz`.
+
+## E2E Coevolution
+
+`tools/coevolve_training.py` alternates between unrestricted PPO candidate
+training and heuristic env-config evolution. It keeps the best selected PPO
+or incumbent after held-out evaluation, then seats that PPO in the next
+heuristic generation.
+
+Single command:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
+```
+
+The run writes `metrics.jsonl`, `summary.json`, and `ev_progress.svg` under
+`/private/tmp/fullhouse_coevolution/<run-id>/`. See
+`docs/e2e-coevolution-training.md`.
 
 ## Self-Training
 

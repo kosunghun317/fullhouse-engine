@@ -37,9 +37,15 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
   self-play trainer for PPO-style and CFR+/bucket strong mock policies.
 - `tools/strong_mocks/league_train.py`: League-style staged trainer with
   train/eval pool separation and promotion gates for strong mock policies.
+- `tools/coevolve_training.py`: End-to-end alternating PPO/heuristic
+  coevolution trainer with candidate gates and progress plotting.
+- `tools/plot_training_progress.py`: JSONL-to-SVG plotter for training EV
+  progress.
 - `tools/parallel.py`: Offline-only process/thread worker helper for seeded benchmark and self-training runs.
 - `scripts/train_opponents_real.sh`: Large real-training entrypoint for mock
   opponents.
+- `scripts/train_e2e_coevolution.sh`: Single-command alternating PPO and
+  heuristic fine-tuning loop.
 - `scripts/train_heuristics_selfplay.sh`: Large self-play entrypoint for
   heuristic env-config evolution.
 - `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
@@ -239,3 +245,6 @@ parallel batches for local-only training and benchmark throughput; see
 The league training framework adds staged train/eval opponent divisions,
 candidate-vs-incumbent promotion gates, and archived league snapshots; see
 `docs/league-training-framework.md`.
+The E2E coevolution pipeline alternates unrestricted PPO opponent training and
+heuristic env-config evolution while plotting EV progress; see
+`docs/e2e-coevolution-training.md`.

@@ -19,6 +19,12 @@ PROMOTE="${PROMOTE:-1}"
 EARLY_STOP_PATIENCE="${EARLY_STOP_PATIENCE:-0}"
 EARLY_STOP_MIN_DELTA="${EARLY_STOP_MIN_DELTA:-0}"
 MIN_EXPORT_MEAN_DELTA="${MIN_EXPORT_MEAN_DELTA:--1000000000}"
+PPO_CLIP_RATIO="${PPO_CLIP_RATIO:-0.20}"
+PPO_VALUE_COEF="${PPO_VALUE_COEF:-0.35}"
+PPO_MAX_GRAD_NORM="${PPO_MAX_GRAD_NORM:-0.75}"
+PPO_FEATURE_NORM_MOMENTUM="${PPO_FEATURE_NORM_MOMENTUM:-0.08}"
+PPO_REPLAY_GENERATIONS="${PPO_REPLAY_GENERATIONS:-4}"
+PPO_REPLAY_MAX_DECISIONS="${PPO_REPLAY_MAX_DECISIONS:-24000}"
 
 PROMOTE_FLAG=()
 if [[ "$PROMOTE" != "0" && "$PROMOTE" != "false" ]]; then
@@ -43,6 +49,12 @@ poetry run python tools/strong_mocks/league_train.py \
   --early-stop-patience "$EARLY_STOP_PATIENCE" \
   --early-stop-min-delta "$EARLY_STOP_MIN_DELTA" \
   --min-export-mean-delta "$MIN_EXPORT_MEAN_DELTA" \
+  --ppo-clip-ratio "$PPO_CLIP_RATIO" \
+  --ppo-value-coef "$PPO_VALUE_COEF" \
+  --max-grad-norm "$PPO_MAX_GRAD_NORM" \
+  --feature-norm-momentum "$PPO_FEATURE_NORM_MOMENTUM" \
+  --replay-generations "$PPO_REPLAY_GENERATIONS" \
+  --replay-max-decisions "$PPO_REPLAY_MAX_DECISIONS" \
   --workers "$WORKERS" \
   --parallel-backend "$PARALLEL_BACKEND" \
   --progress \

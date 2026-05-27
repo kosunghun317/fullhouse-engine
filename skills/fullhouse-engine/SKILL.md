@@ -22,6 +22,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
   in-process training runner or fast bot-directory batch commands.
 - Read `docs/league-training-framework.md` before changing league-style
   opponent training, staged train/eval pools, or promotion gates.
+- Read `docs/e2e-coevolution-training.md` before changing the alternating
+  PPO/heuristic fine-tuning loop or EV plotting.
 - Read `docs/strong-mock-self-training-pipeline.md` before changing strong mock opponents, mock training scripts, or self-training heuristic variants.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic changes against the latest recorded benchmark run.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
@@ -145,6 +147,33 @@ EVAL_HANDS=160 \
 PROMOTE=1 \
 scripts/train_opponents_league.sh
 ```
+
+For E2E alternating PPO/heuristic coevolution, use:
+
+```bash
+RUN_ID=coevolve-$(date +%Y%m%d-%H%M%S) \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+CYCLES=4 \
+PPO_ARMS=stable,explore,conservative \
+PPO_INIT=oracle \
+PPO_INIT_SAMPLES=80000 \
+PPO_GENERATIONS=8 \
+PPO_MATCHES_PER_GENERATION=48 \
+PPO_HANDS=140 \
+HEURISTIC_POPULATION=14 \
+HEURISTIC_ELITE=4 \
+HEURISTIC_MATCHES_PER_GENERATION=24 \
+HEURISTIC_HANDS=200 \
+EVAL_SEEDS=6 \
+EVAL_HANDS=180 \
+scripts/train_e2e_coevolution.sh
+```
+
+Read `/private/tmp/fullhouse_coevolution/<run-id>/summary.json` and
+`ev_progress.svg` before promoting any artifact. PPO promotion requires
+`PROMOTE_PPO=1`; heuristic configs should be benchmark-gated manually before
+changing submitted defaults.
 
 For a league smoke that cannot overwrite repo artifacts:
 

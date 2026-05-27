@@ -33,7 +33,7 @@ Effort scale:
 | 15 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
 | 16 | Weak-spot candidate controls | 2 | Pressure/large-bet/trap knobs exist and are benchmarkable without default changes. | Add env knobs and named configs; run 10-seed candidate and 30-seed gate. | Rejected as default |
 | 17 | Postflop feature candidate controls | 3 | Top-pair/overpair, board-pair danger, blocker bluff, delayed probe, and pot-odds-like sizing knobs are implemented and benchmarkable. | Keep default guarded; run candidate/promotion screens before promotion. | Implemented, not promoted |
-| 18 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
+| 18 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Scaffolded |
 
 ## Improvement Dependency Map
 
@@ -118,6 +118,12 @@ Implemented candidate status:
   favored `blocker-probe`, but a focused 5-seed screen favored baseline with
   lower bust count and stronger reference/aggressor results. Keep defaults
   unchanged.
+- E2E coevolution is implemented in `tools/coevolve_training.py` and
+  `scripts/train_e2e_coevolution.sh`. It adds preflop threshold/raise-size
+  mutation to the heuristic self-training space and seats the latest selected
+  PPO opponent in every heuristic generation. This is a benchmark-driven
+  scaffold for full preflop matrix tuning; it does not yet promote a new
+  default preflop policy.
 
 ## Expected Competitor Strategies
 
