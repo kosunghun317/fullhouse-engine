@@ -16,3 +16,6 @@ dist/
 
 # Node
 node_modules/
+
+# Local training outputs
+runs/

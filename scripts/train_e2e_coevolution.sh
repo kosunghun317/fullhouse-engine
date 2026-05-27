@@ -4,8 +4,8 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
-RUN_ID="${RUN_ID:-coevolve-$(date +%Y%m%d-%H%M%S)}"
-RESULT_ROOT="${RESULT_ROOT:-/private/tmp/fullhouse_coevolution}"
+RUN_ID="${RUN_ID:-coevolve-current}"
+RESULT_ROOT="${RESULT_ROOT:-runs/fullhouse_coevolution}"
 WORKERS="${WORKERS:-0}"
 PARALLEL_BACKEND="${PARALLEL_BACKEND:-process}"
 
@@ -15,7 +15,7 @@ PPO_GENERATIONS="${PPO_GENERATIONS:-8}"
 PPO_MATCHES_PER_GENERATION="${PPO_MATCHES_PER_GENERATION:-48}"
 PPO_HANDS="${PPO_HANDS:-140}"
 PPO_HIDDEN="${PPO_HIDDEN:-128}"
-PPO_INIT="${PPO_INIT:-oracle}"
+PPO_INIT="${PPO_INIT:-auto}"
 PPO_INIT_SAMPLES="${PPO_INIT_SAMPLES:-80000}"
 PPO_EPOCHS="${PPO_EPOCHS:-3}"
 PPO_BATCH_SIZE="${PPO_BATCH_SIZE:-4096}"
@@ -32,6 +32,7 @@ SELECTION_WARMUP="${SELECTION_WARMUP:-1}"
 EARLY_STOP_PATIENCE="${EARLY_STOP_PATIENCE:-0}"
 EARLY_STOP_MIN_DELTA="${EARLY_STOP_MIN_DELTA:-0}"
 PROMOTE_PPO="${PROMOTE_PPO:-0}"
+RESET="${RESET:-0}"
 
 PPO_ARM_FLAGS=()
 IFS=',' read -ra ARM_ITEMS <<< "$PPO_ARMS"
@@ -46,7 +47,13 @@ if [[ "$PROMOTE_PPO" != "0" && "$PROMOTE_PPO" != "false" ]]; then
   PROMOTE_FLAG=(--promote-ppo)
 fi
 
+RESET_FLAG=()
+if [[ "$RESET" != "0" && "$RESET" != "false" ]]; then
+  RESET_FLAG=(--reset)
+fi
+
 echo "==> E2E PPO/heuristic coevolution: ${RUN_ID}"
+echo "==> Output directory: ${RESULT_ROOT}/${RUN_ID}"
 poetry run python tools/coevolve_training.py \
   --run-id "$RUN_ID" \
   --result-root "$RESULT_ROOT" \
@@ -76,6 +83,7 @@ poetry run python tools/coevolve_training.py \
   --parallel-backend "$PARALLEL_BACKEND" \
   --progress \
   "${PROMOTE_FLAG[@]}" \
+  "${RESET_FLAG[@]}" \
   --json
 
 echo "Coevolution logs: ${RESULT_ROOT}/${RUN_ID}"

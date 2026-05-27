@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import os
+import random
 import sys
 from pathlib import Path
+from types import SimpleNamespace
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from tools.coevolve_training import _summary_for
+from tools.coevolve_training import (
+    _summary_for,
+    load_resume_state,
+    resolve_ppo_init_mode,
+    save_resume_state,
+)
 from tools.plot_training_progress import render_svg
 from tools.strong_mocks.self_train_heuristic import parse_extra_opponents
 
@@ -57,3 +64,35 @@ def test_render_svg_from_metrics_jsonl(tmp_path: Path):
     assert output.is_file()
     assert "ppo_stable" in report["series"]
     assert "<svg" in output.read_text(encoding="utf-8")
+
+
+def test_auto_ppo_init_bootstraps_then_resumes_latest():
+    assert resolve_ppo_init_mode("auto", bootstrap_cycle=True) == "oracle"
+    assert resolve_ppo_init_mode("auto", bootstrap_cycle=False) == "latest"
+    assert resolve_ppo_init_mode("fresh", bootstrap_cycle=True) == "fresh"
+
+
+def test_resume_state_round_trip(tmp_path: Path):
+    run_root = tmp_path / "run"
+    state_path = run_root / "state.json"
+    rng = random.Random(123)
+    population = [{"name": "candidate", "env": {"A": "1"}}]
+
+    saved = save_resume_state(
+        state_path,
+        args=SimpleNamespace(run_id="resume-test"),
+        run_root=run_root,
+        metrics_path=run_root / "metrics.jsonl",
+        plot_path=run_root / "ev_progress.svg",
+        latest_ppo=run_root / "ppo",
+        latest_heuristic=run_root / "heuristic",
+        next_cycle=3,
+        population=population,
+        rng=rng,
+    )
+    loaded = load_resume_state(run_root)
+
+    assert loaded == saved
+    assert loaded["next_cycle"] == 3
+    assert loaded["population"] == population
+    assert loaded["latest_ppo"].endswith("/ppo")

@@ -38,7 +38,7 @@ from training.fast_match import run_fast_matches_parallel
 
 
 BOT_ROOT = ROOT / "bots"
-DEFAULT_RESULT_ROOT = Path("/private/tmp/fullhouse_coevolution")
+DEFAULT_RESULT_ROOT = ROOT / "runs" / "fullhouse_coevolution"
 PPO_SOURCE = BOT_ROOT / "strong_mocks" / "ppo_policy"
 HEURISTIC_SOURCE = BOT_ROOT / "heuristic" / "bot.py"
 
@@ -86,6 +86,10 @@ def _json_dump(path: Path, payload: dict) -> None:
     path.write_text(json.dumps(payload, indent=2, sort_keys=True), encoding="utf-8")
 
 
+def _json_load(path: Path) -> dict:
+    return json.loads(path.read_text(encoding="utf-8"))
+
+
 def _append_jsonl(path: Path, payload: dict) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     with open(path, "a", encoding="utf-8") as handle:
@@ -102,17 +106,80 @@ def _copytree_clean(source: Path, target: Path) -> None:
     shutil.copytree(source, target)
 
 
+def _resolve_path(path: str | Path) -> Path:
+    resolved = Path(path).expanduser()
+    if not resolved.is_absolute():
+        resolved = ROOT / resolved
+    return resolved
+
+
+def _random_state_to_json(state: object) -> dict:
+    version, internal, gauss = state
+    return {"version": version, "internal": list(internal), "gauss": gauss}
+
+
+def _random_state_from_json(payload: dict) -> object:
+    return (int(payload["version"]), tuple(payload["internal"]), payload["gauss"])
+
+
+def resolve_ppo_init_mode(configured: str, bootstrap_cycle: bool) -> str:
+    if configured == "auto":
+        return "oracle" if bootstrap_cycle else "latest"
+    return configured
+
+
+def load_resume_state(run_root: Path) -> dict | None:
+    state_path = run_root / "state.json"
+    if not state_path.is_file():
+        return None
+    state = _json_load(state_path)
+    required = {"next_cycle", "latest_ppo", "latest_heuristic", "population"}
+    missing = sorted(required - set(state))
+    if missing:
+        raise ValueError(f"resume state is missing required keys: {', '.join(missing)}")
+    return state
+
+
+def save_resume_state(
+    state_path: Path,
+    *,
+    args,
+    run_root: Path,
+    metrics_path: Path,
+    plot_path: Path,
+    latest_ppo: Path,
+    latest_heuristic: Path,
+    next_cycle: int,
+    population: list[dict],
+    rng: random.Random,
+) -> dict:
+    payload = {
+        "run_id": args.run_id,
+        "run_root": str(run_root),
+        "metrics": str(metrics_path),
+        "plot": str(plot_path),
+        "latest_ppo": str(latest_ppo),
+        "latest_heuristic": str(latest_heuristic),
+        "next_cycle": next_cycle,
+        "population": population,
+        "random_state": _random_state_to_json(rng.getstate()),
+    }
+    _json_dump(state_path, payload)
+    return payload
+
+
 def prepare_ppo_candidate(run_root: Path, cycle: int, arm_name: str, latest_ppo: Path, args) -> Path:
     target = run_root / "ppo_candidates" / f"cycle_{cycle:03d}_{_safe_label(arm_name)}"
     target.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(PPO_SOURCE / "bot.py", target / "bot.py")
     data_dir = target / "data"
     data_dir.mkdir(parents=True, exist_ok=True)
-    if args.ppo_init == "latest":
+    init_mode = resolve_ppo_init_mode(args.ppo_init, getattr(args, "_bootstrap_cycle", False))
+    if init_mode == "latest":
         source_policy = latest_ppo / "data" / "policy.npz"
         if source_policy.is_file():
             shutil.copyfile(source_policy, data_dir / "policy.npz")
-    elif args.ppo_init == "oracle":
+    elif init_mode == "oracle":
         train_imitation(
             samples=args.ppo_init_samples,
             seed=args.seed + cycle * 1000 + sum(ord(ch) for ch in arm_name),
@@ -120,6 +187,8 @@ def prepare_ppo_candidate(run_root: Path, cycle: int, arm_name: str, latest_ppo:
             output=data_dir / "policy.npz",
             hidden=args.ppo_hidden,
         )
+    elif init_mode != "fresh":
+        raise ValueError(f"unknown PPO init mode: {init_mode}")
     return target
 
 
@@ -254,23 +323,37 @@ def _heuristic_args(args) -> Namespace:
 
 
 def run_coevolution(args) -> dict:
-    run_root = Path(args.result_root) / args.run_id
+    run_root = _resolve_path(args.result_root) / args.run_id
     generated_root = run_root / "heuristic_generated"
     metrics_path = run_root / "metrics.jsonl"
     plot_path = run_root / "ev_progress.svg"
+    state_path = run_root / "state.json"
+    summary_path = run_root / "summary.json"
+    if getattr(args, "reset", False) and run_root.exists():
+        shutil.rmtree(run_root)
     run_root.mkdir(parents=True, exist_ok=True)
-    if metrics_path.exists():
-        metrics_path.unlink()
 
+    resume_state = load_resume_state(run_root)
     rng = random.Random(args.seed)
-    latest_ppo = PPO_SOURCE
-    latest_heuristic = HEURISTIC_SOURCE
-    population = seed_population(args.heuristic_population, rng)
+    if resume_state:
+        start_cycle = int(resume_state["next_cycle"])
+        latest_ppo = _resolve_path(resume_state["latest_ppo"])
+        latest_heuristic = _resolve_path(resume_state["latest_heuristic"])
+        population = list(resume_state["population"])
+        if resume_state.get("random_state"):
+            rng.setstate(_random_state_from_json(resume_state["random_state"]))
+        summary = _json_load(summary_path) if summary_path.is_file() else {}
+        cycles = list(summary.get("cycles", []))
+    else:
+        start_cycle = 0
+        latest_ppo = PPO_SOURCE
+        latest_heuristic = HEURISTIC_SOURCE
+        population = seed_population(args.heuristic_population, rng)
+        cycles = []
     arm_names = args.ppo_arm or ["stable", "explore", "conservative"]
     eval_seeds = list(range(args.eval_seed_start, args.eval_seed_start + args.eval_seeds))
-    cycles = []
 
-    for cycle in range(args.cycles):
+    for cycle in range(start_cycle, start_cycle + args.cycles):
         ppo_candidates = []
         incumbent_eval = evaluate_path(
             Path(latest_ppo),
@@ -297,6 +380,7 @@ def run_coevolution(args) -> dict:
         })
         for arm_name in arm_names:
             arm = PPO_ARMS[arm_name]
+            args._bootstrap_cycle = not resume_state and cycle == 0
             candidate_dir = prepare_ppo_candidate(run_root, cycle, arm_name, Path(latest_ppo), args)
             train_report = train_ppo_candidate(candidate_dir, cycle, arm_name, arm, Path(latest_heuristic), Path(latest_ppo), args)
             eval_report = evaluate_path(
@@ -384,11 +468,26 @@ def run_coevolution(args) -> dict:
             "ppo_candidates": ppo_candidates,
         }
         cycles.append(cycle_report)
-        _json_dump(run_root / "summary.json", {
+        save_resume_state(
+            state_path,
+            args=args,
+            run_root=run_root,
+            metrics_path=metrics_path,
+            plot_path=plot_path,
+            latest_ppo=Path(latest_ppo),
+            latest_heuristic=Path(latest_heuristic),
+            next_cycle=cycle + 1,
+            population=population,
+            rng=rng,
+        )
+        _json_dump(summary_path, {
             "run_id": args.run_id,
             "run_root": str(run_root),
             "latest_ppo": str(latest_ppo),
             "latest_heuristic": str(latest_heuristic),
+            "metrics": str(metrics_path),
+            "plot": str(plot_path),
+            "next_cycle": cycle + 1,
             "cycles": cycles,
         })
         if args.progress:
@@ -410,9 +509,12 @@ def run_coevolution(args) -> dict:
         "plot_report": plot_report,
         "latest_ppo": str(latest_ppo),
         "latest_heuristic": str(latest_heuristic),
+        "resumed_from_cycle": start_cycle,
+        "next_cycle": start_cycle + args.cycles,
+        "cycles_completed_this_run": args.cycles,
         "cycles": cycles,
     }
-    _json_dump(run_root / "summary.json", result)
+    _json_dump(summary_path, result)
     if args.promote_ppo:
         target = PPO_SOURCE / "data" / "policy.npz"
         target.parent.mkdir(parents=True, exist_ok=True)
@@ -423,7 +525,7 @@ def run_coevolution(args) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Alternating PPO/heuristic coevolution training")
-    parser.add_argument("--run-id", default="coevolve-local")
+    parser.add_argument("--run-id", default="coevolve-current")
     parser.add_argument("--result-root", default=str(DEFAULT_RESULT_ROOT))
     parser.add_argument("--cycles", type=int, default=2)
     parser.add_argument("--ppo-arm", choices=sorted(PPO_ARMS), action="append")
@@ -431,7 +533,7 @@ def main() -> None:
     parser.add_argument("--ppo-matches-per-generation", type=int, default=24)
     parser.add_argument("--ppo-hands", type=int, default=100)
     parser.add_argument("--ppo-hidden", type=int, default=128)
-    parser.add_argument("--ppo-init", choices=["oracle", "latest", "fresh"], default="oracle")
+    parser.add_argument("--ppo-init", choices=["auto", "oracle", "latest", "fresh"], default="auto")
     parser.add_argument("--ppo-init-samples", type=int, default=50000)
     parser.add_argument("--ppo-epochs", type=int, default=3)
     parser.add_argument("--ppo-batch-size", type=int, default=4096)
@@ -456,6 +558,7 @@ def main() -> None:
     parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--seed", type=int, default=12000)
     parser.add_argument("--promote-ppo", action="store_true")
+    parser.add_argument("--reset", action="store_true", help="delete the selected run directory before starting")
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()

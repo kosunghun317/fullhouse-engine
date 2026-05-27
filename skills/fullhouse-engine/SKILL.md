@@ -151,12 +151,11 @@ scripts/train_opponents_league.sh
 For E2E alternating PPO/heuristic coevolution, use:
 
 ```bash
-RUN_ID=coevolve-$(date +%Y%m%d-%H%M%S) \
 WORKERS=0 \
 PARALLEL_BACKEND=process \
 CYCLES=4 \
 PPO_ARMS=stable,explore,conservative \
-PPO_INIT=oracle \
+PPO_INIT=auto \
 PPO_INIT_SAMPLES=80000 \
 PPO_GENERATIONS=8 \
 PPO_MATCHES_PER_GENERATION=48 \
@@ -170,10 +169,12 @@ EVAL_HANDS=180 \
 scripts/train_e2e_coevolution.sh
 ```
 
-Read `/private/tmp/fullhouse_coevolution/<run-id>/summary.json` and
-`ev_progress.svg` before promoting any artifact. PPO promotion requires
-`PROMOTE_PPO=1`; heuristic configs should be benchmark-gated manually before
-changing submitted defaults.
+By default, the run ID is `coevolve-current` and artifacts are written under
+`runs/fullhouse_coevolution/coevolve-current/`, which is git-ignored and
+resumable. Re-running the same command continues from `state.json`; use
+`RESET=1` for a clean run. Read `summary.json` and `ev_progress.svg` before
+promoting any artifact. PPO promotion requires `PROMOTE_PPO=1`; heuristic
+configs should be benchmark-gated manually before changing submitted defaults.
 
 For a league smoke that cannot overwrite repo artifacts:
 

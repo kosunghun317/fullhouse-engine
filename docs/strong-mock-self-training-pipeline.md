@@ -240,7 +240,9 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
 ```
 
 The run writes `metrics.jsonl`, `summary.json`, and `ev_progress.svg` under
-`/private/tmp/fullhouse_coevolution/<run-id>/`. See
+`runs/fullhouse_coevolution/<run-id>/`. The default `RUN_ID=coevolve-current`
+is cumulative; repeated invocations continue from `state.json` unless
+`RESET=1` is set. See
 `docs/e2e-coevolution-training.md`.
 
 ## Self-Training

@@ -246,5 +246,6 @@ The league training framework adds staged train/eval opponent divisions,
 candidate-vs-incumbent promotion gates, and archived league snapshots; see
 `docs/league-training-framework.md`.
 The E2E coevolution pipeline alternates unrestricted PPO opponent training and
-heuristic env-config evolution while plotting EV progress; see
+heuristic env-config evolution while plotting EV progress. It now stores
+git-ignored cumulative runs under `runs/fullhouse_coevolution/`; see
 `docs/e2e-coevolution-training.md`.
