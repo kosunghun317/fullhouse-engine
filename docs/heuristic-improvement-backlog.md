@@ -29,7 +29,8 @@ Effort scale:
 | 11 | Hand-history patch workflow | 4 | One command can summarize local/exported hand histories with showdown/action leak metrics. | Add analyzer that accepts JSON hand logs/results; make it tolerant of unknown Day 1 schema. | Done |
 | 12 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Promoted |
 | 13 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
-| 14 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
+| 14 | Weak-spot candidate controls | 2 | Pressure/large-bet/trap knobs exist and are benchmarkable without default changes. | Add env knobs and named configs; run 10-seed candidate and 30-seed gate. | Rejected as default |
+| 15 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Backlog |
 
 ## Pro-Heuristic Gaps
 
@@ -81,6 +82,8 @@ Implemented candidate status:
 - Expanded mock competitor families are implemented and should be used through
   `tools/select_heuristic_config.py --preset mock-family` before making
   anti-model changes.
+- Weak-spot controls are implemented as diagnostics, but `pressure-control`
+  lost the 30-seed promotion gate to baseline. Keep defaults unchanged.
 
 ## Expected Competitor Strategies
 

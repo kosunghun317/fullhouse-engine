@@ -85,6 +85,10 @@ Local tuning env vars:
 | `HEURISTIC_OFF_BUCKET_*` | promoted defaults | Low-frequency sizing perturbations for bucket/threshold opponents. |
 | `HEURISTIC_PREFLOP_*` | varies | Preflop open/call/reraise thresholds and bet sizes. |
 | `HEURISTIC_EQUITY_ADJ_*` | varies | Context corrections applied after raw Monte Carlo equity. |
+| `HEURISTIC_EXTRA_LARGE_BET_*` | `0.0` / `0.70` | Candidate-only extra penalty for large bets from non-maniac profiles. |
+| `HEURISTIC_MIXED_PRESSURE_*` | `0.0` | Candidate-only call/risk guard bonuses for mixed high-pressure 6-max tables. |
+| `HEURISTIC_HU_LEAD_MANIAC_*` | `0.04` / `0.08` | Heads-up stack-lead protection against maniacs; env-tunable for screens. |
+| `HEURISTIC_TRAP_CHECK_*` | off by default | Candidate-only strong-hand trap checks versus maniac/mixed profiles. |
 | `HEURISTIC_*_SAMPLES` | `520/700/900` | Flop, turn, and river Monte Carlo sample counts. |
 | `HEURISTIC_PROFILE_*` | varies | Opponent profile classification thresholds. |
 
@@ -257,6 +261,8 @@ Context adjustment:
 - Facing a maniac slightly increases usable equity.
 - Large bets from non-maniacs reduce usable equity again.
 - Multiway spots receive an additional opponent-count penalty.
+- Extra large-bet penalties are exposed as env tunables, but default to no
+  additional effect after the 2026-05-27 weak-spot screen rejected promotion.
 
 This is not true range-weighted Monte Carlo. It is a transparent correction for the biggest mistake in random-card simulation: treating every opponent continuation range as equally wide.
 

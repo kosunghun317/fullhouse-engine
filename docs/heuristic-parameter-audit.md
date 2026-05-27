@@ -20,6 +20,8 @@ The bot now exposes env vars for the major audited knobs. This makes benchmark s
 | Preflop score cutoffs | `88`, `72`, `62`, `58`, and raise-facing cutoffs | Generated 169 table exists, but action boundaries are still rough. | Convert to env-tunable thresholds or small matrix; tune by position/profile with 100-run 6-max benchmark. |
 | Opponent profile thresholds | Raise/call/fold rates such as `0.33`, `0.42`, `0.62` | Based on intuitive behavior classes, not calibrated from hand histories. | After Day 1 histories, compare classifications against actual showdown/action leaks. |
 | Equity context correction | Adjustments such as `-0.045` vs nit, `+0.025` vs maniac | Transparent but hand-authored replacement for true range-weighted equity. | Sweep corrections; reject if heads-up gain harms 6-max acceptance run. |
+| Mixed pressure guard | Default extra mixed-table pressure call/risk bonuses are `0.0` | Candidate testing did not beat baseline at 30 seeds, but pressure-heavy tables remain high variance. | Retest only with a more specific detector than table profile `mixed`. |
+| Trap checks | Default `HEURISTIC_TRAP_CHECK_PROB=0.0` | Low-frequency traps are plausible versus aggressive models, but first candidate hurt pressure/mixed robustness. | Reintroduce only with stronger hand/action-line filters and a candidate screen. |
 | Monte Carlo samples | `520/700/900`, reduced 25% for 4+ opponents | Designed for speed, not profiled against accuracy/error in Fullhouse states. | Sample random decision states; compare action stability at 200/500/1000/2000 samples under 2s budget. |
 
 ## Bet Sizing Clarification
@@ -42,10 +44,14 @@ Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 - `baseline`
 - `anti-bucket`
 - `conservative`
+- `equity-control`
 - `legacy-baseline`
+- `pressure-control`
 - `spr-anti-bucket`
 - `spr-aware`
+- `trap-control`
 - `value-heavy`
+- `weakspot-control`
 - `pressure`
 
 The default harness now uses 400 hands and all benchmark configurations to match the hackathon setup more closely.
@@ -67,6 +73,10 @@ Latest tuning decision:
 - `legacy-baseline` preserves the pre-promotion defaults.
 - The promotion was accepted after a 30-seed screen and a 100-seed final matrix across core, stress, and mock suites.
 - `pressure`, `small-ball`, `spr-aware`, and `anti-bucket` remain comparison configs, not production defaults.
+- `pressure-control`, `equity-control`, `trap-control`, and
+  `weakspot-control` are candidate-only configs from the weak-spot screen.
+  `pressure-control` won the 10-seed targeted screen but lost the 30-seed
+  promotion gate to baseline, so no default changed.
 
 Quick smoke:
 
@@ -112,5 +122,7 @@ Avoid:
 1. Keep `baseline` as the promoted SPR/off-bucket default unless a future promotion screen beats it.
 2. Compare against `legacy-baseline` only when checking whether a new idea is better than the pre-promotion policy.
 3. Prioritize high-variance watch items from the 100-seed matrix: `pressure_6max`, `heads_up_equity_mc`, and `heads_up_aggressor`.
-4. Treat external neural/RL baselines as diagnostic opponents, not final acceptance criteria.
-5. Promote any new default only after candidate, promotion, and final acceptance screens.
+4. Keep the weak-spot controls as tuning knobs only; the 30-seed gate rejected
+   `pressure-control` as a default.
+5. Treat external neural/RL baselines as diagnostic opponents, not final acceptance criteria.
+6. Promote any new default only after candidate, promotion, and final acceptance screens.

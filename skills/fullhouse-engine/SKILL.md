@@ -103,6 +103,11 @@ For risk-aware config ranking, run:
 poetry run python tools/select_heuristic_config.py --preset candidate --progress
 ```
 
+For weak-spot candidate checks, use at least a 10-seed candidate screen and a
+30-seed gate before changing defaults. The latest tested weak-spot configs are
+`pressure-control`, `equity-control`, `trap-control`, and `weakspot-control`;
+none are promoted as defaults.
+
 For regenerating the explicit 169-class preflop table, run:
 
 ```bash

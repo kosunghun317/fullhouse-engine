@@ -182,6 +182,118 @@ Decision:
   preset wiring works while reinforcing that one smoke seed is not a decision
   sample.
 
+## Weak-Spot Candidate Screen
+
+Reviewed: 2026-05-27.
+
+Goal:
+
+- Test small env-tunable controls for the current watch suites:
+  `pressure_6max`, `heads_up_aggressor`, `heads_up_equity_mc`, and the new
+  model-family mocks.
+- Do not change default behavior unless a candidate passes a larger promotion
+  gate.
+
+Candidate knobs:
+
+- `pressure-control`: extra call-margin/risk-guard caution in mixed pressure
+  tables and stronger heads-up stack-lead protection versus maniacs.
+- `equity-control`: stronger large-bet equity penalty against non-maniac
+  profiles.
+- `trap-control`: low-frequency strong-hand trap checks versus maniac/mixed
+  profiles.
+- `weakspot-control`: lower-intensity blend of the three controls.
+
+10-seed targeted screen:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --config pressure-control \
+  --config equity-control \
+  --config trap-control \
+  --config weakspot-control \
+  --suite pressure_6max \
+  --suite heads_up_aggressor \
+  --suite heads_up_equity_mc \
+  --suite mock_policy_family_6max \
+  --suite mock_anti_heuristic_6max \
+  --suite mock_pressure_heads_up \
+  --suite reference_6max \
+  --suite mutant_6max \
+  --seed-start 9101 \
+  --seed-count 10 \
+  --hands 400 \
+  --progress \
+  --json
+```
+
+Aggregate result, 8 suites x 10 seeds:
+
+| Config | Score | Mean Of Suite Means | Positive Runs | Busts | Heuristic Errors | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `pressure-control` | 6,961.29 | 13,026.36 | 62/80 | 17 | 0 | Advance to 30-seed gate |
+| `equity-control` | 6,543.72 | 13,352.11 | 61/80 | 18 | 0 | Keep candidate only |
+| `weakspot-control` | 5,041.05 | 11,963.27 | 60/80 | 19 | 0 | Keep candidate only |
+| `baseline` | 4,696.25 | 11,631.17 | 60/80 | 20 | 0 | Defend in 30-seed gate |
+| `trap-control` | 4,082.59 | 10,667.24 | 60/80 | 19 | 0 | Reject as default |
+
+Important 10-seed caveat:
+
+- `pressure-control` improved `pressure_6max` and `reference_6max`, but
+  regressed `mock_policy_family_6max`.
+- This mixed result required a larger promotion gate instead of direct
+  promotion.
+
+30-seed promotion gate:
+
+```bash
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --config pressure-control \
+  --suite pressure_6max \
+  --suite heads_up_aggressor \
+  --suite heads_up_equity_mc \
+  --suite mock_policy_family_6max \
+  --suite mock_anti_heuristic_6max \
+  --suite mock_pressure_heads_up \
+  --suite reference_6max \
+  --suite mutant_6max \
+  --seed-start 9201 \
+  --seed-count 30 \
+  --hands 400 \
+  --progress \
+  --json
+```
+
+Aggregate result, 8 suites x 30 seeds:
+
+| Config | Score | Mean Of Suite Means | Positive Runs | Busts | Heuristic Errors | Decision |
+| --- | ---: | ---: | ---: | ---: | ---: | --- |
+| `baseline` | 9,269.42 | 15,588.81 | 196/240 | 38 | 0 | Keep default |
+| `pressure-control` | 8,308.89 | 14,795.22 | 192/240 | 40 | 0 | Reject as default |
+
+Key suite comparison:
+
+| Suite | Baseline | `pressure-control` | Direction |
+| --- | ---: | ---: | --- |
+| `pressure_6max` | 19,995.27 / 7 busts | 18,515.57 / 7 busts | Worse |
+| `heads_up_aggressor` | 7,333.33 / 4 busts | 6,666.67 / 5 busts | Worse |
+| `heads_up_equity_mc` | 3,467.10 / 8 busts | 3,182.63 / 7 busts | Mixed |
+| `mock_policy_family_6max` | 26,073.10 / 5 busts | 26,889.97 / 4 busts | Slightly better |
+| `mock_anti_heuristic_6max` | 22,898.27 / 0 busts | 21,125.40 / 0 busts | Worse |
+| `mock_pressure_heads_up` | 9,981.67 / 0 busts | 9,981.67 / 0 busts | Same |
+| `reference_6max` | 16,248.90 / 4 busts | 11,575.40 / 8 busts | Worse |
+| `mutant_6max` | 18,712.83 / 10 busts | 20,424.43 / 9 busts | Better |
+
+Decision:
+
+- Do not promote any weak-spot candidate.
+- Keep the new controls as env-tunable diagnostics only.
+- The candidate result suggests that broad mixed-table caution is too blunt;
+  future pressure work should use a more specific detector or action-line
+  feature rather than table profile alone.
+
 ## SPR / Anti-Bucket Candidate Screen
 
 Reviewed: 2026-05-27.

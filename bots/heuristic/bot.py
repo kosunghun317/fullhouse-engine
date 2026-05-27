@@ -101,6 +101,15 @@ EQUITY_ADJ_ABC = _float_env("HEURISTIC_EQUITY_ADJ_ABC", -0.030)
 EQUITY_ADJ_MANIAC = _float_env("HEURISTIC_EQUITY_ADJ_MANIAC", 0.025)
 EQUITY_ADJ_LARGE_BET = _float_env("HEURISTIC_EQUITY_ADJ_LARGE_BET", -0.030)
 EQUITY_ADJ_MULTIWAY = _float_env("HEURISTIC_EQUITY_ADJ_MULTIWAY", -0.012)
+EXTRA_LARGE_BET_EQUITY_PENALTY = _float_env("HEURISTIC_EXTRA_LARGE_BET_EQUITY_PENALTY", 0.0)
+EXTRA_LARGE_BET_THRESHOLD = _float_env("HEURISTIC_EXTRA_LARGE_BET_THRESHOLD", 0.70)
+MIXED_PRESSURE_CALL_MARGIN_BONUS = _float_env("HEURISTIC_MIXED_PRESSURE_CALL_MARGIN_BONUS", 0.0)
+MIXED_PRESSURE_RISK_BONUS = _float_env("HEURISTIC_MIXED_PRESSURE_RISK_BONUS", 0.0)
+HU_LEAD_MANIAC_MARGIN_BONUS = _float_env("HEURISTIC_HU_LEAD_MANIAC_MARGIN_BONUS", 0.04)
+HU_LEAD_MANIAC_RISK_BONUS = _float_env("HEURISTIC_HU_LEAD_MANIAC_RISK_BONUS", 0.08)
+TRAP_CHECK_PROB = _float_env("HEURISTIC_TRAP_CHECK_PROB", 0.0)
+TRAP_CHECK_MIN_EQUITY = _float_env("HEURISTIC_TRAP_CHECK_MIN_EQUITY", 0.78)
+TRAP_CHECK_SPR_MAX = _float_env("HEURISTIC_TRAP_CHECK_SPR_MAX", 3.5)
 FLOP_SAMPLES = _int_env("HEURISTIC_FLOP_SAMPLES", 520)
 TURN_SAMPLES = _int_env("HEURISTIC_TURN_SAMPLES", 700)
 RIVER_SAMPLES = _int_env("HEURISTIC_RIVER_SAMPLES", 900)
@@ -1000,7 +1009,9 @@ def _call_margin(state, profile):
     elif profile == "station":
         margin -= 0.015
     if _is_heads_up_stack_leader(state) and profile == "maniac":
-        margin += 0.04
+        margin += HU_LEAD_MANIAC_MARGIN_BONUS
+    if profile in ("mixed", "maniac") and opponents >= 3:
+        margin += MIXED_PRESSURE_CALL_MARGIN_BONUS
     spr = _stack_to_pot_ratio(state)
     if spr <= SPR_LOW:
         margin -= SPR_LOW_CALL_MARGIN_DISCOUNT
@@ -1044,7 +1055,9 @@ def _passes_risk_guard(state, equity, profile):
     if profile == "maniac":
         required -= 0.02
     if profile == "maniac" and _is_heads_up_stack_leader(state) and risk >= 0.20:
-        required += 0.08
+        required += HU_LEAD_MANIAC_RISK_BONUS
+    if profile in ("mixed", "maniac") and opponents >= 3 and risk >= RISK_CUTOFF_LOW:
+        required += MIXED_PRESSURE_RISK_BONUS
     if required <= 0:
         return True
     return equity >= required
@@ -1063,8 +1076,30 @@ def _adjust_equity_for_context(state, raw_equity, profile):
         pot = max(1, int(state.get("pot", 0) or 0))
         if current_bet > pot * 0.70 and profile != "maniac":
             adjusted += EQUITY_ADJ_LARGE_BET
+        if (
+            EXTRA_LARGE_BET_EQUITY_PENALTY > 0
+            and current_bet > pot * EXTRA_LARGE_BET_THRESHOLD
+            and profile in ("unknown", "abc", "nit", "mixed")
+        ):
+            adjusted -= EXTRA_LARGE_BET_EQUITY_PENALTY
     adjusted += EQUITY_ADJ_MULTIWAY * max(0, _active_opponent_count(state) - 2)
     return _clamp(adjusted, 0.02, 0.98)
+
+
+def _should_trap_check(state, profile, equity, value_threshold, features, spr):
+    if TRAP_CHECK_PROB <= 0:
+        return False
+    if profile not in ("maniac", "mixed"):
+        return False
+    if spr > TRAP_CHECK_SPR_MAX:
+        return False
+    if equity < max(TRAP_CHECK_MIN_EQUITY, value_threshold + 0.05):
+        return False
+    if features.get("made_rank", 0) < 2 and equity < 0.86:
+        return False
+    if _active_opponent_count(state) > 2 and profile != "maniac":
+        return False
+    return random.random() < TRAP_CHECK_PROB
 
 
 def _postflop_policy(state, equity):
@@ -1098,6 +1133,8 @@ def _postflop_policy(state, equity):
 
     if can_check:
         if equity >= value_threshold:
+            if _should_trap_check(state, profile, equity, value_threshold, features, spr):
+                return {"action": "check"}
             frac = PRESSURE_VALUE_FRACTION if profile in ("station", "maniac") or texture == "wet" else NORMAL_VALUE_FRACTION
             frac = _sizing_fraction(state, frac, "value", profile, texture, equity)
             return {"action": "raise", "amount": _raise_to_fraction(state, frac)}

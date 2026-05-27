@@ -106,6 +106,15 @@ Success:
 - Existing core benchmark does not regress materially.
 - `pressure_6max` and `mixed_stress_6max` bust count does not increase.
 
+Current status:
+
+- Candidate-only weak-spot controls were added for mixed pressure tables,
+  large-bet equity penalties, heads-up maniac lead protection, and trap checks.
+- A 10-seed targeted screen advanced `pressure-control`, but a 30-seed gate
+  rejected it. Defaults remain unchanged.
+- Future pressure work should use more specific action-line features instead
+  of broad table-profile caution.
+
 ### Stage 4: Bandit / Statistical Selection
 
 Start outside the submitted bot:
