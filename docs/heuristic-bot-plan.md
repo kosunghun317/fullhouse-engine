@@ -56,7 +56,7 @@ Design rule: every policy function returns an intent, and only `sanitize_action(
 ## Strategy Architecture
 
 ```mermaid
-graph TB
+graph TD
     subgraph Submitted["Submitted bot: bots/heuristic/bot.py"]
         Entry["decide(game_state)"]
         Memory["in-memory opponent model"]
@@ -68,7 +68,7 @@ graph TB
     end
 
     subgraph Data["Optional read-only data"]
-        Tables["data/tables.npz\npreflop scores, bet arms,\nreserved priors"]
+        Tables["data/tables.npz - preflop scores, bet arms, - reserved priors"]
     end
 
     subgraph Offline["Offline-only tooling"]

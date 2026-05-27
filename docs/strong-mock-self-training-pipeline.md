@@ -96,11 +96,11 @@ falls back to the numpy implementation otherwise. MLX is a dev dependency only;
 do not import it from `bots/heuristic/bot.py`.
 
 ```mermaid
-graph TB
+graph TD
     subgraph Bootstrap["Synthetic/bootstrap trainers"]
-        Imitation["train_imitation.py\nsklearn MLP imitation"]
-        MCCFR["train_mccfr.py\ncoarse CFR-like table"]
-        PPOBootstrap["train_ppo.py\nsynthetic policy gradient / MLX"]
+        Imitation["train_imitation.py - sklearn MLP imitation"]
+        MCCFR["train_mccfr.py - coarse CFR-like table"]
+        PPOBootstrap["train_ppo.py - synthetic policy gradient / MLX"]
     end
 
     subgraph Artifacts["Strong mock artifacts"]
@@ -172,18 +172,18 @@ graph TD
     Params["train_real_policy.py flags"] --> Mode{"kind"}
     Mode -->|ppo| MLP["MLP policy parameters"]
     Mode -->|bucket| Bucket["bucket preferences / regrets"]
-    Params --> OppPool["opponent pool\noracles, models, rollouts,\nsnapshots, bot.py"]
-    OppPool --> FastBot["FastBot adapter\nfor bot.py opponents"]
+    Params --> OppPool["opponent pool - oracles, models, rollouts, - snapshots, bot.py"]
+    OppPool --> FastBot["FastBot adapter - for bot.py opponents"]
     OppPool --> Matches["independent Fullhouse matches"]
     FastBot --> Matches
     MLP --> Matches
     Bucket --> Matches
-    Matches --> Parallel["parallel collection\nmap_parallel workers"]
-    Parallel --> Decisions["decision records\nfeatures, legal mask,\naction, bucket, reward"]
+    Matches --> Parallel["parallel collection - map_parallel workers"]
+    Parallel --> Decisions["decision records - features, legal mask, - action, bucket, reward"]
     Decisions --> Reward["per-hand chip-delta reward"]
     Reward --> Update{"update"}
     Update -->|ppo| PG["policy-gradient update"]
-    Update -->|bucket + cfr-plus| CFRPlus["positive regret clipping\nlinear average strategy"]
+    Update -->|bucket + cfr-plus| CFRPlus["positive regret clipping - linear average strategy"]
     PG --> ExportPPO["ppo_policy/data/policy.npz"]
     CFRPlus --> ExportCFR["cfr_bucket/data/policy.npz"]
     ExportPPO --> StrongScreen["strong-screen benchmark"]
@@ -227,12 +227,12 @@ can sit in the same 6-player match with independent settings.
 
 ```mermaid
 graph TD
-    Seed["Seed population\nbaseline, legacy,\npressure, SPR, random"] --> Generate["Write generated wrapper bots\nwith data/config.json"]
-    Generate --> Lineups["Build 6-max lineups\n2-3 heuristic variants\nplus strong/reference fillers"]
-    Lineups --> Parallel["Run matches in parallel\nprocess or thread workers"]
-    Parallel --> Score["Score by chip delta\nmean and min per variant"]
+    Seed["Seed population - baseline, legacy, - pressure, SPR, random"] --> Generate["Write generated wrapper bots - with data/config.json"]
+    Generate --> Lineups["Build 6-max lineups - 2-3 heuristic variants - plus strong/reference fillers"]
+    Lineups --> Parallel["Run matches in parallel - process or thread workers"]
+    Parallel --> Score["Score by chip delta - mean and min per variant"]
     Score --> Elite["Keep elites"]
-    Elite --> Mutate["Mutate env knobs\nrisk, bluff, sizing,\npostflop feature controls"]
+    Elite --> Mutate["Mutate env knobs - risk, bluff, sizing, - postflop feature controls"]
     Mutate --> Generate
     Score --> Results["Write generation results JSON"]
 ```

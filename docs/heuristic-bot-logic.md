@@ -52,35 +52,35 @@ This makes reliability a first-class strategy feature: crashes, malformed return
 graph TD
     Start["decide(game_state)"] --> Warmup{"warmup?"}
     Warmup -->|yes| WarmupAction["return check"]
-    Warmup -->|no| Try["start guarded try block\nrecord time budget"]
+    Warmup -->|no| Try["start guarded try block - record time budget"]
     Try --> Memory["update OPPONENTS from match_action_log"]
     Memory --> Street{"street"}
-    Street -->|preflop| Preflop["preflop policy\n169-class score + position + profile"]
-    Street -->|flop / turn / river| Equity["bounded eval7 equity\ncache + sample budget"]
+    Street -->|preflop| Preflop["preflop policy - 169-class score + position + profile"]
+    Street -->|flop / turn / river| Equity["bounded eval7 equity - cache + sample budget"]
     Equity --> Features["board texture and hand features"]
-    Features --> Postflop["postflop policy\nvalue / call / bluff / check"]
+    Features --> Postflop["postflop policy - value / call / bluff / check"]
     Preflop --> Intent["policy intent"]
     Postflop --> Intent
-    Intent --> Sanitize["_sanitize_action()\nonly final action gateway"]
+    Intent --> Sanitize["_sanitize_action() - only final action gateway"]
     Sanitize --> Return["return legal action dict"]
     Try --> Error{"exception?"}
-    Error -->|yes| Fallback["safe fallback\ncheck, cheap call, or fold"]
+    Error -->|yes| Fallback["safe fallback - check, cheap call, or fold"]
     Fallback --> Return
 ```
 
 ## Policy Layers
 
 ```mermaid
-graph LR
-    State["Public state"] --> Parse["state parsing\npot odds, stack, position"]
-    Parse --> Opponent["opponent model\nnit / station / maniac / abc / mixed"]
-    Parse --> Strength["hand strength\npreflop table or eval7 equity"]
-    Parse --> Texture["board texture\nwet / dry / medium"]
-    Opponent --> Thresholds["threshold adjustments\ncall margin, risk guard,\nfold pressure"]
+graph TD
+    State["Public state"] --> Parse["state parsing - pot odds, stack, position"]
+    Parse --> Opponent["opponent model - nit / station / maniac / abc / mixed"]
+    Parse --> Strength["hand strength - preflop table or eval7 equity"]
+    Parse --> Texture["board texture - wet / dry / medium"]
+    Opponent --> Thresholds["threshold adjustments - call margin, risk guard, - fold pressure"]
     Strength --> Thresholds
     Texture --> Thresholds
-    Thresholds --> ActionClass["action class\nvalue, thin value,\nsemi-bluff, bluff,\ncall, fold, check"]
-    ActionClass --> Sizing["sizing policy\nSPR, off-bucket,\npot-odds suspicion"]
+    Thresholds --> ActionClass["action class - value, thin value, - semi-bluff, bluff, - call, fold, check"]
+    ActionClass --> Sizing["sizing policy - SPR, off-bucket, - pot-odds suspicion"]
     Sizing --> Sanitizer["action sanitizer"]
 ```
 
@@ -280,17 +280,17 @@ near half pot unless the table profile is station.
 
 ```mermaid
 graph TD
-    Log["match_action_log\nlatest 200 public actions"] --> Dedup["deduplicate by hand/seat/action/amount"]
-    Dedup --> Counters["per-bot counters\nraises, calls, folds, checks,\nall-ins, raise sizes"]
-    Counters --> Pressure["pressure events\nfolds/calls after prior raise/all-in"]
+    Log["match_action_log - latest 200 public actions"] --> Dedup["deduplicate by hand/seat/action/amount"]
+    Dedup --> Counters["per-bot counters - raises, calls, folds, checks, - all-ins, raise sizes"]
+    Counters --> Pressure["pressure events - folds/calls after prior raise/all-in"]
     Counters --> Rates["smoothed rates"]
     Pressure --> Rates
     Rates --> Classify{"profile rules"}
-    Classify --> Unknown["unknown\nnot enough data"]
-    Classify --> Maniac["maniac\nhigh raise/all-in/raise size"]
-    Classify --> Station["station\nhigh call, low fold"]
-    Classify --> Nit["nit\nhigh fold, low raise"]
-    Classify --> ABC["abc\nlow aggression"]
+    Classify --> Unknown["unknown - not enough data"]
+    Classify --> Maniac["maniac - high raise/all-in/raise size"]
+    Classify --> Station["station - high call, low fold"]
+    Classify --> Nit["nit - high fold, low raise"]
+    Classify --> ABC["abc - low aggression"]
     Rates --> FoldPressure["_fold_pressure()"]
     Rates --> PotOddsSuspicion["_pot_odds_suspicion()"]
     FoldPressure --> Bluffing["bluff / semi-bluff eligibility"]

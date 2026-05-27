@@ -121,7 +121,7 @@ graph TD
     External["Public poker AI project"] --> Fit{"Rule fit?"}
     Fit -->|same interface / useful weights| Adapter["Optional benchmark-only adapter"]
     Fit -->|different engine or rules| Ideas["Port ideas only"]
-    Ideas --> LocalTrain["Fullhouse real trainer\ntrain_real_policy.py"]
+    Ideas --> LocalTrain["Fullhouse real trainer - train_real_policy.py"]
     Ideas --> MockDesign["mock competitor design"]
     Adapter --> LocalBench["Fullhouse benchmark harness"]
     LocalTrain --> StrongMocks["bots/strong_mocks artifacts"]

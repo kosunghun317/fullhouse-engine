@@ -57,10 +57,10 @@ Forbidden import roots currently include network, subprocess, serialization, con
 ```mermaid
 graph TD
     Package["bot.py / bot directory / bot.zip"] --> Shape["Check package shape and limits"]
-    Shape --> Size["bot.py <= 5 MB\ndata <= 200 MB\ntotal <= 250 MB"]
+    Shape --> Size["bot.py <= 5 MB - data <= 200 MB - total <= 250 MB"]
     Size --> Static["Parse Python AST"]
-    Static --> Imports["Reject forbidden imports\nnetwork, subprocess, concurrency,\npickle, dynamic import, FFI"]
-    Imports --> Calls["Reject forbidden calls\nexec, eval, compile,\nreflection escape patterns"]
+    Static --> Imports["Reject forbidden imports - network, subprocess, concurrency, - pickle, dynamic import, FFI"]
+    Imports --> Calls["Reject forbidden calls - exec, eval, compile, - reflection escape patterns"]
     Calls --> Entrypoint["Confirm decide(game_state) exists"]
     Entrypoint --> Runtime["Runtime probe states"]
     Runtime --> Timeout["2 second action timeout"]

@@ -54,6 +54,13 @@ poetry run python sandbox/validator.py bots/template/bot.py
 poetry run python sandbox/match.py bots/template/bot.py bots/shark/bot.py --hands 5 --seed 7 --json
 ```
 
+For Mermaid documentation changes, keep diagrams in the conservative
+`graph TD` form and run:
+
+```bash
+poetry run pytest -q tests/test_mermaid_docs.py
+```
+
 For bot changes, validate the edited bot directly and run at least one seeded local match against `bots/shark/bot.py`.
 
 For heuristic bot benchmark passes, run:

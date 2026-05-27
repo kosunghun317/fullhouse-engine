@@ -53,42 +53,42 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 ## Architecture Diagram
 
 ```mermaid
-graph TB
+graph TD
     User["Developer / participant"] --> Tools["Local tooling"]
     User --> Submission["Submitted bot package"]
 
     subgraph Core["Fullhouse engine"]
-        Game["engine/game.py\nhand engine"]
-        Tournament["engine/tournament.py\nSwiss / standings"]
+        Game["engine/game.py - hand engine"]
+        Tournament["engine/tournament.py - Swiss / standings"]
     end
 
     subgraph Sandbox["Sandbox runtime"]
-        Validator["sandbox/validator.py\nstatic + runtime checks"]
-        Match["sandbox/match.py\nmulti-hand match"]
-        Runner["sandbox/runner.py\nbot subprocess protocol"]
-        Docker["sandbox/Dockerfile\nproduction-like container"]
+        Validator["sandbox/validator.py - static + runtime checks"]
+        Match["sandbox/match.py - multi-hand match"]
+        Runner["sandbox/runner.py - bot subprocess protocol"]
+        Docker["sandbox/Dockerfile - production-like container"]
     end
 
     subgraph TrainingRuntime["Offline training runtime"]
-        FastMatch["training/fast_match.py\nno-limit local runner"]
+        FastMatch["training/fast_match.py - no-limit local runner"]
     end
 
     subgraph Bots["Bot directories"]
-        Heuristic["bots/heuristic\ncompetition bot"]
-        Data["bots/heuristic/data/tables.npz\nread-only lookup data"]
-        Mock["bots/mock_competitors\nlocal benchmark families"]
-        Strong["bots/strong_mocks\ntrained / rollout opponents"]
-        SelfTrain["bots/self_training\ngenerated heuristic wrappers"]
+        Heuristic["bots/heuristic - competition bot"]
+        Data["bots/heuristic/data/tables.npz - read-only lookup data"]
+        Mock["bots/mock_competitors - local benchmark families"]
+        Strong["bots/strong_mocks - trained / rollout opponents"]
+        SelfTrain["bots/self_training - generated heuristic wrappers"]
     end
 
     subgraph Tooling["Tools and scripts"]
-        Eval["tools/evaluate_heuristic.py\nsuite runner"]
-        Select["tools/select_heuristic_config.py\nrisk-aware ranking"]
-        Package["tools/package_heuristic.py\nzip builder"]
-        Harden["tools/harden_submission.py\nsubmission hardening"]
-        RealTrain["tools/strong_mocks/train_real_policy.py\nreal self-play trainer"]
-        LeagueTrain["tools/strong_mocks/league_train.py\nleague trainer"]
-        Scripts["scripts/train_*.sh\nlarge training entrypoints"]
+        Eval["tools/evaluate_heuristic.py - suite runner"]
+        Select["tools/select_heuristic_config.py - risk-aware ranking"]
+        Package["tools/package_heuristic.py - zip builder"]
+        Harden["tools/harden_submission.py - submission hardening"]
+        RealTrain["tools/strong_mocks/train_real_policy.py - real self-play trainer"]
+        LeagueTrain["tools/strong_mocks/league_train.py - league trainer"]
+        Scripts["scripts/train_*.sh - large training entrypoints"]
     end
 
     Tools --> Eval
@@ -130,30 +130,24 @@ graph TB
 ## Runtime Flow
 
 ```mermaid
-sequenceDiagram
-    participant M as sandbox/match.py
-    participant E as PokerEngine
-    participant R as sandbox/runner.py
-    participant B as bot.py
-
-    M->>R: start bot process
-    M->>R: warmup call
-    R->>B: decide({"type": "warmup"})
-    B-->>R: safe action ignored
-    loop each hand until 400 hands or only one stack remains
-        M->>E: start_hand()
-        E-->>M: action_request state
-        loop while action_request
-            M->>R: JSON state with match_action_log
-            R->>B: decide(game_state)
-            B-->>R: action dict
-            R-->>M: newline-delimited JSON action
-            M->>E: apply_action(seat, action)
-            E-->>M: next action_request or hand_complete
-        end
-        M->>M: update stacks and rolling match_action_log
-    end
-    M-->>User: chip_delta, final_stacks, bot_errors
+graph TD
+    Match["sandbox/match.py"] --> StartBot["Start bot process"]
+    StartBot --> Warmup["Send warmup state"]
+    Warmup --> Runner["sandbox/runner.py"]
+    Runner --> Bot["bot.py decide"]
+    Bot --> Ignore["Warmup action ignored"]
+    Ignore --> StartHand["PokerEngine start_hand"]
+    StartHand --> State["action_request with match_action_log"]
+    State --> RunnerState["Runner sends JSON state"]
+    RunnerState --> BotDecision["bot.py returns action dict"]
+    BotDecision --> Apply["PokerEngine apply_action"]
+    Apply --> Continue{"More actions?"}
+    Continue -->|yes| State
+    Continue -->|no| Complete["hand_complete"]
+    Complete --> Update["Update stacks and rolling log"]
+    Update --> MoreHands{"More hands and at least two live stacks?"}
+    MoreHands -->|yes| StartHand
+    MoreHands -->|no| Result["chip_delta, final_stacks, bot_errors"]
 ```
 
 ## Bot Contract

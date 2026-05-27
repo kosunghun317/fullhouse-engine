@@ -52,13 +52,13 @@ candidate/
 graph TD
     Stage["League stage"] --> TrainPool["Training pool"]
     TrainPool --> Trainer["train_real_policy.py"]
-    Trainer --> Candidate["candidate bot dir\nbot.py + data/policy.npz"]
+    Trainer --> Candidate["candidate bot dir - bot.py + data/policy.npz"]
     Candidate --> Eval["held-out fast evaluation"]
     Incumbent["current repo bot"] --> Eval
-    Eval --> Compare{"candidate score >=\nincumbent score + margin\nand no errors?"}
+    Eval --> Compare{"candidate score >= - incumbent score + margin - and no errors?"}
     Compare -->|yes| Archive["archive as league snapshot"]
-    Compare -->|yes + --promote| Promote["copy policy.npz into\nbots/strong_mocks"]
-    Compare -->|no| Reject["keep artifact only\nfor inspection"]
+    Compare -->|yes + --promote| Promote["copy policy.npz into - bots/strong_mocks"]
+    Compare -->|no| Reject["keep artifact only - for inspection"]
     Archive --> Future["future stage extra_bot_path opponents"]
     Future --> TrainPool
 ```
@@ -172,6 +172,6 @@ Current smoke:
 - `py_compile` passed for `league_train.py`, `train_real_policy.py`,
   `training.fast_match`, and `tools.parallel`.
 - `pytest -q tests/test_league_training.py tests/test_fast_match.py`: 7 passed.
-- `pytest -q`: 15 passed.
+- `pytest -q`: 16 passed.
 - Tiny `oracle_bootstrap` PPO dry run with `PROMOTE=0` completed and wrote
   `/private/tmp/fullhouse_league_training/league-smoke-codex-2/league_report.json`.

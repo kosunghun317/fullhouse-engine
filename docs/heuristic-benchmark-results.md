@@ -18,7 +18,7 @@ poetry run python tools/select_heuristic_config.py --preset final --config basel
 
 Current repo-level unit/parity suite after adding the fast training runner:
 
-- `pytest -q`: 15 passed, with existing `eval7`/`pyparsing` deprecation
+- `pytest -q`: 16 passed, with existing `eval7`/`pyparsing` deprecation
   warnings.
 
 Core validation:
@@ -107,19 +107,19 @@ For long screens, pass `--progress` so each config/suite boundary is printed to 
 
 ```mermaid
 graph TD
-    Idea["New bot idea or parameter change"] --> Implement["Add env-tunable candidate\nor benchmark-only opponent"]
-    Implement --> Smoke["Smoke validation\nvalidator + short match"]
+    Idea["New bot idea or parameter change"] --> Implement["Add env-tunable candidate - or benchmark-only opponent"]
+    Implement --> Smoke["Smoke validation - validator + short match"]
     Smoke --> SmokeOK{"No errors?"}
     SmokeOK -->|no| Fix["Fix reliability first"]
     Fix --> Smoke
-    SmokeOK -->|yes| Candidate["Candidate screen\n~10 seeds, targeted suites"]
-    Candidate --> CandidateWin{"Improves target\nwithout obvious regression?"}
-    CandidateWin -->|no| KeepKnob["Keep as diagnostic only\nor reject"]
-    CandidateWin -->|yes| Promotion["Promotion gate\n~30 seeds, core + stress + mocks"]
-    Promotion --> PromotionWin{"Risk-aware score,\nmean, busts acceptable?"}
+    SmokeOK -->|yes| Candidate["Candidate screen - ~10 seeds, targeted suites"]
+    Candidate --> CandidateWin{"Improves target - without obvious regression?"}
+    CandidateWin -->|no| KeepKnob["Keep as diagnostic only - or reject"]
+    CandidateWin -->|yes| Promotion["Promotion gate - ~30 seeds, core + stress + mocks"]
+    Promotion --> PromotionWin{"Risk-aware score, - mean, busts acceptable?"}
     PromotionWin -->|no| KeepKnob
-    PromotionWin -->|yes| Final["Final acceptance\n100 seeds x 400 hands"]
-    Final --> FinalOK{"All suites positive mean\nand zero bot errors?"}
+    PromotionWin -->|yes| Final["Final acceptance - 100 seeds x 400 hands"]
+    Final --> FinalOK{"All suites positive mean - and zero bot errors?"}
     FinalOK -->|no| KeepKnob
     FinalOK -->|yes| Default["Promote into baseline defaults"]
     Default --> Docs["Update docs and skill workflow"]
@@ -128,17 +128,17 @@ graph TD
 ## Benchmark Suite Map
 
 ```mermaid
-graph LR
-    Baseline["heuristic baseline"] --> Core["core suites\nreference, mutant,\nheads-up reference"]
-    Baseline --> Stress["stress suites\nsizing, pressure,\ntight, mixed, threshold"]
-    Baseline --> MockFamily["mock family suites\nequity, bucket,\ntrained numpy, anti-heuristic"]
-    Baseline --> Strong["strong suites\nMLP, PPO, CFR bucket,\nrollout, ensemble"]
+graph TD
+    Baseline["heuristic baseline"] --> Core["core suites - reference, mutant, - heads-up reference"]
+    Baseline --> Stress["stress suites - sizing, pressure, - tight, mixed, threshold"]
+    Baseline --> MockFamily["mock family suites - equity, bucket, - trained numpy, anti-heuristic"]
+    Baseline --> Strong["strong suites - MLP, PPO, CFR bucket, - rollout, ensemble"]
 
     Core --> Selector["select_heuristic_config.py"]
     Stress --> Selector
     MockFamily --> Selector
     Strong --> Selector
-    Selector --> Metrics["mean, median, stdev,\nmin, positive runs,\nbusts, errors"]
+    Selector --> Metrics["mean, median, stdev, - min, positive runs, - busts, errors"]
     Metrics --> Decision["promote / reject / keep candidate"]
 ```
 

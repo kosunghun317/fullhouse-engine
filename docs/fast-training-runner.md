@@ -80,27 +80,21 @@ matches while still using the original `PokerEngine` rules.
 ## Runtime Flow
 
 ```mermaid
-sequenceDiagram
-    participant F as training.fast_match
-    participant B as FastBot
-    participant E as PokerEngine
-    participant P as tools.parallel
-
-    F->>P: create independent match tasks
-    P->>F: run task in worker
-    F->>B: import bot.py and warmup
-    loop each hand
-        F->>E: start_hand()
-        E-->>F: action_request
-        loop while action_request
-            F->>B: decide(state + match_action_log)
-            B-->>F: action dict
-            F->>E: apply_action(seat, action)
-            E-->>F: action_request or hand_complete
-        end
-        F->>F: update stacks
-    end
-    F-->>P: result summary
+graph TD
+    FastMatch["training.fast_match"] --> Tasks["Create independent match tasks"]
+    Tasks --> Workers["tools.parallel workers"]
+    Workers --> Import["FastBot imports bot.py and warms up"]
+    Import --> Start["PokerEngine start_hand"]
+    Start --> Request["action_request state"]
+    Request --> Decide["FastBot decide with match_action_log"]
+    Decide --> Apply["PokerEngine apply_action"]
+    Apply --> More{"More actions?"}
+    More -->|yes| Request
+    More -->|no| Complete["hand_complete"]
+    Complete --> Stacks["Update stacks"]
+    Stacks --> Next{"More hands?"}
+    Next -->|yes| Start
+    Next -->|no| Result["Return result summary"]
 ```
 
 ## CLI

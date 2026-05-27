@@ -47,7 +47,7 @@ graph TD
     Opponent --> Pressure["Pressure-fold and pot-odds suspicion"]
     SPR --> Promoted["Promoted baseline defaults"]
     Pressure --> Promoted
-    HandFeatures --> Candidate["Candidate-only controls\nline-aware, blocker-probe, pair-danger"]
+    HandFeatures --> Candidate["Candidate-only controls - line-aware, blocker-probe, pair-danger"]
     Promoted --> Benchmarks["100-seed acceptance matrix"]
     Candidate --> Gate["candidate / promotion / final gates"]
     Benchmarks --> Backlog["Deferred work"]

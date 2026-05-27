@@ -110,21 +110,21 @@ The compatible parts are adapted as:
 - Modular exported artifacts usable by `bots/strong_mocks/ensemble`.
 
 ```mermaid
-graph TB
+graph TD
     subgraph Sources["Adapted ideas, not copied code"]
-        RLCard["RLCard\nrollout + legal mask patterns"]
-        OpenSpiel["OpenSpiel Deep CFR\nself-play / buffers / masks"]
-        Pokers["Reinforcement-Poker pokers\nin-process environment stepping"]
-        CFRPokerbot["jeffelin/CFR_pokerbot\nCFR+ abstraction and hybrid policy idea"]
+        RLCard["RLCard - rollout + legal mask patterns"]
+        OpenSpiel["OpenSpiel Deep CFR - self-play / buffers / masks"]
+        Pokers["Reinforcement-Poker pokers - in-process environment stepping"]
+        CFRPokerbot["jeffelin/CFR_pokerbot - CFR+ abstraction and hybrid policy idea"]
     end
 
     subgraph FullhouseAdaptation["Fullhouse-specific implementation"]
-        Engine["engine.game.PokerEngine\nreal NLHE hand loop"]
-        FastRunner["training.fast_match\nunrestricted bot.py runner"]
+        Engine["engine.game.PokerEngine - real NLHE hand loop"]
+        FastRunner["training.fast_match - unrestricted bot.py runner"]
         FastResults["parallel bot.py match results"]
-        Actions["tools/strong_mocks/actions.py\n8-action abstraction"]
-        Features["tools/strong_mocks/features.py\npublic state vector"]
-        Abstractions["tools/strong_mocks/abstractions.py\nfeature or cfr-pokerbot buckets"]
+        Actions["tools/strong_mocks/actions.py - 8-action abstraction"]
+        Features["tools/strong_mocks/features.py - public state vector"]
+        Abstractions["tools/strong_mocks/abstractions.py - feature or cfr-pokerbot buckets"]
         Trainer["tools/strong_mocks/train_real_policy.py"]
     end
 
@@ -203,7 +203,7 @@ graph TD
     R1 --> Merge["merge decisions and rewards"]
     R2 --> Merge
     Rn --> Merge
-    Merge --> Update["single policy update\nMLP or CFR+ table"]
+    Merge --> Update["single policy update - MLP or CFR+ table"]
     Update --> Snapshot["optional snapshot opponent"]
     Snapshot --> Generation
 ```
@@ -422,7 +422,7 @@ Validation results:
 - Validators passed for `bots/strong_mocks/ppo_policy`,
   `bots/strong_mocks/cfr_bucket`, `bots/strong_mocks/ensemble`, and
   `bots/heuristic/bot.py`.
-- `pytest -q`: 15 passed.
+- `pytest -q`: 16 passed.
 - `pytest -q tests/test_fast_match.py`: 4 passed, covering parity,
   process-parallel equivalence, worker auto-selection, and no-timeout behavior.
 - `python -m training.fast_match` CLI smoke passed for a 3-hand match.

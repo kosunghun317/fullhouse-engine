@@ -85,16 +85,16 @@ Important limits:
 
 ```mermaid
 graph TD
-    Engine["PokerEngine builds action_request"] --> PublicState["Public game_state\nhole cards for hero only\nboard, pot, stacks, action_log"]
-    Match["sandbox/match.py"] --> RollingLog["match_action_log\nlatest 200 public actions"]
+    Engine["PokerEngine builds action_request"] --> PublicState["Public game_state - hole cards for hero only - board, pot, stacks, action_log"]
+    Match["sandbox/match.py"] --> RollingLog["match_action_log - latest 200 public actions"]
     RollingLog --> PublicState
     PublicState --> Decide["bot.decide(game_state)"]
 
     subgraph BotMemory["Module-level in-process memory"]
-        Opp["OPPONENTS\nrates and pressure responses"]
-        Seen["SEEN_ACTIONS\ndeduplicate rolling log"]
-        Cache["EQUITY_CACHE\nbounded Monte Carlo memo"]
-        Tables["data/tables.npz\nread-only import-time lookup"]
+        Opp["OPPONENTS - rates and pressure responses"]
+        Seen["SEEN_ACTIONS - deduplicate rolling log"]
+        Cache["EQUITY_CACHE - bounded Monte Carlo memo"]
+        Tables["data/tables.npz - read-only import-time lookup"]
     end
 
     Decide --> Seen
@@ -112,22 +112,16 @@ graph TD
 ```
 
 ```mermaid
-sequenceDiagram
-    participant H as Hand N
-    participant B as Bot memory
-    participant L as match_action_log
-    participant N as Hand N+1
-
-    H->>B: update OPPONENTS from public actions
-    H->>B: cache equity estimates
-    H-->>L: append every public action
-    alt hero remains active
-        H->>B: next decision sees current-hand changes
-    else hero folds but still has chips
-        N->>B: next hand sees recent post-fold public actions via match_action_log
-    else hero busts
-        N-->>B: no future calls in that match
-    end
+graph TD
+    HandN["Hand N decision"] --> UpdateOpp["Update OPPONENTS from public actions"]
+    HandN --> CacheEquity["Cache equity estimates"]
+    HandN --> MatchLog["Append public actions to match_action_log"]
+    UpdateOpp --> Remain{"Hero remains active?"}
+    CacheEquity --> Remain
+    MatchLog --> Remain
+    Remain -->|yes| SameHand["Next decision sees current-hand changes"]
+    Remain -->|folded but alive| NextHand["Next hand sees recent public actions"]
+    Remain -->|busted| StopCalls["No future calls in that match"]
 ```
 
 ## What Happens After Your Decision
