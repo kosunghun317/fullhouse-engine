@@ -162,7 +162,7 @@ def rank_configs(report, risk_weight, min_weight, bust_penalty, error_penalty):
     return sorted(ranking, key=lambda item: item["score"], reverse=True)
 
 
-def evaluate_config_with_progress(name, suites, seeds, hands, progress=False):
+def evaluate_config_with_progress(name, suites, seeds, hands, progress=False, workers=1, parallel_backend="process"):
     old = _set_env(CONFIGS[name])
     try:
         results = []
@@ -174,7 +174,16 @@ def evaluate_config_with_progress(name, suites, seeds, hands, progress=False):
                     file=sys.stderr,
                     flush=True,
                 )
-            results.append(run_suite(suite, seeds, hands, summary_only=True))
+            results.append(
+                run_suite(
+                    suite,
+                    seeds,
+                    hands,
+                    summary_only=True,
+                    workers=workers,
+                    parallel_backend=parallel_backend,
+                )
+            )
     finally:
         _restore_env(old)
     return {"config": name, "env": CONFIGS[name], "results": results}
@@ -189,6 +198,8 @@ def main():
     parser.add_argument("--seed-start", type=int, default=7001)
     parser.add_argument("--seed-count", type=int, default=None)
     parser.add_argument("--hands", type=int, default=400)
+    parser.add_argument("--workers", type=int, default=1, help="Parallel seed workers inside each suite; use 0 for auto")
+    parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--risk-weight", type=float, default=0.35)
     parser.add_argument("--min-weight", type=float, default=0.10)
     parser.add_argument("--bust-penalty", type=float, default=8000.0)
@@ -202,7 +213,15 @@ def main():
     seeds = _parse_seeds(args, args.preset)
 
     report = [
-        evaluate_config_with_progress(name, suites, seeds, args.hands, progress=args.progress)
+        evaluate_config_with_progress(
+            name,
+            suites,
+            seeds,
+            args.hands,
+            progress=args.progress,
+            workers=args.workers,
+            parallel_backend=args.parallel_backend,
+        )
         for name in configs
     ]
     ranking = rank_configs(

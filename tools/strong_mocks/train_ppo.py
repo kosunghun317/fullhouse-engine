@@ -81,6 +81,24 @@ def _export(
     )
 
 
+def _mlx_available() -> bool:
+    try:
+        import mlx.core  # noqa: F401
+        import mlx.nn  # noqa: F401
+        import mlx.optimizers  # noqa: F401
+        return True
+    except Exception:
+        return False
+
+
+def _require_mlx():
+    import mlx.core as mx
+    import mlx.nn as nn
+    import mlx.optimizers as optim
+
+    return mx, nn, optim
+
+
 def train_policy_gradient(
     output: Path,
     seed: int,
@@ -179,6 +197,93 @@ def train_policy_gradient(
     return report
 
 
+def train_mlx_policy(
+    output: Path,
+    seed: int,
+    iterations: int,
+    batch_size: int,
+    hidden: int,
+    learning_rate: float,
+    entropy_coef: float,
+) -> dict:
+    mx, nn, optim = _require_mlx()
+    mx.random.seed(seed)
+    rng = np.random.default_rng(seed)
+
+    warmup = sample_feature_matrix(max(4096, batch_size), seed + 17)
+    mean = warmup.mean(axis=0).astype(np.float32)
+    scale = warmup.std(axis=0).astype(np.float32)
+    scale[scale < 1e-6] = 1.0
+
+    class PolicyMLP(nn.Module):
+        def __init__(self, input_dim: int, hidden_dim: int, output_dim: int):
+            super().__init__()
+            self.l1 = nn.Linear(input_dim, hidden_dim)
+            self.l2 = nn.Linear(hidden_dim, output_dim)
+
+        def __call__(self, x):
+            return self.l2(mx.tanh(self.l1(x)))
+
+    model = PolicyMLP(len(FEATURE_NAMES), hidden, len(ACTION_LABELS))
+    optimizer = optim.Adam(learning_rate=learning_rate)
+
+    def loss_fn(model, z, rewards, mask):
+        logits = model(z)
+        logits = mx.where(mask, logits, mx.array(-30.0, dtype=logits.dtype))
+        probs = mx.softmax(logits, axis=1)
+        expected_reward = mx.sum(probs * rewards, axis=1)
+        entropy = -mx.sum(probs * mx.log(mx.maximum(probs, 1e-8)), axis=1)
+        return -mx.mean(expected_reward + entropy_coef * entropy)
+
+    loss_and_grad = nn.value_and_grad(model, loss_fn)
+    last_loss = 0.0
+    for step in range(iterations):
+        x = sample_feature_matrix(batch_size, int(rng.integers(0, 2**31 - 1)))
+        z = ((x - mean) / scale).astype(np.float32)
+        rewards = oracle_logits(x, style=["balanced", "pressure", "bluff", "value"][step % 4]).astype(np.float32)
+        mask = _legal_mask_from_features(x)
+        z_mx = mx.array(z)
+        rewards_mx = mx.array(rewards)
+        mask_mx = mx.array(mask)
+        loss, grads = loss_and_grad(model, z_mx, rewards_mx, mask_mx)
+        optimizer.update(model, grads)
+        mx.eval(model.parameters(), optimizer.state)
+        last_loss = float(loss)
+
+    eval_x = sample_feature_matrix(12000, seed + 991)
+    eval_z = mx.array(((eval_x - mean) / scale).astype(np.float32))
+    eval_mask = mx.array(_legal_mask_from_features(eval_x))
+    logits = model(eval_z)
+    logits = mx.where(eval_mask, logits, mx.array(-30.0, dtype=logits.dtype))
+    probs = mx.softmax(logits, axis=1)
+    pred = np.array(mx.argmax(probs, axis=1)).astype(int)
+    labels = oracle_labels(eval_x, style="pressure")
+    oracle_reward = oracle_logits(eval_x, style="pressure")
+
+    mx.eval(model.parameters())
+    params = {
+        "w1": np.array(model.l1.weight).astype(np.float32).T,
+        "b1": np.array(model.l1.bias).astype(np.float32),
+        "w2": np.array(model.l2.weight).astype(np.float32).T,
+        "b2": np.array(model.l2.bias).astype(np.float32),
+    }
+    report = {
+        "mode": "mlx_expected_reward",
+        "backend": "mlx",
+        "device": str(mx.default_device()),
+        "output": str(output),
+        "seed": seed,
+        "iterations": iterations,
+        "batch_size": batch_size,
+        "hidden": hidden,
+        "oracle_agreement": round(float(np.mean(pred == labels)), 4),
+        "average_reward": round(float(np.mean(oracle_reward[np.arange(eval_x.shape[0]), pred])), 4),
+        "last_loss": round(last_loss, 4),
+    }
+    _export(output, params, mean, scale, report)
+    return report
+
+
 def init_from_imitation(samples: int, seed: int, output: Path) -> dict:
     result = train_imitation(samples=samples, seed=seed, style="pressure", output=output, hidden=64)
     result["mode"] = "init_from_imitation"
@@ -195,6 +300,7 @@ def main():
     parser.add_argument("--learning-rate", type=float, default=0.018)
     parser.add_argument("--clip-ratio", type=float, default=0.20)
     parser.add_argument("--entropy-coef", type=float, default=0.004)
+    parser.add_argument("--backend", choices=["auto", "numpy", "mlx"], default="auto")
     parser.add_argument("--seed", type=int, default=6161)
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--json", action="store_true")
@@ -202,6 +308,16 @@ def main():
 
     if args.init_from_imitation:
         result = init_from_imitation(args.samples, args.seed, Path(args.output))
+    elif args.backend == "mlx" or (args.backend == "auto" and _mlx_available()):
+        result = train_mlx_policy(
+            output=Path(args.output),
+            seed=args.seed,
+            iterations=args.iterations,
+            batch_size=args.batch_size,
+            hidden=args.hidden,
+            learning_rate=args.learning_rate,
+            entropy_coef=args.entropy_coef,
+        )
     else:
         result = train_policy_gradient(
             output=Path(args.output),

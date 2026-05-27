@@ -73,12 +73,16 @@ Generate or refresh default strong-mock artifacts:
 poetry run python tools/strong_mocks/train_imitation.py --samples 6000 --hidden 32 --seed 4242 --style balanced --output bots/strong_mocks/oracle_imitation/data/policy.npz --json
 poetry run python tools/strong_mocks/train_imitation.py --samples 6000 --hidden 32 --seed 4243 --style value --output bots/strong_mocks/oracle_imitation/data/policy_value.npz --json
 poetry run python tools/strong_mocks/train_mccfr.py --iterations 180 --batch-size 2048 --bucket-count 4096 --seed 5151 --output bots/strong_mocks/cfr_bucket/data/policy.npz --json
-poetry run python tools/strong_mocks/train_ppo.py --iterations 64 --batch-size 512 --hidden 32 --seed 6161 --output bots/strong_mocks/ppo_policy/data/policy.npz --json
+poetry run python tools/strong_mocks/train_ppo.py --backend auto --iterations 64 --batch-size 512 --hidden 32 --seed 6161 --output bots/strong_mocks/ppo_policy/data/policy.npz --json
 ```
 
 Longer overnight runs can increase samples, iterations, hidden size, and CFR
 bucket count. Keep generated files under each bot's `data/` directory and load
 with `np.load(..., allow_pickle=False)`.
+
+`train_ppo.py --backend auto` uses MLX on Apple Silicon when available and
+falls back to the numpy implementation otherwise. MLX is a dev dependency only;
+do not import it from `bots/heuristic/bot.py`.
 
 ## Self-Training
 
@@ -99,7 +103,7 @@ poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --ge
 Real local run:
 
 ```bash
-poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local-$(date +%Y%m%d) --generations 4 --population 10 --elite 3 --matches-per-generation 8 --hands 240 --seed 8080 --json
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local-$(date +%Y%m%d) --generations 4 --population 10 --elite 3 --matches-per-generation 8 --hands 240 --seed 8080 --workers 0 --parallel-backend process --json
 ```
 
 For a generation to cover every candidate at least once, use:
@@ -109,6 +113,30 @@ matches_per_generation >= ceil(population / max_heuristics)
 ```
 
 Default `10 / 3` needs at least 4 matches; the default 8 gives repeat samples.
+
+## Parallel Execution
+
+The offline harnesses support independent-match parallelism:
+
+```bash
+poetry run python tools/evaluate_heuristic.py --suite strong_mock_6max --seed-count 10 --hands 400 --workers 0 --parallel-backend process --summary-only
+poetry run python tools/evaluate_heuristic.py --suite heads_up_shark --seed-count 10 --hands 400 --workers 4 --parallel-backend thread --summary-only
+poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --workers 0 --parallel-backend process --progress
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id local --generations 4 --population 10 --matches-per-generation 8 --workers 0 --parallel-backend process --json
+```
+
+Backend guidance:
+
+- `process`: default recommendation for serious screens. It isolates match
+  state and avoids Python GIL contention.
+- `thread`: lower overhead for short local validation where most time is spent
+  waiting on bot subprocess pipes. Use it only within one config at a time.
+- `asyncio`: not implemented because `sandbox.match.run_match()` is synchronous
+  and CPU/subprocess blocking. A useful async version would require a separate
+  async match orchestrator.
+
+Use `--workers 0` to auto-select up to `os.cpu_count()` workers, capped by the
+number of tasks.
 
 ## Benchmark Suites
 
@@ -133,13 +161,15 @@ additional stress signal, then confirm with `promotion` or `final` presets.
 Run after changing this pipeline:
 
 ```bash
-poetry run python -m py_compile tools/strong_mocks/*.py tools/evaluate_heuristic.py tools/select_heuristic_config.py bots/self_training/heuristic_variant_template/bot.py
+poetry run python -m py_compile tools/parallel.py tools/strong_mocks/*.py tools/evaluate_heuristic.py tools/select_heuristic_config.py bots/self_training/heuristic_variant_template/bot.py
 poetry run python sandbox/validator.py bots/strong_mocks/oracle_imitation --json
 poetry run python sandbox/validator.py bots/strong_mocks/ppo_policy --json
 poetry run python sandbox/validator.py bots/strong_mocks/cfr_bucket --json
 poetry run python sandbox/validator.py bots/strong_mocks/rollout_search --json
 poetry run python sandbox/validator.py bots/strong_mocks/ensemble --json
 poetry run python tools/evaluate_heuristic.py --suite strong_mock_6max --suite heads_up_strong_rollout --seed-count 1 --hands 20 --summary-only
+poetry run python tools/evaluate_heuristic.py --suite heads_up_shark --seed-count 2 --hands 8 --workers 2 --parallel-backend thread --summary-only
+poetry run python tools/evaluate_heuristic.py --suite heads_up_shark --seed-count 2 --hands 8 --workers 2 --parallel-backend process --summary-only
 ```
 
 ## Current Smoke Results
@@ -153,7 +183,7 @@ Trained artifact smoke:
 | `oracle_imitation/data/policy.npz` | 6,000 samples, balanced style, train accuracy `0.9928` |
 | `oracle_imitation/data/policy_value.npz` | 6,000 samples, value style, train accuracy `0.9893` |
 | `cfr_bucket/data/policy.npz` | 180 iterations, 2,048 batch, 4,096 buckets |
-| `ppo_policy/data/policy.npz` | 64 iterations, oracle agreement `0.5664`, average reward `0.6461` |
+| `ppo_policy/data/policy.npz` | MLX GPU backend, 64 iterations, oracle agreement `0.6278`, average reward `0.6779` |
 
 Strong bot validators:
 

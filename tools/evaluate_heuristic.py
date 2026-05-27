@@ -13,6 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from sandbox.match import run_match
+from tools.parallel import map_parallel
 
 
 HEURISTIC = "bots/heuristic/bot.py"
@@ -278,25 +279,29 @@ def summarize(results):
     }
 
 
-def run_suite(name, seeds, hands_override=None, summary_only=False):
+def _run_match_task(task):
+    name, seed, hands, bots = task
+    result = run_match(
+        match_id=f"{name}_{seed}",
+        bot_paths=bots,
+        n_hands=hands,
+        verbose=False,
+        seed=seed,
+    )
+    return {
+        "seed": seed,
+        "chip_delta": result["chip_delta"],
+        "final_stacks": result["final_stacks"],
+        "bot_errors": result["bot_errors"],
+        "duration_s": result["duration_s"],
+    }
+
+
+def run_suite(name, seeds, hands_override=None, summary_only=False, workers=1, parallel_backend="process"):
     suite = SUITES[name]
     hands = hands_override or suite["hands"]
-    results = []
-    for seed in seeds:
-        result = run_match(
-            match_id=f"{name}_{seed}",
-            bot_paths=suite["bots"],
-            n_hands=hands,
-            verbose=False,
-            seed=seed,
-        )
-        results.append({
-            "seed": seed,
-            "chip_delta": result["chip_delta"],
-            "final_stacks": result["final_stacks"],
-            "bot_errors": result["bot_errors"],
-            "duration_s": result["duration_s"],
-        })
+    tasks = [(name, seed, hands, suite["bots"]) for seed in seeds]
+    results = map_parallel(_run_match_task, tasks, workers=workers, backend=parallel_backend)
     report = {"suite": name, "hands": hands, "summary": summarize(results)}
     if not summary_only:
         report["runs"] = results
@@ -318,6 +323,8 @@ def main():
     parser.add_argument("--seed-start", type=int, default=101)
     parser.add_argument("--seed-count", type=int, default=None)
     parser.add_argument("--hands", type=int, default=None)
+    parser.add_argument("--workers", type=int, default=1, help="Parallel seed workers; use 0 for auto")
+    parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -335,7 +342,17 @@ def main():
         "heads_up_threshold",
     ]
     seeds = _parse_seeds(args)
-    report = [run_suite(name, seeds, args.hands, args.summary_only) for name in suites]
+    report = [
+        run_suite(
+            name,
+            seeds,
+            args.hands,
+            args.summary_only,
+            workers=args.workers,
+            parallel_backend=args.parallel_backend,
+        )
+        for name in suites
+    ]
 
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))

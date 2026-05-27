@@ -203,7 +203,7 @@ Artifacts:
 | `bots/strong_mocks/oracle_imitation/data/policy.npz` | 6,000 samples, balanced MLP, train accuracy `0.9928` |
 | `bots/strong_mocks/oracle_imitation/data/policy_value.npz` | 6,000 samples, value MLP, train accuracy `0.9893` |
 | `bots/strong_mocks/cfr_bucket/data/policy.npz` | 180 CFR-like iterations, 4,096 buckets |
-| `bots/strong_mocks/ppo_policy/data/policy.npz` | 64 policy-gradient iterations, oracle agreement `0.5664`, average reward `0.6461` |
+| `bots/strong_mocks/ppo_policy/data/policy.npz` | MLX GPU backend, 64 policy-gradient iterations, oracle agreement `0.6278`, average reward `0.6779` |
 
 Validation:
 
@@ -213,6 +213,8 @@ Validation:
   `rollout_search`, and `ensemble`.
 - Self-training smoke passed with 1 generation, 4 candidates, 2 matches,
   12 hands, and temp generated/result roots.
+- `--parallel-backend thread` and `--parallel-backend process` smoke tests
+  passed for benchmark and self-training entrypoints.
 
 Strong benchmark smoke:
 

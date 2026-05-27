@@ -31,6 +31,7 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `tools/evaluate_heuristic.py`: Seeded benchmark harness for core, stress, and mock suites.
 - `tools/select_heuristic_config.py`: Risk-aware config ranking and promotion-screen harness.
 - `tools/strong_mocks/`: Shared feature/action abstractions, strong mock trainers, and evolutionary self-training pipeline.
+- `tools/parallel.py`: Offline-only process/thread worker helper for seeded benchmark and self-training runs.
 - `tools/package_heuristic.py`: Submission zip builder and validator wrapper for the heuristic bot.
 - `tools/build_heuristic_tables.py`: Optional read-only data table builder.
 - `tools/harden_submission.py`: Full heuristic submission hardening command for table rebuild, packaging, validation, zip inspection, and sanity matches.

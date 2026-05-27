@@ -70,4 +70,8 @@ The Poetry environment pins the Docker sandbox versions for numerical and poker 
 - `treys==0.1.8`
 - `scikit-learn==1.5.2`
 
-`flask` is included for the local demo UI. `pytest` is in the dev dependency group for tests.
+`flask` is included for the local demo UI. `pytest` is in the dev dependency
+group for tests. `mlx` is also in the dev dependency group for Apple
+Silicon-only offline training acceleration in `tools/strong_mocks/train_ppo.py`;
+it is not a submitted-bot dependency and must not be imported by
+`bots/heuristic/bot.py`.

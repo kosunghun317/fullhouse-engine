@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 
 from sandbox.match import run_match
+from tools.parallel import map_parallel
 from tools.tune_heuristic_thresholds import CONFIGS
 
 
@@ -145,6 +146,26 @@ def _lineup(
     return bots
 
 
+def _run_self_training_match(task):
+    match_index = task["match_index"]
+    seed = task["seed"]
+    result = run_match(
+        match_id=task["match_id"],
+        bot_paths=task["bots"],
+        n_hands=task["hands"],
+        verbose=False,
+        seed=seed,
+    )
+    return {
+        "match": match_index,
+        "seed": seed,
+        "chip_delta": result["chip_delta"],
+        "final_stacks": result["final_stacks"],
+        "bot_errors": result["bot_errors"],
+        "duration_s": result.get("duration_s", 0),
+    }
+
+
 def evaluate_generation(
     generated_root: Path,
     run_id: str,
@@ -154,7 +175,7 @@ def evaluate_generation(
     rng: random.Random,
 ) -> dict:
     scores = {item["name"]: [] for item in population}
-    matches = []
+    tasks = []
     coverage_queue = list(population)
     rng.shuffle(coverage_queue)
     for match_index in range(args.matches_per_generation):
@@ -172,25 +193,26 @@ def evaluate_generation(
             forced=forced,
         )
         seed = args.seed * 100000 + generation * 1000 + match_index
-        result = run_match(
-            match_id=f"selftrain_{run_id}_g{generation}_{match_index}",
-            bot_paths=bots,
-            n_hands=args.hands,
-            verbose=False,
-            seed=seed,
-        )
+        tasks.append({
+            "match_index": match_index,
+            "match_id": f"selftrain_{run_id}_g{generation}_{match_index}",
+            "bots": bots,
+            "hands": args.hands,
+            "seed": seed,
+        })
+    matches = map_parallel(
+        _run_self_training_match,
+        tasks,
+        workers=args.workers,
+        backend=args.parallel_backend,
+    )
+    matches.sort(key=lambda row: row["match"])
+    for result in matches:
         for bot_id, delta in result["chip_delta"].items():
             if not bot_id.startswith("h"):
                 continue
             name = bot_id.split("_", 1)[1]
             scores.setdefault(name, []).append(delta)
-        matches.append({
-            "match": match_index,
-            "seed": seed,
-            "chip_delta": result["chip_delta"],
-            "final_stacks": result["final_stacks"],
-            "bot_errors": result["bot_errors"],
-        })
     ranked = []
     for item in population:
         values = scores.get(item["name"], [])
@@ -233,6 +255,8 @@ def main():
     parser.add_argument("--hands", type=int, default=240)
     parser.add_argument("--min-heuristics", type=int, default=2)
     parser.add_argument("--max-heuristics", type=int, default=3)
+    parser.add_argument("--workers", type=int, default=1, help="Parallel match workers per generation; use 0 for auto")
+    parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--seed", type=int, default=8080)
     parser.add_argument("--generated-root", default=str(DEFAULT_GENERATED_ROOT))
     parser.add_argument("--result-root", default=str(DEFAULT_RESULT_ROOT))
