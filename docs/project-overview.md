@@ -28,13 +28,17 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `bots/`: Reference bots, starter template, heuristic bot, simple benchmark bots, and mock competitor bots.
 - `bots/heuristic/`: Current competition bot, optional read-only `data/tables.npz`, and single-file submission entrypoint.
 - `bots/mock_competitors/`: Local-only trained/handwritten benchmark opponents that approximate likely RL/NN/CFR/equity submissions.
-- `bots/strong_mocks/`: Benchmark-only stronger opponents with trained MLP, policy-gradient, CFR-like table, rollout, and ensemble policies.
+- `bots/strong_mocks/`: Benchmark-only stronger opponents with trained MLP,
+  original PPO, independent deep PPO, CFR-like table, rollout, and ensemble
+  policies.
 - `bots/self_training/`: Wrapper template for generated heuristic config variants used in local self-training matches.
 - `tools/evaluate_heuristic.py`: Seeded benchmark harness for core, stress, and mock suites.
 - `tools/select_heuristic_config.py`: Risk-aware config ranking and promotion-screen harness.
 - `tools/strong_mocks/`: Shared feature/action abstractions, strong mock trainers, and evolutionary self-training pipeline.
 - `tools/strong_mocks/train_real_policy.py`: Fullhouse in-process real
   self-play trainer for PPO-style and CFR+/bucket strong mock policies.
+- `tools/strong_mocks/train_deep_ppo.py`: Independent deep PPO trainer with
+  more hidden layers and a 14-arm action abstraction.
 - `tools/strong_mocks/league_train.py`: League-style staged trainer with
   train/eval pool separation and promotion gates for strong mock policies.
 - `tools/coevolve_training.py`: End-to-end alternating PPO/heuristic

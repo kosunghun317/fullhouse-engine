@@ -19,7 +19,7 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/training-pipelines.md` before changing real training, league
   training, fast matches, self-training, or coevolution scripts.
 - Read `docs/ppo-bot-logic.md` before changing `bots/strong_mocks/ppo_policy`
-  or PPO training logic.
+  `bots/strong_mocks/ppo_deep_policy`, or PPO training logic.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic
   changes or promoting a default.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
@@ -86,6 +86,13 @@ Normal large entrypoints are:
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
+```
+
+For independent deep PPO experiments that must not touch the existing
+`ppo_policy`, use:
+
+```bash
+poetry run python tools/strong_mocks/train_deep_ppo.py --output bots/strong_mocks/ppo_deep_policy/data/policy.npz --progress --json
 ```
 
 For a serious but bounded real-opponent run on a laptop, prefer:

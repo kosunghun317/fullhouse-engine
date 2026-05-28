@@ -41,6 +41,7 @@ graph TD
 | `scripts/train_opponents_real.sh` | Train PPO and bucket/CFR-like strong mocks from real Fullhouse rollouts. | `runs/fullhouse_real_training/<run-id>/` and optional mock artifacts |
 | `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools. | `runs/fullhouse_self_training/<run-id>/` |
 | `tools/strong_mocks/train_real_policy.py` | Direct low-level PPO or bucket training. | One `policy.npz` artifact plus JSONL logs |
+| `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
 | `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | League run directory and optional promoted artifact |
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
 
@@ -89,6 +90,20 @@ Current PPO defaults are intentionally conservative:
 - replay over recent generations,
 - strategic all-in and large-call-off masks,
 - risk-adjusted checkpoint selection with a bust penalty.
+
+If the original PPO mock is being trained in another terminal, do not edit or
+overwrite `bots/strong_mocks/ppo_policy`. Use the independent deep variant:
+
+```bash
+poetry run python tools/strong_mocks/train_deep_ppo.py \
+  --output bots/strong_mocks/ppo_deep_policy/data/policy.npz \
+  --hidden 96,64,32 \
+  --generations 8 \
+  --matches-per-generation 32 \
+  --hands 120 \
+  --progress \
+  --json
+```
 
 Use large enough samples. For meaningful selection, prefer at least:
 

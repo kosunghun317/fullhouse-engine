@@ -2,9 +2,11 @@
 
 Reviewed: 2026-05-28.
 
-This document explains `bots/strong_mocks/ppo_policy`. It is a benchmark-only
-opponent used for local stress tests and coevolution. It is not the submitted
-heuristic bot.
+This document explains PPO-style strong mocks. `bots/strong_mocks/ppo_policy`
+is the original 8-arm benchmark opponent. `bots/strong_mocks/ppo_deep_policy`
+is an independent deep variant with more hidden layers and a wider action
+space. Both are benchmark-only opponents used for local stress tests and
+coevolution. They are not the submitted heuristic bot.
 
 ## File Map
 
@@ -12,10 +14,15 @@ heuristic bot.
 | --- | --- |
 | `bots/strong_mocks/ppo_policy/bot.py` | Submission-shaped wrapper that exposes `decide(state)`. |
 | `bots/strong_mocks/ppo_policy/data/policy.npz` | Exported model weights and metadata. Generated artifact, not hand-edited. |
+| `bots/strong_mocks/ppo_deep_policy/bot.py` | Independent deep PPO wrapper. Does not touch the original `ppo_policy`. |
+| `bots/strong_mocks/ppo_deep_policy/data/policy.npz` | Deep PPO artifact with 3 hidden layers by default and 14 action arms. |
 | `tools/strong_mocks/policies.py` | Runtime inference helpers for PPO, CFR bucket, rollout, and ensemble mocks. |
+| `tools/strong_mocks/deep_policies.py` | Runtime inference helpers for the independent deep PPO mock. |
 | `tools/strong_mocks/features.py` | Public-state feature vector used by the model. |
 | `tools/strong_mocks/actions.py` | Eight-action abstraction, legalization, and strategic masks. |
+| `tools/strong_mocks/deep_actions.py` | Fourteen-action abstraction for the deep PPO mock. |
 | `tools/strong_mocks/train_real_policy.py` | Real Fullhouse self-play trainer that exports PPO artifacts. |
+| `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO trainer with oracle bootstrap plus real rollouts. |
 
 ## Runtime Decision Flow
 
@@ -184,6 +191,37 @@ agent.
 - The current PPO bot is benchmark-only. Do not upload it as the competition
   bot unless the strategy changes.
 
+## Deep PPO Variant
+
+`ppo_deep_policy` was added because the original PPO mock still showed weak
+and unstable learning. It deliberately avoids modifying `ppo_policy`, so
+currently running training jobs are unaffected.
+
+Differences:
+
+| Area | Original PPO | Deep PPO |
+| --- | --- | --- |
+| Bot path | `bots/strong_mocks/ppo_policy` | `bots/strong_mocks/ppo_deep_policy` |
+| Trainer | `train_real_policy.py --kind ppo` | `train_deep_ppo.py` |
+| Default hidden layers | one hidden layer | `96,64,32` |
+| Action arms | 8 | 14 |
+| Extra features | shared 32 features | shared 32 plus 16 interaction features |
+| Bootstrap | optional via existing artifact/resume | supervised oracle bootstrap before rollout PPO |
+| Artifact | `model_type=ppo_mlp` | `model_type=deep_ppo_mlp` |
+
+Deep PPO action arms:
+
+```text
+fold, check_call, raise_min,
+raise_025, raise_033, raise_045, raise_055, raise_067,
+raise_085, raise_100, raise_125, raise_160, raise_220,
+all_in
+```
+
+The extra raise sizes are intended to stress threshold and bucketed opponents
+more directly. The deep strategic mask still blocks weak deep-stack all-ins,
+large call-offs, and oversized overbets with weak hands.
+
 ## Useful Commands
 
 Train PPO through the real Fullhouse trainer:
@@ -214,4 +252,23 @@ Run focused PPO tests:
 
 ```bash
 poetry run pytest -q tests/test_real_policy_training.py
+```
+
+Train the independent deep PPO mock:
+
+```bash
+poetry run python tools/strong_mocks/train_deep_ppo.py \
+  --generations 8 \
+  --matches-per-generation 32 \
+  --hands 120 \
+  --hidden 96,64,32 \
+  --opponent-pool fast \
+  --progress \
+  --json
+```
+
+Focused deep PPO tests:
+
+```bash
+poetry run pytest -q tests/test_deep_ppo.py
 ```
