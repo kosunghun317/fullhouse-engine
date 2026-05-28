@@ -33,7 +33,8 @@ Effort scale:
 | 15 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
 | 16 | Weak-spot candidate controls | 2 | Pressure/large-bet/trap knobs exist and are benchmarkable without default changes. | Keep env knobs and named configs; rerun held-out gates before any promotion. | Candidate-only |
 | 17 | Postflop feature candidate controls | 3 | Top-pair/overpair, board-pair danger, blocker bluff, delayed probe, and pot-odds-like sizing knobs are implemented and benchmarkable. | Keep default guarded; run candidate/promotion screens before promotion. | Implemented, not promoted |
-| 18 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Scaffolded |
+| 18 | Targeted profile selection | 2 | Facing-bet decisions use the latest aggressor profile; betting decisions treat one active station/maniac as relevant even at a mixed table. | Add cheap raise-size bins, last-aggressor lookup, and active-opponent priority profile; keep env switch to disable for paired A/B gates. | Done |
+| 19 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Scaffolded |
 
 ## Improvement Dependency Map
 
@@ -45,8 +46,10 @@ graph TD
     Preflop --> SPR["SPR-aware commitment"]
     Equity --> HandFeatures["Postflop hand features"]
     Opponent --> Pressure["Pressure-fold and pot-odds suspicion"]
+    Opponent --> TargetProfile["Targeted profile selection"]
     SPR --> Promoted["Promoted baseline defaults"]
     Pressure --> Promoted
+    TargetProfile --> Promoted
     HandFeatures --> Candidate["Candidate-only controls - line-aware, blocker-probe, pair-danger"]
     Promoted --> Benchmarks["final benchmark gate"]
     Candidate --> Gate["candidate / promotion / final gates"]
@@ -115,6 +118,10 @@ Implemented candidate status:
 - Postflop feature controls are implemented as candidate diagnostics:
   `line-aware`, `blocker-probe`, and `pair-danger`. Keep defaults unchanged
   until a fresh held-out promotion gate proves otherwise.
+- Targeted profile selection is part of the active default. It still avoids
+  exact previous-street parsing because the live action log is flat; it only
+  uses the latest aggressor for facing-bet decisions and station/maniac
+  priority for initiated bets.
 - E2E coevolution is implemented in `tools/coevolve_training.py` and
   `scripts/train_e2e_coevolution.sh`. It adds preflop threshold/raise-size
   mutation to the heuristic self-training space and seats the latest selected
@@ -168,8 +175,10 @@ Implement in rank order until a benchmark regression appears. For every bot logi
 1. Run `poetry run python sandbox/validator.py bots/heuristic/bot.py`.
 2. Run at least one short smoke match.
 3. Run the benchmark matrix before calling the change complete.
-4. Update this backlog status and any affected logic docs.
-5. Commit the slice.
+4. For default promotion, prefer `tools/paired_heuristic_gate.py` so incumbent
+   and candidate are compared on identical suite/seed pairs.
+5. Update this backlog status and any affected logic docs.
+6. Commit the slice.
 
 Final acceptance run:
 

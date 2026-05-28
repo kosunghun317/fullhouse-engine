@@ -19,6 +19,7 @@ The bot now exposes env vars for the major audited knobs. This makes benchmark s
 | Off-bucket sizing | Active low-frequency sizing perturbation | May exploit threshold/bucket bots, but can also overpay for folds or reduce value. | Keep monitoring `sizing_6max`, `mock_bucket_6max`, and final matrix runs. |
 | Preflop score cutoffs | `88`, `72`, `62`, `58`, and raise-facing cutoffs | Generated 169 table exists, but action boundaries are still rough. | Convert to env-tunable thresholds or small matrix; tune by position/profile with 100-run 6-max benchmark. |
 | Opponent profile thresholds | Raise/call/fold rates such as `0.33`, `0.42`, `0.62` | Based on intuitive behavior classes, not calibrated from hand histories. | After Day 1 histories, compare classifications against actual showdown/action leaks. |
+| Target profile selection | `HEURISTIC_PROFILE_TARGETING_ENABLED=1.0` | It is poker-sensible to use the latest aggressor when facing a bet and stations/maniacs when initiating action, but this can still misclassify sparse samples. | Compare against `profile-targeting-off` with `tools/paired_heuristic_gate.py`; require paired mean/median improvement and no bust/error regression. |
 | Equity context correction | Adjustments such as `-0.045` vs nit, `+0.025` vs maniac | Transparent but hand-authored replacement for true range-weighted equity. | Sweep corrections; reject if heads-up gain harms 6-max acceptance run. |
 | Mixed pressure guard | Default extra mixed-table pressure call/risk bonuses are `0.0` | Candidate testing did not beat baseline at 30 seeds, but pressure-heavy tables remain high variance. | Retest only with a more specific detector than table profile `mixed`. |
 | Trap checks | Default `HEURISTIC_TRAP_CHECK_PROB=0.0` | Low-frequency traps are plausible versus aggressive models, but first candidate hurt pressure/mixed robustness. | Reintroduce only with stronger hand/action-line filters and a candidate screen. |
@@ -47,6 +48,7 @@ These are practical abstractions, not solved sizes. The reason for fixed sizes i
 Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 
 - `baseline`
+- `profile-targeting-off`
 - `anti-bucket`
 - `conservative`
 - `equity-control`
@@ -77,6 +79,9 @@ The committed bot table is explicit and generated from deterministic sampled hea
 Current tuning decision:
 
 - `baseline` is the active submitted default.
+- `HEURISTIC_PROFILE_TARGETING_ENABLED=1.0` stays active after a 9-run paired
+  smoke where `profile-targeting-off` was not promotable; rerun larger
+  promotion/final gates before changing it.
 - `pressure`, `small-ball`, `spr-aware`, and `anti-bucket` remain comparison
   configs, not production defaults.
 - `pressure-control`, `equity-control`, `trap-control`, and
@@ -107,6 +112,23 @@ poetry run python tools/select_heuristic_config.py \
   --progress \
   --json
 ```
+
+Paired incumbent-vs-candidate gate:
+
+```bash
+poetry run python tools/paired_heuristic_gate.py \
+  --incumbent baseline \
+  --candidate profile-targeting-off \
+  --preset promotion \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+The paired gate runs incumbent and candidates on the same suite/seed/hands
+tasks and reports paired chip-delta differences. Use it before promoting or
+reverting any submitted default.
 
 ## Refactor Boundary
 

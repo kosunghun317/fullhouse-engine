@@ -55,7 +55,8 @@ bot errors. Raw mean delta alone is not enough.
 graph TD
     Candidate["candidate config or logic change"] --> Smoke["smoke benchmark"]
     Smoke --> Focused["focused held-out screen"]
-    Focused --> Final["final promotion matrix"]
+    Focused --> Paired["paired incumbent comparison"]
+    Paired --> Final["final promotion matrix"]
     Final --> Gate{"better risk-adjusted result?"}
     Gate -->|yes| Promote["promote intentionally"]
     Gate -->|no| Reject["keep incumbent"]
@@ -103,6 +104,23 @@ poetry run python tools/select_heuristic_config.py \
   --json
 ```
 
+Paired default-promotion gate:
+
+```bash
+poetry run python tools/paired_heuristic_gate.py \
+  --incumbent baseline \
+  --candidate CANDIDATE_CONFIG \
+  --preset promotion \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+Use the paired gate when deciding whether a candidate should replace or
+disable an active default. It compares identical suite/seed pairs and reports
+mean, median, 10th-percentile, win rate, bust, and error deltas.
+
 ## What To Record For New Runs
 
 When a run matters, write a short dated note in this file with:
@@ -121,6 +139,12 @@ artifact directory.
 ## Current Active Notes
 
 - The active competition bot is `bots/heuristic`.
+- 2026-05-28 paired smoke for targeted profile selection kept the active
+  default enabled. Command:
+  `poetry run python tools/paired_heuristic_gate.py --incumbent baseline --candidate profile-targeting-off --suite reference_6max --suite mixed_stress_6max --suite mock_adaptive_6max --seeds 9101,9102,9103 --hands 120 --workers 0 --parallel-backend process --json`.
+  Result over 9 paired runs: disabling targeting had `mean_diff=-7530.22`,
+  `median_diff=-5019`, `p10_diff=-28943.8`, `win_rate=0.3333`, and 2 extra
+  busts, so it was not promotable.
 - Strong mocks are benchmark opponents only.
 - PPO mock training previously had unstable learning due rollout/inference and
   call-off issues; see `docs/ppo-bot-logic.md` for the corrected runtime and

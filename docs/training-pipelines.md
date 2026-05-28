@@ -16,6 +16,7 @@ or training benchmark-only mock opponents.
 graph TD
     Heuristic["bots/heuristic - competition bot"] --> Eval["tools/evaluate_heuristic.py"]
     Eval --> Select["tools/select_heuristic_config.py"]
+    Eval --> PairedGate["tools/paired_heuristic_gate.py"]
     Select --> HeurSelf["tools/strong_mocks/self_train_heuristic.py"]
 
     StrongMocks["bots/strong_mocks"] --> Eval
@@ -44,6 +45,7 @@ graph TD
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector training; preferred RL-assisted architecture. | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` or a custom output |
 | `tools/strong_mocks/tune_arm_selector_params.py` | CEM/racing tuner for selector thresholds and bet-sizing constants. | `runs/arm_selector_param_tuning/<run-id>/` plus optional promoted `params.npz` |
+| `tools/paired_heuristic_gate.py` | Paired incumbent-vs-candidate default-promotion checks on identical suite/seed tasks. | JSON report with paired mean/median/p10/win-rate and promotable flag |
 | `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | League run directory and optional promoted artifact |
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
 
@@ -66,6 +68,23 @@ graph TD
 
 Default principle: train on one pool, evaluate on a held-out pool, and promote
 only after the held-out score and bust rate are acceptable.
+
+For submitted-bot default changes, use paired comparisons after smoke tests:
+
+```bash
+poetry run python tools/paired_heuristic_gate.py \
+  --incumbent baseline \
+  --candidate profile-targeting-off \
+  --preset promotion \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+The gate is intentionally conservative: paired mean and median must improve,
+the 10th-percentile paired difference cannot collapse, win rate must clear the
+configured threshold, and errors/busts cannot regress beyond the allowed cap.
 
 ## Cumulative Runs
 

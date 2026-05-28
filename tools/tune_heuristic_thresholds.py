@@ -19,6 +19,9 @@ from tools.evaluate_heuristic import run_suite
 
 CONFIGS = {
     "baseline": {},
+    "profile-targeting-off": {
+        "HEURISTIC_PROFILE_TARGETING_ENABLED": "0.0",
+    },
     "legacy-baseline": {
         "HEURISTIC_SPR_LOW_VALUE_DISCOUNT": "0.0",
         "HEURISTIC_SPR_LOW_THIN_VALUE_DISCOUNT": "0.0",

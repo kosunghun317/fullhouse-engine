@@ -75,6 +75,16 @@ For full benchmark summaries, run:
 poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```
 
+For default-promotion decisions, prefer paired incumbent-vs-candidate gates:
+
+```bash
+poetry run python tools/paired_heuristic_gate.py --incumbent baseline --candidate CANDIDATE_CONFIG --preset promotion --workers 0 --parallel-backend process --progress --json
+```
+
+Use this before promoting or reverting submitted-bot defaults because it
+compares identical suite/seed pairs and exposes paired mean, median, p10, win
+rate, bust, and error changes.
+
 For expanded mock-family screens, run:
 
 ```bash

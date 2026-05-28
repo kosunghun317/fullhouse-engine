@@ -129,9 +129,13 @@ FLOP_SAMPLES = _int_env("HEURISTIC_FLOP_SAMPLES", 520)
 TURN_SAMPLES = _int_env("HEURISTIC_TURN_SAMPLES", 700)
 RIVER_SAMPLES = _int_env("HEURISTIC_RIVER_SAMPLES", 900)
 MULTIWAY_SAMPLE_FACTOR = _float_env("HEURISTIC_MULTIWAY_SAMPLE_FACTOR", 0.75)
+PROFILE_TARGETING_ENABLED = _float_env("HEURISTIC_PROFILE_TARGETING_ENABLED", 1.0)
 PROFILE_MANIAC_RAISE_RATE = _float_env("HEURISTIC_PROFILE_MANIAC_RAISE_RATE", 0.33)
 PROFILE_MANIAC_ALL_IN_RATE = _float_env("HEURISTIC_PROFILE_MANIAC_ALL_IN_RATE", 0.10)
 PROFILE_MANIAC_AVG_RAISE_BB = _float_env("HEURISTIC_PROFILE_MANIAC_AVG_RAISE_BB", 8.0)
+PROFILE_SMALL_RAISE_BB = _float_env("HEURISTIC_PROFILE_SMALL_RAISE_BB", 3.5)
+PROFILE_LARGE_RAISE_BB = _float_env("HEURISTIC_PROFILE_LARGE_RAISE_BB", 6.0)
+PROFILE_LARGE_RAISE_RATE = _float_env("HEURISTIC_PROFILE_LARGE_RAISE_RATE", 0.16)
 PROFILE_STATION_CALL_RATE = _float_env("HEURISTIC_PROFILE_STATION_CALL_RATE", 0.42)
 PROFILE_STATION_FOLD_RATE = _float_env("HEURISTIC_PROFILE_STATION_FOLD_RATE", 0.25)
 PROFILE_NIT_FOLD_RATE = _float_env("HEURISTIC_PROFILE_NIT_FOLD_RATE", 0.42)
@@ -526,6 +530,9 @@ def _default_stats():
         "all_ins": 0,
         "raise_total": 0,
         "raise_count": 0,
+        "small_raises": 0,
+        "medium_raises": 0,
+        "large_raises": 0,
         "pressure_events": 0,
         "pressure_folds": 0,
         "pressure_calls": 0,
@@ -560,6 +567,13 @@ def _remember_action(action, previous_action=None):
         amount = int(action.get("amount") or 0)
         stats["raise_total"] += amount
         stats["raise_count"] += 1
+        amount_bb = amount / BIG_BLIND
+        if amount_bb <= PROFILE_SMALL_RAISE_BB:
+            stats["small_raises"] += 1
+        elif amount_bb >= PROFILE_LARGE_RAISE_BB:
+            stats["large_raises"] += 1
+        else:
+            stats["medium_raises"] += 1
     elif act == "call":
         stats["calls"] += 1
     elif act == "fold":
@@ -603,6 +617,7 @@ def _profile_for(bot_id):
     call_rate = _rate(stats, "calls")
     fold_rate = _rate(stats, "folds")
     all_in_rate = _rate(stats, "all_ins", prior=0.2, mass=8.0)
+    large_raise_rate = _rate(stats, "large_raises", prior=0.2, mass=8.0)
     pressure_events = stats.get("pressure_events", 0)
     pressure_fold_rate = (
         (stats.get("pressure_folds", 0) + 1) / (pressure_events + 3)
@@ -614,6 +629,7 @@ def _profile_for(bot_id):
         raise_rate > PROFILE_MANIAC_RAISE_RATE
         or all_in_rate > PROFILE_MANIAC_ALL_IN_RATE
         or avg_raise_bb > PROFILE_MANIAC_AVG_RAISE_BB
+        or (large_raise_rate > PROFILE_LARGE_RAISE_RATE and raise_rate > 0.20)
     ):
         return "maniac"
     if call_rate > PROFILE_STATION_CALL_RATE and fold_rate < PROFILE_STATION_FOLD_RATE:
@@ -650,6 +666,74 @@ def _table_profile(state):
         if profiles.count(preferred) >= max(1, len(profiles) // 2):
             return preferred
     return "mixed"
+
+
+def _seat_to_bot_id(state, seat):
+    for player in state.get("players", []):
+        if player.get("seat") == seat:
+            return player.get("bot_id")
+    return None
+
+
+def _active_opponent_profiles(state):
+    hero_seat = state.get("seat_to_act")
+    profiles = []
+    for player in state.get("players", []):
+        if player.get("seat") == hero_seat or player.get("is_folded"):
+            continue
+        profiles.append(_profile_for(player.get("bot_id")))
+    return profiles
+
+
+def _last_aggressor_profile(state):
+    """Return the current facing-bet target when visible from action_log.
+
+    Fullhouse's live action_log is flat and does not include street markers, so
+    this only uses it for the latest raise/all-in profile. When `can_check` is
+    false, any current-street wager must have a recent aggressive action; when
+    the latest aggressor is unknown, keeping the profile unknown is safer than
+    borrowing a table-wide station/nit label from another seat.
+    """
+    if PROFILE_TARGETING_ENABLED <= 0:
+        return _table_profile(state)
+    hero_seat = state.get("seat_to_act")
+    for action in reversed(state.get("action_log", [])):
+        if action.get("action") not in ("raise", "all_in"):
+            continue
+        seat = action.get("seat")
+        if seat == hero_seat:
+            continue
+        bot_id = _seat_to_bot_id(state, seat)
+        if bot_id:
+            return _profile_for(bot_id)
+    return None
+
+
+def _betting_profile(state):
+    """Pick the profile most relevant when hero is initiating action."""
+    if PROFILE_TARGETING_ENABLED <= 0:
+        return _table_profile(state)
+    profiles = _active_opponent_profiles(state)
+    if not profiles:
+        return "unknown"
+    if "station" in profiles:
+        return "station"
+    if "maniac" in profiles:
+        return "maniac"
+    known = [profile for profile in profiles if profile != "unknown"]
+    if not known:
+        return "unknown"
+    if known.count("nit") >= max(1, len(profiles) // 2):
+        return "nit"
+    if known.count("abc") >= max(1, len(profiles) // 2):
+        return "abc"
+    return _table_profile(state)
+
+
+def _decision_profile(state):
+    if not state.get("can_check", False):
+        return _last_aggressor_profile(state) or _table_profile(state)
+    return _betting_profile(state)
 
 
 def _fold_pressure(state):
@@ -1048,11 +1132,11 @@ def _preflop_policy(state):
     cls = _hand_class(cards)
     score = _preflop_score(cards)
     position = _position_bucket(state)
-    profile = _table_profile(state)
     owed = int(state.get("amount_owed", 0) or 0)
     stack_total = _effective_stack(state)
     pot = max(1, int(state.get("pot", 0) or 0))
     facing_raise = _facing_raise_preflop(state)
+    profile = (_last_aggressor_profile(state) or _table_profile(state)) if facing_raise else _betting_profile(state)
     odds = _pot_odds(state)
     heads_up = len(state.get("players", [])) <= 2
 
@@ -1287,14 +1371,14 @@ def _should_blocker_bluff(state, profile, equity, features, fold_pressure, textu
 
 
 def _postflop_policy(state, equity):
-    profile = _table_profile(state)
+    can_check = bool(state.get("can_check"))
+    profile = _decision_profile(state)
     texture = _board_texture(state)
     features = _hand_features(state)
     equity = _adjust_equity_for_context(state, equity, profile, features)
     odds = _pot_odds(state)
     owed = int(state.get("amount_owed", 0) or 0)
     pot = max(1, int(state.get("pot", 0) or 0))
-    can_check = bool(state.get("can_check"))
     opponents = _active_opponent_count(state)
     fold_pressure = _fold_pressure(state)
     spr = _stack_to_pot_ratio(state)

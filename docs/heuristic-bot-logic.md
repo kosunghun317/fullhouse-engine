@@ -14,8 +14,9 @@ Its core idea:
 2. Estimate hand strength fast enough to stay far below the 2-second action limit.
 3. Track public opponent actions in memory.
 4. Classify opponents into simple behavioral types.
-5. Adjust call thresholds, bluff frequency, and bet sizing by table profile.
-6. Route every final decision through one action sanitizer so illegal outputs are avoided.
+5. Select the decision-relevant profile: latest aggressor when facing a bet, or the most important active caller/raiser profile when initiating action.
+6. Adjust call thresholds, bluff frequency, and bet sizing by that target/table profile.
+7. Route every final decision through one action sanitizer so illegal outputs are avoided.
 
 The submitted bot is intentionally a single file:
 
@@ -55,7 +56,7 @@ graph TD
     Warmup -->|no| Try["start guarded try block - record time budget"]
     Try --> Memory["update OPPONENTS from match_action_log"]
     Memory --> Street{"street"}
-    Street -->|preflop| Preflop["preflop policy - 169-class score + position + profile"]
+    Street -->|preflop| Preflop["preflop policy - 169-class score + position + target profile"]
     Street -->|flop / turn / river| Equity["bounded eval7 equity - cache + sample budget"]
     Equity --> Features["board texture and hand features"]
     Features --> Postflop["postflop policy - value / call / bluff / check"]
@@ -74,9 +75,10 @@ graph TD
 graph TD
     State["Public state"] --> Parse["state parsing - pot odds, stack, position"]
     Parse --> Opponent["opponent model - nit / station / maniac / abc / mixed"]
+    Opponent --> Target["target profile - last aggressor or active caller mix"]
     Parse --> Strength["hand strength - preflop table or eval7 equity"]
     Parse --> Texture["board texture - wet / dry / medium"]
-    Opponent --> Thresholds["threshold adjustments - call margin, risk guard, - fold pressure"]
+    Target --> Thresholds["threshold adjustments - call margin, risk guard, - fold pressure"]
     Strength --> Thresholds
     Texture --> Thresholds
     Thresholds --> ActionClass["action class - value, thin value, - semi-bluff, bluff, - call, fold, check"]
@@ -134,6 +136,10 @@ Local tuning env vars:
 | `HEURISTIC_BOARD_PAIR_DANGER_PENALTY` | `0.0` | Candidate-only penalty for one-pair hands on paired boards. |
 | `HEURISTIC_POT_ODDS_SIZING_*` | enabled, guarded | Threshold-caller suspicion and value/bluff sizing adjustments. |
 | `HEURISTIC_*_SAMPLES` | `520/700/900` | Flop, turn, and river Monte Carlo sample counts. |
+| `HEURISTIC_PROFILE_TARGETING_ENABLED` | `1.0` | Uses last aggressor profile when facing bets and active opponent priority when betting. |
+| `HEURISTIC_PROFILE_SMALL_RAISE_BB` | `3.5` | Small raise-size bin cutoff used by the public opponent model. |
+| `HEURISTIC_PROFILE_LARGE_RAISE_BB` | `6.0` | Large raise-size bin cutoff used by the public opponent model. |
+| `HEURISTIC_PROFILE_LARGE_RAISE_RATE` | `0.16` | Large-raise rate that can contribute to maniac classification. |
 | `HEURISTIC_PROFILE_*` | varies | Opponent profile classification thresholds. |
 
 Hand-class groups:
@@ -227,6 +233,9 @@ For each opponent, it tracks:
 - `all_ins`
 - `raise_total`
 - `raise_count`
+- `small_raises`
+- `medium_raises`
+- `large_raises`
 - `pressure_events`
 - `pressure_folds`
 - `pressure_calls`
@@ -249,12 +258,20 @@ Current behavior profiles:
 | Profile | Condition |
 | --- | --- |
 | `unknown` | Fewer than 10 recorded actions or no clear pattern. |
-| `maniac` | Raise rate above `0.33`, all-in rate above `0.10`, or average raise size above `8 BB`. |
+| `maniac` | Raise rate above `0.33`, all-in rate above `0.10`, average raise size above `8 BB`, or high large-raise frequency with enough total raises. |
 | `station` | Call rate above `0.42` and fold rate below `0.25`, or low pressure-fold rate with high call rate. |
 | `nit` | Fold rate above `0.42` and raise rate below `0.18`, or high pressure-fold rate with low raise rate. |
 | `abc` | Raise rate below `0.20` and call rate below `0.34`. |
 
 `_table_profile(state)` summarizes the remaining table. It returns a profile when that profile appears in at least half of visible non-hero, non-folded opponents. Otherwise it returns `mixed`.
+
+`_decision_profile(state)` is the profile used by the policy:
+
+- When facing a bet, it uses the latest visible aggressor from `action_log` and the corresponding `bot_id` in `players`.
+- When initiating action, it prioritizes active stations first, then maniacs, then nit/ABC majorities.
+- If targeting is disabled through `HEURISTIC_PROFILE_TARGETING_ENABLED=0`, the bot falls back to table-wide profiling.
+
+This is deliberately narrower than full street-line parsing. The live `action_log` is flat, so the submitted bot does not try to reconstruct exact previous-street action trees at runtime.
 
 `_fold_pressure(state)` maps table profile to an approximate fold likelihood:
 
@@ -416,7 +433,7 @@ The preflop policy computes:
 - Hand class.
 - Preflop score.
 - Position bucket.
-- Table profile.
+- Target/table profile.
 - Pot odds.
 - Effective stack.
 - Whether the bot is facing a raise.
