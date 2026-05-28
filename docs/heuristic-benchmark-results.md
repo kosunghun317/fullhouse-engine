@@ -64,6 +64,15 @@ graph TD
 
 ## Core Commands
 
+Run-and-forget submission pipeline:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/run_submission_pipeline.sh
+```
+
+This writes all reports to `runs/submission_pipeline/<run-id>/` and rebuilds
+the upload zip at `dist/heuristic_bot.zip`.
+
 Focused selector run:
 
 ```bash

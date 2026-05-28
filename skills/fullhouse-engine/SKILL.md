@@ -75,6 +75,15 @@ For full benchmark summaries, run:
 poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```
 
+For a one-command unattended submission pass, run:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/run_submission_pipeline.sh
+```
+
+This writes reports under `runs/submission_pipeline/<run-id>/` and rebuilds
+`dist/heuristic_bot.zip`.
+
 For default-promotion decisions, prefer paired incumbent-vs-candidate gates:
 
 ```bash

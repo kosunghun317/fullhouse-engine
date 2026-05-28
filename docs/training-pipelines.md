@@ -38,6 +38,7 @@ graph TD
 
 | Entry point | Use when | Output |
 | --- | --- | --- |
+| `scripts/run_submission_pipeline.sh` | One-command unattended submission hardening, paired gates, strong/mock screens, final matrix, and zip rebuild. | `runs/submission_pipeline/<run-id>/` plus `dist/heuristic_bot.zip` |
 | `scripts/train_e2e_coevolution.sh` | Alternating PPO mock training and heuristic parameter evolution. | `runs/fullhouse_coevolution/<run-id>/` |
 | `scripts/train_opponents_real.sh` | Train PPO and bucket/CFR-like strong mocks from real Fullhouse rollouts. | `runs/fullhouse_real_training/<run-id>/` and optional mock artifacts |
 | `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools. | `runs/fullhouse_self_training/<run-id>/` |
@@ -68,6 +69,17 @@ graph TD
 
 Default principle: train on one pool, evaluate on a held-out pool, and promote
 only after the held-out score and bust rate are acceptable.
+
+The run-and-forget submission command is:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/run_submission_pipeline.sh
+```
+
+It writes JSON reports, `pipeline.log`, and `SUMMARY.md` under
+`runs/submission_pipeline/<run-id>/`, then leaves the upload candidate at
+`dist/heuristic_bot.zip`. It does not auto-promote candidate configs; use its
+paired-gate report to decide whether a follow-up source change is justified.
 
 For submitted-bot default changes, use paired comparisons after smoke tests:
 
