@@ -9,7 +9,15 @@ import numpy as np
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
-from tools.strong_mocks import train_arm_selector
+from tools.strong_mocks import train_arm_selector, tune_arm_selector_params
+from tools.strong_mocks.arm_selector_params import (
+    PARAM_NAMES,
+    coerce_params,
+    load_params_npz,
+    params_from_vector,
+    save_params_npz,
+    vector_from_params,
+)
 from tools.strong_mocks.arm_selector_policy import (
     SELECTOR_FEATURE_NAMES,
     candidate_matrix,
@@ -75,6 +83,35 @@ def test_candidate_matrix_shape_matches_selector_features():
     assert matrix.shape == (len(ARM_NAMES), len(SELECTOR_FEATURE_NAMES))
 
 
+def test_selector_params_roundtrip_and_clip(tmp_path):
+    params = coerce_params({"call_margin_base": 9.0, "pressure_bluff_fraction": -1.0})
+    assert params["call_margin_base"] <= 0.16
+    assert params["pressure_bluff_fraction"] >= 0.35
+
+    normalized = vector_from_params(params, normalized=True)
+    restored = params_from_vector(normalized, normalized=True)
+    assert set(restored) == set(PARAM_NAMES)
+    assert abs(restored["call_margin_base"] - params["call_margin_base"]) < 1e-6
+
+    path = tmp_path / "params.npz"
+    save_params_npz(path, restored, source="test")
+    loaded = load_params_npz(path)
+    assert loaded["pressure_bluff_fraction"] == restored["pressure_bluff_fraction"]
+
+
+def test_expert_candidate_generation_accepts_tuned_params():
+    state = _sample_state()
+    default_candidates = generate_candidates(state)
+    tuned = coerce_params({"value_threshold_base": 0.82})
+    tuned_candidates = generate_candidates(state, tuned)
+
+    default_action = next(candidate for candidate in default_candidates if candidate.arm == "default_tag").action
+    tuned_action = next(candidate for candidate in tuned_candidates if candidate.arm == "default_tag").action
+
+    assert default_action["action"] == "raise"
+    assert tuned_action["action"] == "check"
+
+
 def test_selector_fallback_returns_legal_action_without_artifact(tmp_path):
     action = decide_arm_selector(_sample_state(), str(tmp_path), sample=False)
 
@@ -122,3 +159,17 @@ def test_supervised_bootstrap_improves_selector_agreement():
     assert result["bootstrap_final_loss"] < result["bootstrap_initial_loss"]
     assert result["bootstrap_final_agreement"] >= result["bootstrap_initial_agreement"]
 
+
+def test_tuning_stage_parser_requires_explicit_budget_shape():
+    stages = tune_arm_selector_params._parse_stages("2:10:0.5,4:20:1.0")
+
+    assert [stage.matches for stage in stages] == [2, 4]
+    assert [stage.hands for stage in stages] == [10, 20]
+    assert stages[-1].keep_frac == 1.0
+
+
+def test_tuning_default_stage_budget_is_statistically_gated():
+    stages = tune_arm_selector_params._parse_stages(tune_arm_selector_params.DEFAULT_STAGE_SPEC)
+    final = stages[-1]
+
+    assert final.matches * final.hands >= 6400

@@ -8,6 +8,7 @@ from functools import lru_cache
 
 import numpy as np
 
+from tools.strong_mocks.arm_selector_params import coerce_params, load_params
 from tools.strong_mocks.expert_arms import (
     ARM_NAMES,
     INTENTS,
@@ -100,8 +101,13 @@ def candidate_feature_vector(state: dict, candidate: Candidate, base_features: n
     return np.concatenate([base, meta, intents, targets, arms]).astype(np.float32)
 
 
-def candidate_matrix(state: dict, candidates: list[Candidate] | None = None) -> tuple[list[Candidate], np.ndarray]:
-    rows = candidates if candidates is not None else generate_candidates(state)
+def candidate_matrix(
+    state: dict,
+    candidates: list[Candidate] | None = None,
+    params: dict[str, float] | None = None,
+) -> tuple[list[Candidate], np.ndarray]:
+    params = coerce_params(params)
+    rows = candidates if candidates is not None else generate_candidates(state, params)
     base = extract_features(state).astype(np.float32) if state.get("type") != "warmup" else np.zeros(len(FEATURE_NAMES), dtype=np.float32)
     if not rows:
         rows = generate_candidates({"type": "warmup"})
@@ -109,8 +115,9 @@ def candidate_matrix(state: dict, candidates: list[Candidate] | None = None) -> 
     return rows, matrix
 
 
-def fallback_scores(candidates: list[Candidate]) -> np.ndarray:
-    return np.asarray([default_candidate_score(candidate) for candidate in candidates], dtype=np.float64)
+def fallback_scores(candidates: list[Candidate], params: dict[str, float] | None = None) -> np.ndarray:
+    params = coerce_params(params)
+    return np.asarray([default_candidate_score(candidate, params) for candidate in candidates], dtype=np.float64)
 
 
 @lru_cache(maxsize=32)
@@ -128,8 +135,8 @@ def _policy_path(data_dir: str) -> str:
     return os.path.join(data_dir, "policy.npz")
 
 
-def _model_scores(model: dict | None, x: np.ndarray, candidates: list[Candidate]) -> np.ndarray:
-    scores = fallback_scores(candidates)
+def _model_scores(model: dict | None, x: np.ndarray, candidates: list[Candidate], params: dict[str, float]) -> np.ndarray:
+    scores = fallback_scores(candidates, params)
     if model is None or "weights" not in model:
         return scores
     weights = model["weights"].astype(np.float64)
@@ -159,10 +166,12 @@ def choose_candidate(
     data_dir: str,
     sample: bool = False,
     candidates: list[Candidate] | None = None,
+    params: dict[str, float] | None = None,
 ) -> tuple[Candidate, dict]:
-    rows, matrix = candidate_matrix(state, candidates)
+    params = load_params(data_dir) if params is None else coerce_params(params)
+    rows, matrix = candidate_matrix(state, candidates, params)
     model = _load_npz(_policy_path(data_dir))
-    scores = _model_scores(model, matrix, rows)
+    scores = _model_scores(model, matrix, rows, params)
     temperature = 0.42
     if model is not None and "temperature" in model:
         temperature = float(np.asarray(model["temperature"]).reshape(-1)[0])
@@ -194,4 +203,3 @@ def decide_arm_selector(state: dict, data_dir: str, sample: bool = False) -> dic
         return {"action": "check"}
     candidate, _info = choose_candidate(state, data_dir, sample=sample)
     return dict(candidate.action)
-

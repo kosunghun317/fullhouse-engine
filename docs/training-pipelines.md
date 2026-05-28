@@ -43,6 +43,7 @@ graph TD
 | `tools/strong_mocks/train_real_policy.py` | Direct low-level PPO or bucket training. | One `policy.npz` artifact plus JSONL logs |
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector training; preferred RL-assisted architecture. | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` or a custom output |
+| `tools/strong_mocks/tune_arm_selector_params.py` | CEM/racing tuner for selector thresholds and bet-sizing constants. | `runs/arm_selector_param_tuning/<run-id>/` plus optional promoted `params.npz` |
 | `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | League run directory and optional promoted artifact |
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
 
@@ -130,6 +131,39 @@ poetry run python tools/strong_mocks/train_arm_selector.py \
 Small selector runs are allowed only as integration checks. Do not manually
 change thresholds, arm priors, or default constants from smoke-run chip deltas.
 Use the large held-out promotion rules below before changing defaults.
+
+For parameter tuning, use CEM/racing rather than manual source edits:
+
+```bash
+poetry run python tools/strong_mocks/tune_arm_selector_params.py \
+  --run-id arm-selector-cem-$(date +%Y%m%d-%H%M%S) \
+  --generations 6 \
+  --population 32 \
+  --stages 16:400:0.35,64:400:1.0 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+The script uses common seed blocks inside each stage and refuses weak final
+stage budgets unless `--allow-smoke` is explicitly set. To promote a candidate,
+rerun or resume with an intentional output target:
+
+```bash
+poetry run python tools/strong_mocks/tune_arm_selector_params.py \
+  --run-id arm-selector-cem-reviewed \
+  --promote-output bots/strong_mocks/heuristic_rl_selector/data/params.npz \
+  --generations 6 \
+  --population 32 \
+  --stages 16:400:0.35,64:400:1.0 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+Do not use `--allow-smoke` with `--promote-output`.
 
 Use large enough samples. For meaningful selection, prefer at least:
 

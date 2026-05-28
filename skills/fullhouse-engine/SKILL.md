@@ -111,6 +111,16 @@ Do not manually tune selector thresholds or heuristic constants from smoke-run
 chip deltas. Smoke runs check wiring only; promotion needs fixed-seed held-out
 sample sizes from `docs/training-pipelines.md`.
 
+For script-driven selector parameter tuning, use CEM/racing:
+
+```bash
+poetry run python tools/strong_mocks/tune_arm_selector_params.py --generations 6 --population 32 --stages 16:400:0.35,64:400:1.0 --workers 0 --parallel-backend process --progress --json
+```
+
+This writes to `runs/arm_selector_param_tuning/`. Do not pass
+`--promote-output` unless the run uses statistically meaningful stages and the
+held-out report has been reviewed. `--allow-smoke` is for wiring checks only.
+
 For a serious but bounded real-opponent run on a laptop, prefer:
 
 ```bash

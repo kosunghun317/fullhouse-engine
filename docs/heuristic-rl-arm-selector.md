@@ -207,10 +207,13 @@ trained on the wrong action space.
 | File | Role |
 | --- | --- |
 | `tools/strong_mocks/expert_arms.py` | Generates named human-poker candidate actions and metadata. |
+| `tools/strong_mocks/arm_selector_params.py` | Registry of bounded tunable thresholds, bet sizes, and score weights. |
 | `tools/strong_mocks/arm_selector_policy.py` | Builds `(state, candidate)` vectors and scores candidates from `policy.npz`. |
 | `tools/strong_mocks/train_arm_selector.py` | Trains the selector by heuristic-label bootstrap plus optional Fullhouse rollout updates. |
+| `tools/strong_mocks/tune_arm_selector_params.py` | CEM/racing optimizer for parameter vectors; uses common fixed seeds and staged evaluation. |
 | `bots/strong_mocks/heuristic_rl_selector/bot.py` | Benchmark-only runtime wrapper. |
 | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` | Current selector artifact generated from heuristic-teacher bootstrap. |
+| `bots/strong_mocks/heuristic_rl_selector/data/params.npz` | Current explicit parameter artifact; defaults unless a statistically gated tuner run promotes a new one. |
 | `tests/test_arm_selector.py` | Focused tests for candidate generation, selector scoring, and bootstrap learning. |
 
 Run a small integration build with:
@@ -245,6 +248,58 @@ poetry run python sandbox/validator.py bots/strong_mocks/heuristic_rl_selector -
 The selector is a benchmark opponent and research scaffold. It is not the
 submitted `bots/heuristic` competition bot.
 
+## Parameter Tuning
+
+Heuristic thresholds are no longer edited manually in source after smoke runs.
+They are represented as a bounded vector in `arm_selector_params.py` and can be
+stored as `data/params.npz`. The runtime loads `params.npz` if present and
+falls back to the same defaults otherwise.
+
+For continuous thresholds, bet sizes, margins, and classifier cutoffs, this
+repo uses a cross-entropy method style optimizer with successive-halving/racing.
+That choice matches the problem better than ACO, which is mainly useful for
+discrete table search. Random search is a sound baseline for hyperparameter
+spaces where only some knobs matter; Hyperband/successive-halving is a standard
+way to allocate more budget to promising configurations; and CEM/CMA-ES-style
+methods are appropriate black-box optimizers for bounded noisy continuous
+parameters.
+
+Serious tuning command:
+
+```bash
+poetry run python tools/strong_mocks/tune_arm_selector_params.py \
+  --run-id arm-selector-cem-$(date +%Y%m%d-%H%M%S) \
+  --generations 6 \
+  --population 32 \
+  --stages 16:400:0.35,64:400:1.0 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+This writes to `runs/arm_selector_param_tuning/<run-id>/`, which is
+git-ignored. It does not overwrite the bot artifact unless
+`--promote-output bots/strong_mocks/heuristic_rl_selector/data/params.npz` is
+passed intentionally. Promotion should only happen after reviewing
+`summary.json`, `metrics.jsonl`, and held-out validation.
+
+Smoke-only wiring command:
+
+```bash
+poetry run python tools/strong_mocks/tune_arm_selector_params.py \
+  --run-id smoke-arm-selector-params \
+  --generations 1 \
+  --population 4 \
+  --stages 2:12:0.5,2:12:1.0 \
+  --allow-smoke \
+  --json
+```
+
+Do not promote from a smoke run. The script refuses statistically weak tuning
+budgets by default; `--allow-smoke` exists only to test file generation,
+candidate materialization, and match execution.
+
 ## Completed Build Plan
 
 1. Added `tools/strong_mocks/expert_arms.py`.
@@ -265,19 +320,25 @@ submitted `bots/heuristic` competition bot.
    - Real Fullhouse rollouts.
    - Risk-adjusted checkpoint selection.
 
-5. Initial validation completed:
+5. Added script-driven parameter tuning.
+   - Bounded normalized parameter vector.
+   - CEM/racing with common seed blocks.
+   - Default refusal of tiny evaluation budgets.
+   - Repo-local `runs/` outputs.
+
+6. Initial validation completed:
    - focused unit tests pass,
    - sandbox validator passes,
    - short unrestricted fast-match wiring check has no bot errors.
 
-6. Future statistically meaningful evaluation should cover:
+7. Future statistically meaningful evaluation should cover:
    - reference bots,
    - threshold/bucket/equity mocks,
    - `rollout_search`,
    - existing `ppo_policy`,
    - existing `ppo_deep_policy`.
 
-7. Only after benchmark success, consider whether any ideas belong in
+8. Only after benchmark success, consider whether any ideas belong in
    `bots/heuristic`. The submitted bot should remain heuristic-first and
    validator-safe.
 

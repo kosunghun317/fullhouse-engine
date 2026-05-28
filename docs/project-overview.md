@@ -42,6 +42,8 @@ The engine calls `decide()` once whenever the bot must act. The bot receives pub
 - `tools/strong_mocks/train_arm_selector.py`: Heuristic expert-arm selector
   trainer; RL chooses among named human-poker candidate plans rather than raw
   actions.
+- `tools/strong_mocks/tune_arm_selector_params.py`: CEM/racing tuner for
+  bounded selector thresholds, bet sizes, and score weights.
 - `tools/strong_mocks/league_train.py`: League-style staged trainer with
   train/eval pool separation and promotion gates for strong mock policies.
 - `tools/coevolve_training.py`: End-to-end alternating PPO/heuristic
