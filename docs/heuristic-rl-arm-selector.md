@@ -2,8 +2,9 @@
 
 Reviewed: 2026-05-28.
 
-This is the preferred direction for any future RL-assisted poker bot in this
-repo.
+This is the preferred direction for RL-assisted poker work in this repo. The
+first benchmark-only implementation now lives in
+`bots/strong_mocks/heuristic_rl_selector`.
 
 The core idea is not "let a PPO network pick raw poker actions." That produced
 exactly the wrong failure mode: the network found volatile calls/raises, then
@@ -201,34 +202,82 @@ training:
 If a guardrail has to block many selected actions, the selector is being
 trained on the wrong action space.
 
-## Implementation Plan
+## Current Implementation
 
-1. Add `tools/strong_mocks/expert_arms.py`.
+| File | Role |
+| --- | --- |
+| `tools/strong_mocks/expert_arms.py` | Generates named human-poker candidate actions and metadata. |
+| `tools/strong_mocks/arm_selector_policy.py` | Builds `(state, candidate)` vectors and scores candidates from `policy.npz`. |
+| `tools/strong_mocks/train_arm_selector.py` | Trains the selector by heuristic-label bootstrap plus optional Fullhouse rollout updates. |
+| `bots/strong_mocks/heuristic_rl_selector/bot.py` | Benchmark-only runtime wrapper. |
+| `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` | Current selector artifact generated from heuristic-teacher bootstrap. |
+| `tests/test_arm_selector.py` | Focused tests for candidate generation, selector scoring, and bootstrap learning. |
+
+Run a small integration build with:
+
+```bash
+poetry run python tools/strong_mocks/train_arm_selector.py \
+  --output bots/strong_mocks/heuristic_rl_selector/data/policy.npz \
+  --bootstrap-samples 1200 \
+  --bootstrap-holdout 300 \
+  --bootstrap-epochs 5 \
+  --generations 1 \
+  --matches-per-generation 6 \
+  --hands 40 \
+  --opponent-pool rollout \
+  --progress \
+  --json
+```
+
+The current artifact was regenerated after reverting smoke-driven manual
+threshold changes. The supervised bootstrap improved held-out heuristic-label
+loss from `2.453958` to `1.333221` and agreement from `0.0767` to `0.43`.
+The one rollout generation is only a wiring check; its chip delta is not a
+statistically meaningful promotion signal.
+
+Validate with:
+
+```bash
+poetry run pytest -q tests/test_arm_selector.py
+poetry run python sandbox/validator.py bots/strong_mocks/heuristic_rl_selector --json
+```
+
+The selector is a benchmark opponent and research scaffold. It is not the
+submitted `bots/heuristic` competition bot.
+
+## Completed Build Plan
+
+1. Added `tools/strong_mocks/expert_arms.py`.
    - Move reusable heuristic candidate generation into named arm functions.
    - Keep it benchmark-only first.
 
-2. Add `tools/strong_mocks/arm_selector_policy.py`.
+2. Added `tools/strong_mocks/arm_selector_policy.py`.
    - Implement feature extraction for `(state, candidate)`.
-   - Start with a contextual bandit or small MLP selector.
+   - Start with a linear contextual selector.
 
-3. Add `bots/strong_mocks/heuristic_rl_selector/`.
+3. Added `bots/strong_mocks/heuristic_rl_selector/`.
    - Runtime loads selector weights.
    - Expert arms generate candidates.
    - Selector picks one candidate.
 
-4. Add `tools/strong_mocks/train_arm_selector.py`.
+4. Added `tools/strong_mocks/train_arm_selector.py`.
    - Supervised bootstrap from deterministic expert labels.
    - Real Fullhouse rollouts.
    - Risk-adjusted checkpoint selection.
 
-5. Evaluate against:
+5. Initial validation completed:
+   - focused unit tests pass,
+   - sandbox validator passes,
+   - short unrestricted fast-match wiring check has no bot errors.
+
+6. Future statistically meaningful evaluation should cover:
    - reference bots,
    - threshold/bucket/equity mocks,
    - `rollout_search`,
    - existing `ppo_policy`,
    - existing `ppo_deep_policy`.
 
-6. Only after benchmark success, consider whether any ideas belong in
+7. Only after benchmark success, consider whether any ideas belong in
    `bots/heuristic`. The submitted bot should remain heuristic-first and
    validator-safe.
 
@@ -238,5 +287,10 @@ trained on the wrong action space.
 opponents. They should not be treated as the preferred architecture for our
 actual bot.
 
-The next RL-assisted implementation should be a **heuristic expert-arm
-selector**, not another raw action PPO model with stronger masks.
+Future RL-assisted work should extend this **heuristic expert-arm selector**,
+not add another raw action PPO model with stronger masks.
+
+Do not manually tune selector thresholds from smoke runs. Smoke runs are for
+compile, validator, and integration checks only. Threshold or arm-prior changes
+need fixed-seed held-out comparisons with enough samples to separate mean
+effect from poker variance.

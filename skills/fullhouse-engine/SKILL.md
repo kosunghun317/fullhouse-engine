@@ -97,6 +97,20 @@ For independent deep PPO experiments that must not touch the existing
 poetry run python tools/strong_mocks/train_deep_ppo.py --output bots/strong_mocks/ppo_deep_policy/data/policy.npz --progress --json
 ```
 
+For the preferred RL-assisted architecture, train the heuristic expert-arm
+selector. It learns to choose among named poker heuristic candidates rather
+than raw actions:
+
+```bash
+poetry run python tools/strong_mocks/train_arm_selector.py --output bots/strong_mocks/heuristic_rl_selector/data/policy.npz --progress --json
+poetry run pytest -q tests/test_arm_selector.py
+poetry run python sandbox/validator.py bots/strong_mocks/heuristic_rl_selector --json
+```
+
+Do not manually tune selector thresholds or heuristic constants from smoke-run
+chip deltas. Smoke runs check wiring only; promotion needs fixed-seed held-out
+sample sizes from `docs/training-pipelines.md`.
+
 For a serious but bounded real-opponent run on a laptop, prefer:
 
 ```bash

@@ -12,6 +12,7 @@ This page is now a concise route map. The canonical training guide is
 | `bots/strong_mocks/oracle_imitation` | MLP imitation of handcrafted oracle styles. |
 | `bots/strong_mocks/ppo_policy` | PPO-style MLP policy trained from Fullhouse rollouts. |
 | `bots/strong_mocks/ppo_deep_policy` | Independent deeper PPO-style MLP with 14 action arms. |
+| `bots/strong_mocks/heuristic_rl_selector` | Heuristic expert-arm selector; learned policy chooses among named human-poker candidate plans. |
 | `bots/strong_mocks/cfr_bucket` | Bucketed CFR-like policy table. |
 | `bots/strong_mocks/rollout_search` | Runtime rollout/equity pressure opponent. |
 | `bots/strong_mocks/ensemble` | Mixed strong-mock opponent for stress screens. |
@@ -19,6 +20,8 @@ This page is now a concise route map. The canonical training guide is
 These are benchmark opponents. They are not the submitted competition bot.
 Use `ppo_deep_policy` when experimenting with PPO architecture without touching
 the original `ppo_policy` artifact or scripts.
+Use `heuristic_rl_selector` for the preferred RL-assisted direction: it trains
+selection over poker expert arms instead of raw fold/call/raise/all-in actions.
 
 ## Self-Training Purpose
 

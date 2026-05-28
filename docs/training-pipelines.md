@@ -42,6 +42,7 @@ graph TD
 | `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools. | `runs/fullhouse_self_training/<run-id>/` |
 | `tools/strong_mocks/train_real_policy.py` | Direct low-level PPO or bucket training. | One `policy.npz` artifact plus JSONL logs |
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
+| `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector training; preferred RL-assisted architecture. | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` or a custom output |
 | `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | League run directory and optional promoted artifact |
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
 
@@ -106,6 +107,29 @@ poetry run python tools/strong_mocks/train_deep_ppo.py \
   --progress \
   --json
 ```
+
+For the heuristic-guided RL direction, use the arm-selector variant instead of
+adding more raw-action PPO masks:
+
+```bash
+poetry run python tools/strong_mocks/train_arm_selector.py \
+  --output bots/strong_mocks/heuristic_rl_selector/data/policy.npz \
+  --bootstrap-samples 12000 \
+  --bootstrap-holdout 2400 \
+  --bootstrap-epochs 5 \
+  --generations 8 \
+  --matches-per-generation 40 \
+  --hands 160 \
+  --opponent-pool fast \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+Small selector runs are allowed only as integration checks. Do not manually
+change thresholds, arm priors, or default constants from smoke-run chip deltas.
+Use the large held-out promotion rules below before changing defaults.
 
 Use large enough samples. For meaningful selection, prefer at least:
 
