@@ -80,6 +80,8 @@ The bash wrappers are cumulative by default:
 ## PPO Strong Mock Training
 
 Read `docs/ppo-bot-logic.md` before changing PPO runtime or training code.
+For new RL-assisted strategy work, read
+`docs/heuristic-rl-arm-selector.md`; it is the preferred architecture.
 
 Current PPO defaults are intentionally conservative:
 

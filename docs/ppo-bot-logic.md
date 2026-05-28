@@ -8,6 +8,10 @@ is an independent deep variant with more hidden layers and a wider action
 space. Both are benchmark-only opponents used for local stress tests and
 coevolution. They are not the submitted heuristic bot.
 
+Important correction: raw PPO action policies are not the preferred direction
+for our actual bot. If we continue with RL assistance, use the heuristic expert
+arm-selector design in `docs/heuristic-rl-arm-selector.md`.
+
 ## File Map
 
 | File | Role |
@@ -190,6 +194,9 @@ agent.
   and risk gates.
 - The current PPO bot is benchmark-only. Do not upload it as the competition
   bot unless the strategy changes.
+- The raw action-policy design is inherently brittle in 6-max no-limit. Future
+  RL-assisted work should select among heuristic expert arms instead of
+  choosing raw actions.
 
 ## Deep PPO Variant
 

@@ -18,6 +18,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/external-poker-ai-benchmarks.md` before adding any external poker AI benchmark opponent.
 - Read `docs/training-pipelines.md` before changing real training, league
   training, fast matches, self-training, or coevolution scripts.
+- Read `docs/heuristic-rl-arm-selector.md` before adding any new RL-assisted
+  strategy architecture.
 - Read `docs/ppo-bot-logic.md` before changing `bots/strong_mocks/ppo_policy`
   `bots/strong_mocks/ppo_deep_policy`, or PPO training logic.
 - Read `docs/heuristic-benchmark-results.md` before comparing new heuristic

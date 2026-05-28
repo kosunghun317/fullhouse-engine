@@ -232,6 +232,8 @@ Training and benchmark docs are consolidated:
 
 - `docs/training-pipelines.md`: canonical guide for real training, league
   training, self-training, fast matches, and coevolution.
+- `docs/heuristic-rl-arm-selector.md`: preferred RL-assisted architecture:
+  human poker expert arms with learned arm selection.
 - `docs/ppo-bot-logic.md`: runtime and training details for the PPO strong
   mock.
 - `docs/heuristic-benchmark-results.md`: active benchmark protocol and result
