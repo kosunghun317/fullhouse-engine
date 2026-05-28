@@ -1,6 +1,6 @@
 # Bot State, History, And In-Memory Storage
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 ## What `decide()` Receives
 

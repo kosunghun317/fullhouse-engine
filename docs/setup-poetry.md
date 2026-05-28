@@ -1,6 +1,6 @@
 # Poetry Setup
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 This repo is configured for Python 3.10 because `eval7==0.1.7` is not compatible with Python 3.11+ builds that moved `longintrepr.h`.
 

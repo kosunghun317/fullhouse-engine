@@ -1,6 +1,6 @@
 # Heuristic Parameter Audit
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 This document lists the current bot choices that are not fully justified by data yet. These are the knobs to tune before changing architecture.
 
@@ -15,14 +15,14 @@ The bot now exposes env vars for the major audited knobs. This makes benchmark s
 | Wet semi-bluff frequency | `HEURISTIC_WET_BLUFF_PROB=0.25` | Draw detection improved, but frequency is still hand-authored. | Sweep `0.05, 0.15, 0.25, 0.35`; require no regression vs station/maniac suites. |
 | Call margin | `0.075 + 0.035 * extra_opponents` | Pot-odds safety margin is plausible but not derived from opponent range modeling. | Sweep base `0.055-0.105` and multiway `0.025-0.055`; optimize for 6-max chip delta and fewer busts. |
 | Risk guard thresholds | `0.76`, `0.86`, `0.92` at risk cutoffs `0.28`, `0.45`, `0.70` | Protects stack, but the thresholds are not fit to tournament scoring. | Sweep required equities and risk cutoffs separately; track bust count as a first-class metric. |
-| SPR-aware commitment | Promoted `spr-anti-bucket` defaults | Low stack-to-pot ratio should change value/call thresholds, but the right amount is matchup-dependent. | Keep monitoring against `legacy-baseline`; retune only if the 100-seed final matrix shows a regression. |
-| Off-bucket sizing | Promoted `12%` eligible sizing perturbation | May exploit threshold/bucket bots, but can also overpay for folds or reduce value. | Keep monitoring `sizing_6max`, `mock_bucket_6max`, and final 100-seed run. |
+| SPR-aware commitment | Active default knobs | Low stack-to-pot ratio should change value/call thresholds, but the right amount is matchup-dependent. | Retune only through a fresh incumbent-vs-candidate final matrix. |
+| Off-bucket sizing | Active low-frequency sizing perturbation | May exploit threshold/bucket bots, but can also overpay for folds or reduce value. | Keep monitoring `sizing_6max`, `mock_bucket_6max`, and final matrix runs. |
 | Preflop score cutoffs | `88`, `72`, `62`, `58`, and raise-facing cutoffs | Generated 169 table exists, but action boundaries are still rough. | Convert to env-tunable thresholds or small matrix; tune by position/profile with 100-run 6-max benchmark. |
 | Opponent profile thresholds | Raise/call/fold rates such as `0.33`, `0.42`, `0.62` | Based on intuitive behavior classes, not calibrated from hand histories. | After Day 1 histories, compare classifications against actual showdown/action leaks. |
 | Equity context correction | Adjustments such as `-0.045` vs nit, `+0.025` vs maniac | Transparent but hand-authored replacement for true range-weighted equity. | Sweep corrections; reject if heads-up gain harms 6-max acceptance run. |
 | Mixed pressure guard | Default extra mixed-table pressure call/risk bonuses are `0.0` | Candidate testing did not beat baseline at 30 seeds, but pressure-heavy tables remain high variance. | Retest only with a more specific detector than table profile `mixed`. |
 | Trap checks | Default `HEURISTIC_TRAP_CHECK_PROB=0.0` | Low-frequency traps are plausible versus aggressive models, but first candidate hurt pressure/mixed robustness. | Reintroduce only with stronger hand/action-line filters and a candidate screen. |
-| Blocker bluffs | Default `HEURISTIC_BLOCKER_BLUFF_PROB=0.0` | Blocker-based bluffs are plausible but the first candidate increased core-suite variance. | Retest only with exact blocker categories and larger 10/30-seed gate. |
+| Blocker bluffs | Default `HEURISTIC_BLOCKER_BLUFF_PROB=0.0` | Blocker-based bluffs are plausible but the first candidate increased core-suite variance. | Retest only with exact blocker categories and a larger held-out gate. |
 | Delayed probe | Default `HEURISTIC_DELAYED_PROBE_PROB=0.0` | The current detector is broad turn-weakness logic, not exact flop-check-through line parsing. | Add precise action-line features before promotion; reject if reference/aggressor busts rise. |
 | Top-pair/overpair value discounts | Defaults `0.0` | Lowering thresholds for one-pair value can overplay hands on hostile boards. | Tune separately from blocker/probe bluffs; require no rise in 6-max bust count. |
 | Board-pair danger penalty | Default `0.0` | More caution on paired boards can save calls but may under-realize equity versus loose opponents. | Sweep penalty independently in pressure/equity suites. |
@@ -50,7 +50,6 @@ Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 - `anti-bucket`
 - `conservative`
 - `equity-control`
-- `legacy-baseline`
 - `line-aware`
 - `blocker-probe`
 - `pair-danger`
@@ -64,8 +63,8 @@ Named threshold configs live in `tools/tune_heuristic_thresholds.py`:
 
 The default harness now uses 400 hands and all benchmark configurations to match the hackathon setup more closely.
 
-`baseline` now includes the promoted `spr-anti-bucket` behavior. Use
-`legacy-baseline` only when comparing against the pre-promotion default.
+`baseline` is the active submitted default. Do not use historical baseline
+profiles as active decision criteria.
 
 Preflop table generation:
 
@@ -75,20 +74,17 @@ poetry run python tools/generate_preflop_table.py --iterations 20000 --seed 3133
 
 The committed bot table is explicit and generated from deterministic sampled heads-up equity. It should be regenerated only when we intentionally change the score definition.
 
-Latest tuning decision:
+Current tuning decision:
 
-- `baseline` now means the promoted SPR/off-bucket profile.
-- `legacy-baseline` preserves the pre-promotion defaults.
-- The promotion was accepted after a 30-seed screen and a 100-seed final matrix across core, stress, and mock suites.
-- `pressure`, `small-ball`, `spr-aware`, and `anti-bucket` remain comparison configs, not production defaults.
+- `baseline` is the active submitted default.
+- `pressure`, `small-ball`, `spr-aware`, and `anti-bucket` remain comparison
+  configs, not production defaults.
 - `pressure-control`, `equity-control`, `trap-control`, and
-  `weakspot-control` are candidate-only configs from the weak-spot screen.
-  `pressure-control` won the 10-seed targeted screen but lost the 30-seed
-  promotion gate to baseline, so no default changed.
+  `weakspot-control` are candidate-only configs.
 - `line-aware`, `blocker-probe`, and `pair-danger` are candidate-only configs
-  for postflop feature controls. The focused 5-seed screen kept baseline as
-  default because `blocker-probe` regressed reference/aggressor suites and had
-  more busts, even though it helped strong/equity mock spots.
+  for postflop feature controls.
+- Promote a candidate only after a fresh held-out final matrix beats the
+  incumbent on risk-adjusted score without a material bust regression.
 
 Quick smoke:
 
@@ -131,12 +127,12 @@ Avoid:
 
 ## Next Parameter Work
 
-1. Keep `baseline` as the promoted SPR/off-bucket default unless a future promotion screen beats it.
-2. Compare against `legacy-baseline` only when checking whether a new idea is better than the pre-promotion policy.
-3. Prioritize high-variance watch items from the 100-seed matrix: `pressure_6max`, `heads_up_equity_mc`, and `heads_up_aggressor`.
-4. Keep the weak-spot controls as tuning knobs only; the 30-seed gate rejected
-   `pressure-control` as a default.
-5. Keep the postflop feature controls as tuning knobs only; the focused
-   5-seed screen rejected `blocker-probe` as a default.
-6. Treat external neural/RL baselines as diagnostic opponents, not final acceptance criteria.
-7. Promote any new default only after candidate, promotion, and final acceptance screens.
+1. Keep `baseline` as the incumbent unless a future promotion screen beats it.
+2. Prioritize high-variance watch items: `pressure_6max`, `heads_up_equity_mc`,
+   and `heads_up_aggressor`.
+3. Keep weak-spot and postflop feature controls as tuning knobs until a fresh
+   final matrix promotes one.
+4. Treat external neural/RL baselines as diagnostic opponents, not final
+   acceptance criteria.
+5. Promote any new default only after candidate, promotion, and final
+   acceptance screens.

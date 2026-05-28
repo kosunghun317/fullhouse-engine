@@ -1,6 +1,6 @@
 # Bot Restrictions And Sandbox Rules
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 ## Runtime Limits
 

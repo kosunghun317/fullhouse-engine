@@ -1,224 +1,78 @@
-# Four-Day Heuristic Execution Plan
+# Short-Horizon Execution Plan
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
-This plan classifies the attached strategy suggestions by what is realistically implementable before the hackathon, then orders the implementation work.
+This file keeps the original four-day planning intent but removes stale
+historical benchmark numbers. For current training commands, use
+`docs/training-pipelines.md`. For active benchmark gates, use
+`docs/heuristic-benchmark-results.md`.
 
 ## Constraints
 
 - Keep `bots/heuristic/bot.py` validator-shaped and submission-safe.
 - Do not import runtime-heavy ML libraries into the submitted bot.
 - Use `data/` only for small read-only tables loaded at module import.
-- Optimize against Fullhouse rules: 400-hand matches, 6-max tables, 2 seconds/action, no network, no runtime file writes, 768 MB RAM, 0.5 CPU.
-- Prefer changes that improve existing-opponent benchmarks and reduce bust frequency.
+- Optimize against Fullhouse rules: 400-hand matches, 6-max tables,
+  2 seconds/action, no network, no runtime file writes, 768 MB RAM, 0.5 CPU.
+- Prefer changes that improve held-out benchmark score and reduce bust
+  frequency.
 
-## Classification
+## Current Status
 
-| Idea | 4-Day Status | Why | Execution Target |
-| --- | --- | --- | --- |
-| Mock competitor bot zoo | Implement now | Low risk, directly improves tests against likely field strategies. | Add `bots/mock_competitors/` and benchmark suites. |
-| Preflop lookup table | Done | Explicit 169-class table is already embedded. | Keep generator and tune thresholds around it. |
-| Data-package lookup tables | Done | Useful, simple, and allowed by rules. | Optional `data/tables.npz` support and package inclusion are implemented. |
-| Pot-odds threshold detector | Implemented | Concrete exploit, easy to validate. | Track pressure responses and adjust sizing when behavior looks threshold-like. |
-| SPR-aware risk/value logic | Promoted | Improved pressure/mixed/mock suites in 30-seed promotion and 100-seed final screens. | Defaults now include low-SPR value/call adjustments. |
-| Off-bucket sizing mix | Promoted | Direct counter to bucketed CFR/NN policies. | Defaults now include guarded low-frequency sizing variation. |
-| Low-frequency trap checks | Candidate-only | Simple anti-maniac/anti-modeling improvement; broad candidate did not promote. | Strong-hand checks vs aggressive profiles only. |
-| Delayed c-bet / probe logic | Candidate-only | Broad turn-probe logic exists; exact line parsing still needs work. | Turn bet after checked weakness with fold-pressure and draw/equity guards. |
-| Blocker-based bluffs | Candidate-only | Cheap blocker/draw flags exist, but first bundled candidate did not promote. | Only rare bluffs with nut blocker/draw flags, never vs stations. |
-| Online contextual bandit | Defer | Reward attribution in 400 hands is noisy and current offline config selection is safer. | Revisit only after feature-specific candidate screens stabilize. |
-| LinUCB over expert arms | Defer unless time remains | More moving parts and high regression risk. | Document feature vector; avoid raw-action bandit. |
-| Postflop bucket equity table | Defer | Generation quality/time tradeoff is uncertain. | Keep selective `eval7` Monte Carlo for now. |
-| CFR/NN/RL mock training | Implement as benchmark-only | Useful for stronger tests if kept outside the submitted bot. | Added strong mock trainers and self-training pipeline. |
+| Area | Status | Next Action |
+| --- | --- | --- |
+| Mock competitor zoo | Implemented | Keep suites current when new opponent ideas appear. |
+| Strong mocks | Implemented | Train and evaluate through `docs/training-pipelines.md`. |
+| PPO strong mock | Implemented, still high variance | Use larger held-out samples and risk gates. See `docs/ppo-bot-logic.md`. |
+| Heuristic self-training | Implemented | Treat generated configs as candidates until final gate. |
+| Explicit 169 preflop table | Implemented | Retune thresholds only through candidate/final screens. |
+| Optional lookup data | Implemented | Rebuild before packaging if table definitions change. |
+| SPR/off-bucket controls | Active default knobs | Retune only against fresh incumbent comparisons. |
+| Trap/probe/blocker controls | Candidate-only | Promote only after held-out final matrix. |
+| Runtime bandit | Deferred | Keep learning offline until reward attribution is more reliable. |
 
-## Execution Order
+## Work Order
 
-### Stage 1: Mock Competitor Zoo
-
-Create `bots/mock_competitors/` with opponents that imitate likely submissions:
-
-- `equity_mc`: eval7 Monte Carlo equity + pot odds.
-- `cbet_reg`: preflop raiser and over-c-bettor.
-- `bucket_policy`: CFR-like coarse board/hand buckets and fixed action sizes.
-- `numpy_policy`: deterministic lightweight policy over fixed action buckets.
-- `opponent_modeler`: classifies hero from action history and counters.
-- `copy_shark_plus`: modified public Shark with tighter postflop discipline.
-- `pot_odds_plus`: pot-odds threshold bot with multiple thresholds.
-- Expanded equity variants: `equity_tight`, `equity_loose`, and
-  `equity_pressure`.
-- Expanded bucket variants: `bucket_halfpot`, `bucket_overbet`, and
-  `bucket_mixed`.
-- Expanded trained-policy variants: `numpy_policy_value`,
-  `numpy_policy_bluff`, `numpy_policy_station`, `numpy_policy_folder`, and
-  `numpy_policy_pressure`.
-- Adversarial variants: `anti_heuristic` and `pressure_heads_up`.
-
-Success:
-
-- Each validates through `sandbox/validator.py`.
-- Add mock suites to `tools/evaluate_heuristic.py`.
-- Run one smoke suite without bot errors.
-- If a mock is NN-like, train it offline and save weights under its own `data/` directory before using it.
-
-Current status:
-
-- The expanded mock families are implemented.
-- The trained numpy policies were trained with `60000` synthetic samples each
-  and stored as read-only `.npz` data.
-- `mock-family` is now a selector preset for focused 10-seed screens.
-- One-seed smoke found `mock_policy_family_6max` can bust the current bot, so
-  it is a priority watch suite but not a default-change decision by itself.
-
-### Stage 1B: Strong Mock And Self-Training Pipeline
-
-Add stronger local-only opponents and a way to evolve heuristic configs without
-refactoring the submitted bot:
-
-- `oracle_imitation`: sklearn MLP imitation policy with committed `.npz` weights.
-- `ppo_policy`: lightweight PPO-style policy-gradient MLP with committed
-  `.npz` weights.
-- `cfr_bucket`: regret-matched coarse action-bucket table with committed
-  `.npz` data.
-- `rollout_search`: eval7 rollout/search stress bot.
-- `ensemble`: mixed policy opponent that changes model family by state key.
-- `self_train_heuristic.py`: evolutionary config trainer that seats 2 or 3
-  generated heuristic variants in 6-max games against strong/reference mocks.
-
-Success:
-
-- Strong mock bots validate as bot directories.
-- Strong suites run through `tools/evaluate_heuristic.py`.
-- `strong-screen` exists as a selector preset.
-- Self-training writes generated variants and results to configurable roots.
-
-Current status:
-
-- Implemented. See `docs/strong-mock-self-training-pipeline.md`.
-- Keep this benchmark-only. Do not move its helper imports into
-  `bots/heuristic/bot.py`.
-
-### Stage 2: Lookup Data Support
-
-Use the data-size allowance without making the bot dependent on data:
-
-- Generate `bots/heuristic/data/tables.npz`.
-- Store small metadata/tables:
-  - preflop scores for all 169 classes.
-  - bet-size arms.
-  - context cluster priors for future bandit/config selection.
-- Load with `np.load(..., allow_pickle=False)` at import time.
-- Fallback to hard-coded constants if data is absent.
-- Update `tools/package_heuristic.py` to include optional `data/`.
-
-Implemented builder:
-
-```bash
-poetry run python tools/build_heuristic_tables.py --json
+```mermaid
+graph TD
+    Safety["validator and package safety"] --> Bench["benchmark protocol"]
+    Bench --> Mock["mock and strong opponent coverage"]
+    Mock --> Tune["heuristic config tuning"]
+    Tune --> Coevolve["optional PPO/heuristic coevolution"]
+    Coevolve --> Gate["held-out final gate"]
+    Gate --> Package["harden and package submission"]
 ```
 
-Success:
+## Near-Term Tasks
 
-- Package zip contains `bot.py` and `data/tables.npz`.
-- Validator passes the zip.
+1. Keep documentation and skill references aligned with the current pipeline.
+2. Run PPO-fix sanity checks with enough held-out seeds before trusting PPO
+   selection.
+3. Use `tools/select_heuristic_config.py --preset promotion` for candidate
+   screens and `--preset final` for defaults.
+4. Rebuild optional heuristic tables only when definitions change.
+5. Package with `tools/harden_submission.py` before upload.
 
-### Stage 3: Safe Strategy Improvements
+## Commands
 
-Implement low-risk tactical changes:
-
-- SPR-aware risk/value adjustment.
-- Off-bucket size variation with small probability and same strategic intent.
-- Trap checks only with very strong hands vs aggressive profiles.
-- Optional delayed-cbet/probe if action parsing stays clean.
-
-Success:
-
-- Existing core benchmark does not regress materially.
-- `pressure_6max` and `mixed_stress_6max` bust count does not increase.
-
-Current status:
-
-- Candidate-only weak-spot controls were added for mixed pressure tables,
-  large-bet equity penalties, heads-up maniac lead protection, and trap checks.
-- A 10-seed targeted screen advanced `pressure-control`, but a 30-seed gate
-  rejected it. Defaults remain unchanged.
-- Postflop feature controls were added for blocker bluffs, delayed probes,
-  top-pair/overpair discounts, board-pair danger, and pot-odds-like sizing
-  suspicion. A focused five-seed screen rejected `blocker-probe` as a default.
-- Future pressure work should use more specific action-line features instead
-  of broad table-profile caution.
-
-### Stage 4: Bandit / Statistical Selection
-
-Start outside the submitted bot:
-
-- Add an offline config-selector tool that ranks named configs by lower-confidence-bound score.
-- If stable, add a tiny runtime clustered Thompson selector only over safe expert modes.
-
-Initial context features:
-
-- street bucket.
-- preflop score/equity bucket.
-- made-hand rank.
-- draw flag.
-- SPR bucket.
-- position bucket.
-- active opponent count.
-- table profile.
-- target fold/call/raise/all-in rates.
-- facing-bet and bet-size bucket.
-
-Success:
-
-- Bandit/config selector identifies baseline-or-better configs on held-out seeds.
-- No raw-action exploration.
-
-## Current Default Policy
-
-The current default is still named `baseline`, but it now includes the promoted
-SPR/off-bucket behavior. The pre-promotion default is preserved as
-`legacy-baseline` for comparisons.
-
-The promotion was based on:
-
-- 10-seed targeted candidate screen.
-- 30-seed promotion screen over core, stress, and mock suites.
-- 100-seed final acceptance matrix over 15 suites.
-
-See `docs/heuristic-benchmark-results.md` for the exact numbers.
-
-Smoke tests are validity checks only. Do not promote or reject a default from a smoke result. A config decision needs a large enough sample:
-
-- Candidate screen: at least `10` seeds at 400 hands on core suites plus relevant stress suites.
-- Default promotion: at least `30` seeds at 400 hands on core suites and no obvious stress-suite regression.
-- Final acceptance: `100` seeds at 400 hands.
-
-Decision metrics:
-
-- mean chip delta.
-- median chip delta.
-- bust count.
-- positive-run count.
-- worst seed/min delta.
-- targeted suite result if the change is meant to fix one weakness.
-
-The local selector encodes this policy:
+Benchmark final incumbent:
 
 ```bash
-poetry run python tools/select_heuristic_config.py --preset candidate
-poetry run python tools/select_heuristic_config.py --preset mock-screen
-poetry run python tools/select_heuristic_config.py --preset promotion
-poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress
+poetry run python tools/select_heuristic_config.py \
+  --preset final \
+  --config baseline \
+  --progress \
+  --json
 ```
 
-The default `quick` preset is an integration check only. It must not be used
-to promote or reject a production default.
-
-Default changes must pass:
+Run cumulative coevolution:
 
 ```bash
-poetry run pytest -q
-poetry run python sandbox/validator.py bots/heuristic/bot.py
-poetry run python tools/build_heuristic_tables.py --json
-poetry run python tools/package_heuristic.py --json
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
+```
+
+Harden submission:
+
+```bash
 poetry run python tools/harden_submission.py --json
-poetry run python tools/select_heuristic_config.py --preset final --config baseline --progress --json
 ```

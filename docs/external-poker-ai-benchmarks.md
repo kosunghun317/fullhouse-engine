@@ -1,6 +1,6 @@
 # External Poker AI Benchmark Plan
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 This document records the public RL/deep-learning poker baselines that are realistic enough to consider for offline tuning of `bots/heuristic/bot.py`.
 
@@ -72,7 +72,8 @@ tools/external_benchmarks/
     deepcfr_pokers_adapter.py
 ```
 
-Do not put large checkpoints in git. Keep them under an ignored local path such as `external_models/` or `/private/tmp/fullhouse_external_models/`.
+Do not put large checkpoints in git. Keep them under an ignored repo-local path
+such as `external_models/`.
 
 Current rule-matched mock structure:
 

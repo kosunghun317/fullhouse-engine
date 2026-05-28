@@ -1,6 +1,6 @@
 # Fullhouse Engine Project Overview
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 ## What This Repo Is
 
@@ -220,32 +220,18 @@ Acceptable contribution areas include bug reports, local demo UI improvements, a
 ## Current Heuristic Bot Status
 
 The active competition branch is `heuristic`. The current promoted default is
-the SPR/off-bucket sizing profile documented in
-`docs/heuristic-benchmark-results.md`. The old pre-promotion behavior remains
-available as the local tuning config `legacy-baseline`.
+documented in `docs/heuristic-bot-logic.md`. Use
+`docs/heuristic-benchmark-results.md` for benchmark protocol before changing
+bot defaults.
 
-Use the benchmark docs as the source of truth before changing bot defaults.
-The newest mock benchmark expansion adds trained-policy, equity-family,
-bucket-family, anti-heuristic, and heads-up pressure suites; use
-`tools/select_heuristic_config.py --preset mock-family` for focused checks.
-The strong-mock/self-training pipeline adds benchmark-only trained opponents
-under `bots/strong_mocks/` and generated multi-heuristic config matches through
-`tools/strong_mocks/self_train_heuristic.py`; see
-`docs/strong-mock-self-training-pipeline.md`.
-The newest postflop feature controls add richer hand flags and candidate-only
-blocker/probe lines, but the latest focused screen kept the promoted
-`baseline` default unchanged. See `docs/heuristic-benchmark-results.md` before
-promoting any of those knobs.
-The real-training pipeline adds process-parallel Fullhouse rollouts for
-benchmark opponents and adapts compatible CFR+ abstraction ideas from
-`jeffelin/CFR_pokerbot`; see `docs/real-training-pipeline-plan.md`.
-The no-limit fast training runner adds unrestricted in-process matches and
-parallel batches for local-only training and benchmark throughput; see
-`docs/fast-training-runner.md`.
-The league training framework adds staged train/eval opponent divisions,
-candidate-vs-incumbent promotion gates, and archived league snapshots; see
-`docs/league-training-framework.md`.
-The E2E coevolution pipeline alternates unrestricted PPO opponent training and
-heuristic env-config evolution while plotting EV progress. It now stores
-git-ignored cumulative runs under `runs/fullhouse_coevolution/`; see
-`docs/e2e-coevolution-training.md`.
+Training and benchmark docs are consolidated:
+
+- `docs/training-pipelines.md`: canonical guide for real training, league
+  training, self-training, fast matches, and coevolution.
+- `docs/ppo-bot-logic.md`: runtime and training details for the PPO strong
+  mock.
+- `docs/heuristic-benchmark-results.md`: active benchmark protocol and result
+  index. Exact numeric run history belongs in git-ignored `runs/` artifacts.
+
+Strong mocks and generated heuristic variants are benchmark-only. Do not move
+their helper imports into `bots/heuristic/bot.py`.

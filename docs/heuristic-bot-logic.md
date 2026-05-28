@@ -1,6 +1,6 @@
 # Heuristic Bot Logic
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 This document explains the current logic in `bots/heuristic/bot.py` and records improvement directions for future tuning.
 
@@ -333,8 +333,8 @@ Context adjustment:
 - Facing a maniac slightly increases usable equity.
 - Large bets from non-maniacs reduce usable equity again.
 - Multiway spots receive an additional opponent-count penalty.
-- Extra large-bet penalties are exposed as env tunables, but default to no
-  additional effect after the 2026-05-27 weak-spot screen rejected promotion.
+- Extra large-bet penalties are exposed as env tunables. They default to no
+  additional effect unless a fresh promotion screen proves an improvement.
 
 This is not true range-weighted Monte Carlo. It is a transparent correction for the biggest mistake in random-card simulation: treating every opponent continuation range as equally wide.
 
@@ -682,8 +682,9 @@ Implemented as:
 - `tools/tune_heuristic_thresholds.py`: named env configurations.
 - `tools/select_heuristic_config.py`: risk-aware candidate, promotion, and final ranking.
 
-`baseline` now means the promoted SPR/off-bucket profile. Use
-`legacy-baseline` when comparing against the pre-promotion default.
+`baseline` means the active submitted default. Compare new configs against the
+current incumbent and a fresh final benchmark matrix, not against historical
+profiles.
 
 Future work can expand the named configurations or replace them with random/grid search across:
 
@@ -695,11 +696,11 @@ Future work can expand the named configurations or replace them with random/grid
 
 Score with mean chip delta, worst-run result, bust rate, and bot errors.
 
-Latest postflop feature screen:
+Postflop feature candidate controls:
 
 - `line-aware`, `blocker-probe`, and `pair-danger` are implemented as named candidate configs.
-- `blocker-probe` won a tiny 3-seed screen but lost the larger focused 5-seed screen to baseline due to worse reference/aggressor performance and higher bust count.
-- Keep the promoted baseline defaults unchanged; use the new knobs as diagnostics until a larger promotion gate proves otherwise.
+- Keep these knobs as diagnostics until a large held-out promotion gate proves
+  one should become default.
 
 ### 9. Submission Packaging Check
 
@@ -714,4 +715,6 @@ Before final upload:
 
 ## Latest Benchmark Reference
 
-See `docs/heuristic-benchmark-results.md` for the latest recorded test run. Any future logic change should be compared against that baseline before it is considered an improvement.
+See `docs/heuristic-benchmark-results.md` for the active benchmark protocol.
+Any future logic change should be compared against the current incumbent before
+it is considered an improvement.

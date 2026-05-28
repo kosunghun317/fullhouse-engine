@@ -1,6 +1,6 @@
 # Heuristic Bot Implementation Plan
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 ## Project Framing
 
@@ -316,8 +316,8 @@ poetry run python tools/select_heuristic_config.py --preset candidate --progress
 poetry run python tools/select_heuristic_config.py --preset mock-family --progress
 ```
 
-The current promoted defaults passed the 30-seed promotion screen and the
-100-seed final acceptance matrix in `docs/heuristic-benchmark-results.md`.
+Treat `baseline` as the active incumbent. Promote a new default only after the
+fresh benchmark gate in `docs/heuristic-benchmark-results.md`.
 
 ## Public Baselines To Study
 

@@ -16,16 +16,12 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 - Read `docs/heuristic-parameter-audit.md` before tuning heuristic thresholds or bet sizes.
 - Read `docs/four-day-execution-plan.md` before starting larger heuristic implementation work.
 - Read `docs/external-poker-ai-benchmarks.md` before adding any external poker AI benchmark opponent.
-- Read `docs/real-training-pipeline-plan.md` before changing real Fullhouse
-  self-play trainers, CFR+ abstractions, or large training scripts.
-- Read `docs/fast-training-runner.md` before changing the unrestricted
-  in-process training runner or fast bot-directory batch commands.
-- Read `docs/league-training-framework.md` before changing league-style
-  opponent training, staged train/eval pools, or promotion gates.
-- Read `docs/e2e-coevolution-training.md` before changing the alternating
-  PPO/heuristic fine-tuning loop or EV plotting.
-- Read `docs/strong-mock-self-training-pipeline.md` before changing strong mock opponents, mock training scripts, or self-training heuristic variants.
-- Read `docs/heuristic-benchmark-results.md` before comparing new heuristic changes against the latest recorded benchmark run.
+- Read `docs/training-pipelines.md` before changing real training, league
+  training, fast matches, self-training, or coevolution scripts.
+- Read `docs/ppo-bot-logic.md` before changing `bots/strong_mocks/ppo_policy`
+  or PPO training logic.
+- Read `docs/heuristic-benchmark-results.md` before comparing new heuristic
+  changes or promoting a default.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
 
 ## Environment
@@ -83,34 +79,16 @@ For expanded mock-family screens, run:
 poetry run python tools/select_heuristic_config.py --preset mock-family --config baseline --progress
 ```
 
-For strong mock training and screens, use:
-
-```bash
-poetry run python tools/strong_mocks/train_imitation.py --samples 6000 --hidden 32 --seed 4242 --style balanced --output bots/strong_mocks/oracle_imitation/data/policy.npz --json
-poetry run python tools/strong_mocks/train_mccfr.py --iterations 180 --batch-size 2048 --bucket-count 4096 --seed 5151 --output bots/strong_mocks/cfr_bucket/data/policy.npz --json
-poetry run python tools/strong_mocks/train_ppo.py --backend auto --iterations 64 --batch-size 512 --hidden 32 --seed 6161 --output bots/strong_mocks/ppo_policy/data/policy.npz --json
-poetry run python tools/select_heuristic_config.py --preset strong-screen --config baseline --workers 0 --parallel-backend process --progress
-```
-
-For real Fullhouse self-play opponent training, use the bash wrapper:
+For training and coevolution pipelines, read `docs/training-pipelines.md`.
+Normal large entrypoints are:
 
 ```bash
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
 ```
 
-It trains PPO-style and CFR+/bucket strong mocks from actual Fullhouse
-rollouts. Defaults use `OPPONENT_POOL=adversarial`, real `bot.py` opponents
-through `training.fast_match.FastBot`, lower-variance learning rates,
-`--export-best`, `--selection-warmup 4`, early stopping, and an artifact
-overwrite threshold. The CFR+/bucket path uses
-`--abstraction cfr-pokerbot` and `--bucket-update cfr-plus`, which are
-Fullhouse-compatible adaptations of compatible ideas from
-`jeffelin/CFR_pokerbot`; Toss Hold'em mechanics are not ported.
-PPO strong mocks use sampled-softmax inference, recorded behavior temperatures
-for PPO ratios, frozen feature normalization by default, risk-adjusted
-checkpoint selection, and strategic all-in / large-call-off masks.
-
-For a serious but bounded run on a laptop, prefer:
+For a serious but bounded real-opponent run on a laptop, prefer:
 
 ```bash
 RUN_ID=adversarial-opponents-$(date +%Y%m%d-%H%M%S) \
@@ -136,7 +114,7 @@ If the final report says `"exported": false`, the run completed but kept the
 existing repo artifact because the selected checkpoint did not clear
 `MIN_EXPORT_MEAN_DELTA`.
 
-For league-style staged opponent training with held-out promotion gates, use:
+For league-style staged opponent training with held-out promotion gates:
 
 ```bash
 RUN_ID=league-opponents-$(date +%Y%m%d-%H%M%S) \
@@ -151,7 +129,7 @@ PROMOTE=1 \
 scripts/train_opponents_league.sh
 ```
 
-For E2E alternating PPO/heuristic coevolution, use:
+For E2E alternating PPO/heuristic coevolution:
 
 ```bash
 WORKERS=0 \
@@ -193,7 +171,7 @@ WORKERS=1 \
 scripts/train_opponents_league.sh
 ```
 
-For unrestricted fast local bot-directory batches, use:
+For unrestricted fast local bot-directory batches:
 
 ```bash
 poetry run python -m training.fast_match bots/heuristic bots/strong_mocks/ensemble bots/shark --hands 400 --repeat 32 --workers 0 --parallel-backend process --json
@@ -208,7 +186,7 @@ poetry run pytest -q tests/test_fast_match.py
 For multi-heuristic self-training, run a smoke first:
 
 ```bash
-poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --generations 1 --population 4 --elite 2 --matches-per-generation 2 --hands 12 --seed 22 --generated-root /private/tmp/fullhouse_self_training/generated --result-root /private/tmp/fullhouse_self_training/results --json
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --generations 1 --population 4 --elite 2 --matches-per-generation 2 --hands 12 --seed 22 --json
 ```
 
 For larger parallel heuristic self-training, use:

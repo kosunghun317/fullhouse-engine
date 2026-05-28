@@ -1,6 +1,6 @@
 # Heuristic Improvement Backlog
 
-Reviewed: 2026-05-27.
+Reviewed: 2026-05-28.
 
 This backlog turns the future-improvement ideas from `docs/heuristic-bot-logic.md` into ranked, measurable tasks.
 
@@ -31,7 +31,7 @@ Effort scale:
 | 13 | Hand-history patch workflow | 4 | One command can summarize local/exported hand histories with showdown/action leak metrics. | Add analyzer that accepts JSON hand logs/results; make it tolerant of unknown Day 1 schema. | Done |
 | 14 | SPR-aware candidate configs | 3 | Low-SPR/high-SPR knobs can be benchmarked without changing defaults. | Add SPR threshold/call-margin/value-sizing env knobs and named configs. | Promoted |
 | 15 | Off-bucket sizing candidate configs | 3 | Bucket/threshold stress suites can test occasional nonstandard legal bet sizes. | Add sizing perturbation helper and named configs. | Promoted |
-| 16 | Weak-spot candidate controls | 2 | Pressure/large-bet/trap knobs exist and are benchmarkable without default changes. | Add env knobs and named configs; run 10-seed candidate and 30-seed gate. | Rejected as default |
+| 16 | Weak-spot candidate controls | 2 | Pressure/large-bet/trap knobs exist and are benchmarkable without default changes. | Keep env knobs and named configs; rerun held-out gates before any promotion. | Candidate-only |
 | 17 | Postflop feature candidate controls | 3 | Top-pair/overpair, board-pair danger, blocker bluff, delayed probe, and pot-odds-like sizing knobs are implemented and benchmarkable. | Keep default guarded; run candidate/promotion screens before promotion. | Implemented, not promoted |
 | 18 | Full preflop matrix tuning | 5 | Separate matrix by position, pot state, heads-up/6-max, stack depth, and opponent profile. | Use benchmark-driven tuning after the explicit 169-class table exists. | Scaffolded |
 
@@ -48,7 +48,7 @@ graph TD
     SPR --> Promoted["Promoted baseline defaults"]
     Pressure --> Promoted
     HandFeatures --> Candidate["Candidate-only controls - line-aware, blocker-probe, pair-danger"]
-    Promoted --> Benchmarks["100-seed acceptance matrix"]
+    Promoted --> Benchmarks["final benchmark gate"]
     Candidate --> Gate["candidate / promotion / final gates"]
     Benchmarks --> Backlog["Deferred work"]
     Gate --> Backlog
@@ -90,7 +90,7 @@ These methods are intentionally not neural-net-like. They fit the sandbox becaus
 | Priority | Component | Method | Features | Output | Acceptance Test |
 | ---: | --- | --- | --- | --- | --- |
 | 1 | Fold-to-size model | Beta-binomial MLE per opponent/profile/bin | Bet fraction bin, street, profile, heads-up vs multiway, previous pressure events. | Smoothed probability that opponent folds to a given size. | Use model to choose between `0.34/0.50/0.67/0.90` pot; beat fixed sizing on `sizing_6max`. |
-| 2 | Bet-size contextual bandit | Offline epsilon-greedy/UCB simulation over fixed size arms | Board texture, hand bucket, profile, fold pressure, SPR, position. | Best size arm for value/bluff class. | Improve 30-seed stress-suite aggregate without raising bust count. |
+| 2 | Bet-size contextual bandit | Offline epsilon-greedy/UCB simulation over fixed size arms | Board texture, hand bucket, profile, fold pressure, SPR, position. | Best size arm for value/bluff class. | Improve held-out stress-suite aggregate without raising bust count. |
 | 3 | Equity correction regression | Linear/logistic regression or isotonic calibration | Raw equity, pot odds, bet size, profile, street, opponent count, board class. | Calibrated showdown/win probability or call/fold score. | Better call/fold decisions in `pressure_6max`; validator still under 2s. |
 | 4 | Opponent profile classifier | Multinomial logistic regression or Naive Bayes | Raise/call/fold/check/all-in rates, pressure fold/call, average raise BB, street-specific stats. | Probability over `maniac/station/nit/abc/unknown`. | More stable profile labels after 20-50 actions; fewer misclassified stations. |
 | 5 | Preflop action matrix tuning | Coordinate search or Thompson sampling over threshold arms | Position, profile, pot state, stack depth, hand class score. | Open/call/fold/reraise threshold table. | Improve core 6-max mean over current explicit 169-class score policy. |
@@ -102,8 +102,7 @@ For any statistical upgrade, keep the runtime implementation simple: a few coeff
 
 Implemented candidate status:
 
-- SPR-aware commitment and off-bucket sizing were promoted after the 30-seed promotion screen recorded in `docs/heuristic-benchmark-results.md`.
-- `legacy-baseline` preserves the pre-promotion defaults for future comparison.
+- SPR-aware commitment and off-bucket sizing are part of the active default.
 - Config selection is implemented as a risk-aware ranking tool in `tools/select_heuristic_config.py`; it is an offline selector, not runtime learning.
 - Expanded mock competitor families are implemented and should be used through
   `tools/select_heuristic_config.py --preset mock-family` before making
@@ -111,13 +110,11 @@ Implemented candidate status:
 - Strong mock opponents and multi-heuristic self-training are implemented in
   `tools/strong_mocks/`; use `--preset strong-screen` as a stress screen, then
   rerun promotion/final gates before changing defaults.
-- Weak-spot controls are implemented as diagnostics, but `pressure-control`
-  lost the 30-seed promotion gate to baseline. Keep defaults unchanged.
+- Weak-spot controls are implemented as diagnostics. Keep defaults unchanged
+  until a fresh held-out promotion gate proves otherwise.
 - Postflop feature controls are implemented as candidate diagnostics:
-  `line-aware`, `blocker-probe`, and `pair-danger`. A 3-seed screen briefly
-  favored `blocker-probe`, but a focused 5-seed screen favored baseline with
-  lower bust count and stronger reference/aggressor results. Keep defaults
-  unchanged.
+  `line-aware`, `blocker-probe`, and `pair-danger`. Keep defaults unchanged
+  until a fresh held-out promotion gate proves otherwise.
 - E2E coevolution is implemented in `tools/coevolve_training.py` and
   `scripts/train_e2e_coevolution.sh`. It adds preflop threshold/raise-size
   mutation to the heuristic self-training space and seats the latest selected
@@ -185,4 +182,6 @@ main deferred architecture item because it is likely to overfit without a
 larger seed set and should use the 100-run benchmark output as its input
 signal.
 
-The acceptance run is recorded in `docs/heuristic-benchmark-results.md`. Its main actionable finding is that heads-up aggressor remains high variance and should be optimized only if doing so does not reduce 6-max performance.
+Use `docs/heuristic-benchmark-results.md` for the active benchmark protocol.
+Heads-up aggressor remains a high-variance watch item and should be optimized
+only if doing so does not reduce 6-max performance.
