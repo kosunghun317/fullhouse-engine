@@ -128,7 +128,10 @@ poetry run python tools/paired_heuristic_gate.py \
 
 Use the paired gate when deciding whether a candidate should replace or
 disable an active default. It compares identical suite/seed pairs and reports
-mean, median, 10th-percentile, win rate, bust, and error deltas.
+mean, bootstrap confidence interval, median, 10th-percentile, win rate, bust,
+and error deltas. A candidate is not promotable unless the lower bound of the
+paired mean-difference confidence interval is positive and the run has at least
+100 paired match tasks.
 
 ## What To Record For New Runs
 

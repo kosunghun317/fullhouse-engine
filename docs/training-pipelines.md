@@ -95,8 +95,10 @@ poetry run python tools/paired_heuristic_gate.py \
 ```
 
 The gate is intentionally conservative: paired mean and median must improve,
-the 10th-percentile paired difference cannot collapse, win rate must clear the
-configured threshold, and errors/busts cannot regress beyond the allowed cap.
+the bootstrap confidence interval lower bound for paired mean difference must
+be positive, the 10th-percentile paired difference cannot collapse, win rate
+must clear the configured threshold, at least 100 paired match tasks must be
+present, and errors/busts cannot regress beyond the allowed cap.
 
 ## Cumulative Runs
 

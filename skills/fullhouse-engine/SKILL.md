@@ -91,8 +91,10 @@ poetry run python tools/paired_heuristic_gate.py --incumbent baseline --candidat
 ```
 
 Use this before promoting or reverting submitted-bot defaults because it
-compares identical suite/seed pairs and exposes paired mean, median, p10, win
-rate, bust, and error changes.
+compares identical suite/seed pairs and exposes paired mean, mean confidence
+interval, median, p10, win rate, bust, and error changes. Promotion requires
+the paired mean-difference lower CI bound to be positive and at least 100
+paired match tasks.
 
 For expanded mock-family screens, run:
 
