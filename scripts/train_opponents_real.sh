@@ -5,7 +5,7 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
 
 RUN_ID="${RUN_ID:-real-opponents-$(date +%Y%m%d-%H%M%S)}"
-RESULT_ROOT="${RESULT_ROOT:-/private/tmp/fullhouse_real_training/${RUN_ID}}"
+RESULT_ROOT="${RESULT_ROOT:-runs/fullhouse_real_training/${RUN_ID}}"
 mkdir -p "$RESULT_ROOT"
 
 WORKERS="${WORKERS:-0}"
@@ -51,6 +51,8 @@ FAST_SMOKE_REPEAT="${FAST_SMOKE_REPEAT:-8}"
 FAST_SMOKE_HANDS="${FAST_SMOKE_HANDS:-160}"
 STRONG_SCREEN_SEEDS="${STRONG_SCREEN_SEEDS:-128}"
 STRONG_SCREEN_HANDS="${STRONG_SCREEN_HANDS:-400}"
+STRONG_GATE_SEEDS="${STRONG_GATE_SEEDS:-128}"
+STRONG_GATE_HANDS="${STRONG_GATE_HANDS:-400}"
 PPO_OUTPUT="${PPO_OUTPUT:-bots/strong_mocks/ppo_policy/data/policy.npz}"
 BUCKET_OUTPUT="${BUCKET_OUTPUT:-bots/strong_mocks/cfr_bucket/data/policy.npz}"
 
@@ -126,6 +128,10 @@ poetry run python tools/strong_mocks/train_real_policy.py \
 echo "==> Validate real-trained strong mock opponents"
 poetry run python sandbox/validator.py bots/strong_mocks/ppo_policy --json
 poetry run python sandbox/validator.py bots/strong_mocks/cfr_bucket --json
+poetry run python sandbox/validator.py bots/strong_mocks/ppo_deep_policy --json
+poetry run python sandbox/validator.py bots/strong_mocks/heuristic_rl_selector --json
+poetry run python sandbox/validator.py bots/strong_mocks/oracle_imitation --json
+poetry run python sandbox/validator.py bots/strong_mocks/rollout_search --json
 poetry run python sandbox/validator.py bots/strong_mocks/ensemble --json
 
 echo "==> Fast unrestricted strong-mock smoke"
@@ -133,6 +139,9 @@ poetry run python -m training.fast_match \
   bots/heuristic \
   bots/strong_mocks/ppo_policy \
   bots/strong_mocks/cfr_bucket \
+  bots/strong_mocks/ppo_deep_policy \
+  bots/strong_mocks/heuristic_rl_selector \
+  bots/strong_mocks/oracle_imitation \
   bots/strong_mocks/ensemble \
   bots/strong_mocks/rollout_search \
   bots/shark \
@@ -153,5 +162,13 @@ poetry run python tools/select_heuristic_config.py \
   --parallel-backend "$PARALLEL_BACKEND" \
   --progress \
   --json > "$RESULT_ROOT/strong_screen_validation.json"
+
+echo "==> Strong-mock strength gate against default/reference bots"
+poetry run python tools/check_strong_mocks.py \
+  --seed-count "$STRONG_GATE_SEEDS" \
+  --hands "$STRONG_GATE_HANDS" \
+  --workers "$WORKERS" \
+  --parallel-backend "$PARALLEL_BACKEND" \
+  --json > "$RESULT_ROOT/strong_mock_strength_gate.json"
 
 echo "Training logs: $RESULT_ROOT"

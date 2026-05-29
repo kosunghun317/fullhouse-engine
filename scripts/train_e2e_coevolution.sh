@@ -11,7 +11,7 @@ PARALLEL_BACKEND="${PARALLEL_BACKEND:-process}"
 
 CYCLES="${CYCLES:-4}"
 PPO_ARMS="${PPO_ARMS:-stable,explore,conservative}"
-PPO_GENERATIONS="${PPO_GENERATIONS:-8}"
+PPO_GENERATIONS="${PPO_GENERATIONS:-20}"
 PPO_MATCHES_PER_GENERATION="${PPO_MATCHES_PER_GENERATION:-128}"
 PPO_HANDS="${PPO_HANDS:-400}"
 PPO_HIDDEN="${PPO_HIDDEN:-128}"
@@ -21,9 +21,10 @@ PPO_EPOCHS="${PPO_EPOCHS:-3}"
 PPO_BATCH_SIZE="${PPO_BATCH_SIZE:-4096}"
 PPO_REPLAY_GENERATIONS="${PPO_REPLAY_GENERATIONS:-4}"
 PPO_REPLAY_MAX_DECISIONS="${PPO_REPLAY_MAX_DECISIONS:-24000}"
-HEURISTIC_POPULATION="${HEURISTIC_POPULATION:-14}"
+PPO_MIN_TRAINING_HANDS="${PPO_MIN_TRAINING_HANDS:-1000000}"
+HEURISTIC_POPULATION="${HEURISTIC_POPULATION:-16}"
 HEURISTIC_ELITE="${HEURISTIC_ELITE:-4}"
-HEURISTIC_MATCHES_PER_GENERATION="${HEURISTIC_MATCHES_PER_GENERATION:-64}"
+HEURISTIC_MATCHES_PER_GENERATION="${HEURISTIC_MATCHES_PER_GENERATION:-384}"
 HEURISTIC_HANDS="${HEURISTIC_HANDS:-400}"
 EVAL_SEEDS="${EVAL_SEEDS:-128}"
 EVAL_HANDS="${EVAL_HANDS:-400}"
@@ -33,6 +34,7 @@ EARLY_STOP_PATIENCE="${EARLY_STOP_PATIENCE:-0}"
 EARLY_STOP_MIN_DELTA="${EARLY_STOP_MIN_DELTA:-0}"
 PROMOTE_PPO="${PROMOTE_PPO:-0}"
 RESET="${RESET:-0}"
+ALLOW_SMOKE="${ALLOW_SMOKE:-0}"
 
 PPO_ARM_FLAGS=()
 IFS=',' read -ra ARM_ITEMS <<< "$PPO_ARMS"
@@ -52,6 +54,11 @@ if [[ "$RESET" != "0" && "$RESET" != "false" ]]; then
   RESET_FLAG=(--reset)
 fi
 
+SMOKE_FLAG=()
+if [[ "$ALLOW_SMOKE" != "0" && "$ALLOW_SMOKE" != "false" ]]; then
+  SMOKE_FLAG=(--allow-smoke)
+fi
+
 echo "==> E2E PPO/heuristic coevolution: ${RUN_ID}"
 echo "==> Output directory: ${RESULT_ROOT}/${RUN_ID}"
 poetry run python tools/coevolve_training.py \
@@ -69,6 +76,7 @@ poetry run python tools/coevolve_training.py \
   --ppo-batch-size "$PPO_BATCH_SIZE" \
   --ppo-replay-generations "$PPO_REPLAY_GENERATIONS" \
   --ppo-replay-max-decisions "$PPO_REPLAY_MAX_DECISIONS" \
+  --ppo-min-training-hands "$PPO_MIN_TRAINING_HANDS" \
   --heuristic-population "$HEURISTIC_POPULATION" \
   --heuristic-elite "$HEURISTIC_ELITE" \
   --heuristic-matches-per-generation "$HEURISTIC_MATCHES_PER_GENERATION" \
@@ -84,6 +92,7 @@ poetry run python tools/coevolve_training.py \
   --progress \
   "${PROMOTE_FLAG[@]}" \
   "${RESET_FLAG[@]}" \
+  "${SMOKE_FLAG[@]}" \
   --json
 
 echo "Coevolution logs: ${RESULT_ROOT}/${RUN_ID}"

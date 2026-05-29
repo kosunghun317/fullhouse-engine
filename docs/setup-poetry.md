@@ -51,7 +51,7 @@ poetry run python tools/build_heuristic_tables.py --json
 poetry run python sandbox/validator.py bots/heuristic
 poetry run python tools/package_heuristic.py --json
 poetry run python tools/harden_submission.py --json
-poetry run python tools/select_heuristic_config.py --preset candidate --progress
+poetry run python tools/select_heuristic_config.py --preset quick --progress
 ```
 
 The demo listens on port 5001 by default:

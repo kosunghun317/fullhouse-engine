@@ -174,7 +174,12 @@ def _preflop_strength(cards: list[str]) -> float:
     return max(0.03, min(0.96, score))
 
 
-def _rollout_equity(state: dict, samples: int = 360, budget_opponents: int | None = None) -> float:
+def _rollout_equity(
+    state: dict,
+    samples: int = 360,
+    budget_opponents: int | None = None,
+    rng: random.Random | None = None,
+) -> float:
     board = state.get("community_cards", [])
     cards = state.get("your_cards", [])
     if not board:
@@ -193,8 +198,9 @@ def _rollout_equity(state: dict, samples: int = 360, budget_opponents: int | Non
     if len(deck) < need:
         return 0.0
     wins = 0.0
+    rng = rng or _state_rng(state, salt="rollout_equity")
     for _ in range(max(1, samples)):
-        random.shuffle(deck)
+        rng.shuffle(deck)
         idx = 0
         opp_hands = []
         for _opp in range(opponents):
@@ -214,7 +220,7 @@ def _rollout_equity(state: dict, samples: int = 360, budget_opponents: int | Non
 
 def decide_rollout(state: dict, style: str = "balanced") -> dict:
     samples = 520 if style == "rollout_deep" else 300
-    equity = _rollout_equity(state, samples=samples)
+    equity = _rollout_equity(state, samples=samples, rng=_state_rng(state, salt=style))
     owed = max(0, int(state.get("amount_owed", 0) or 0))
     pot = max(1, int(state.get("pot", 0) or 0))
     odds = owed / max(1, pot + owed)

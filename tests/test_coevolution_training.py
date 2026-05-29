@@ -8,6 +8,8 @@ import sys
 from pathlib import Path
 from types import SimpleNamespace
 
+import pytest
+
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
 from tools.coevolve_training import (
@@ -15,6 +17,7 @@ from tools.coevolve_training import (
     load_resume_state,
     resolve_ppo_init_mode,
     save_resume_state,
+    validate_training_budget,
 )
 from tools.plot_training_progress import render_svg
 from tools.strong_mocks.self_train_heuristic import parse_extra_opponents
@@ -96,3 +99,21 @@ def test_resume_state_round_trip(tmp_path: Path):
     assert loaded["next_cycle"] == 3
     assert loaded["population"] == population
     assert loaded["latest_ppo"].endswith("/ppo")
+
+
+def test_coevolution_budget_rejects_tiny_non_smoke_run():
+    args = SimpleNamespace(
+        allow_smoke=False,
+        ppo_generations=1,
+        ppo_matches_per_generation=2,
+        ppo_hands=40,
+        ppo_min_training_hands=1_000_000,
+        heuristic_population=4,
+        heuristic_matches_per_generation=2,
+        heuristic_hands=40,
+        eval_seeds=2,
+        eval_hands=40,
+    )
+
+    with pytest.raises(SystemExit):
+        validate_training_budget(args)

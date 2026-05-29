@@ -710,8 +710,27 @@ def should_export_policy(selected_mean_delta: float | None, output_exists: bool,
     return (not output_exists) or float(selected_mean_delta) >= float(min_export_mean_delta)
 
 
+def validate_training_budget(args, output: Path) -> None:
+    canonical = DEFAULT_PPO_OUTPUT if args.kind == "ppo" else DEFAULT_BUCKET_OUTPUT
+    allow_smoke = bool(getattr(args, "allow_smoke", False))
+    min_training_hands = int(getattr(args, "min_training_hands", 1_000_000))
+    if allow_smoke:
+        if output.resolve() == canonical.resolve():
+            raise SystemExit("--allow-smoke requires --output outside the canonical strong-mock artifact path")
+        return
+    total_hands = int(args.generations) * int(args.matches_per_generation) * int(args.hands)
+    if int(args.hands) < 400:
+        raise SystemExit("--hands must be at least 400 unless --allow-smoke is set")
+    if total_hands < min_training_hands:
+        raise SystemExit(
+            f"training budget {total_hands} hands is below --min-training-hands "
+            f"{min_training_hands}; use --allow-smoke only with a non-canonical --output"
+        )
+
+
 def train(args) -> dict:
     output = Path(args.output or (DEFAULT_PPO_OUTPUT if args.kind == "ppo" else DEFAULT_BUCKET_OUTPUT))
+    validate_training_budget(args, output)
     output_exists_before_training = output.is_file()
     params = None
     mean = np.zeros(len(FEATURE_NAMES), dtype=np.float64)
@@ -941,13 +960,13 @@ def train(args) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train strong mock policies from actual Fullhouse self-play")
     parser.add_argument("--kind", choices=["ppo", "bucket"], default="ppo")
-    parser.add_argument("--generations", type=int, default=12)
-    parser.add_argument("--matches-per-generation", type=int, default=32)
-    parser.add_argument("--hands", type=int, default=80)
+    parser.add_argument("--generations", type=int, default=24)
+    parser.add_argument("--matches-per-generation", type=int, default=128)
+    parser.add_argument("--hands", type=int, default=400)
     parser.add_argument("--players", type=int, default=6)
     parser.add_argument("--train-seats", type=int, default=2)
-    parser.add_argument("--hidden", type=int, default=64)
-    parser.add_argument("--bucket-count", type=int, default=4096)
+    parser.add_argument("--hidden", type=int, default=128)
+    parser.add_argument("--bucket-count", type=int, default=32768)
     parser.add_argument("--abstraction", choices=["feature", "cfr-pokerbot"], default="feature")
     parser.add_argument("--bucket-update", choices=["policy-gradient", "cfr-plus"], default="policy-gradient")
     parser.add_argument("--learning-rate", type=float, default=0.006)
@@ -963,7 +982,7 @@ def main() -> None:
     parser.add_argument("--temperature", type=float, default=0.62)
     parser.add_argument("--reward-scale", type=float, default=1000.0)
     parser.add_argument("--reward-clip", type=float, default=10.0)
-    parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed", "adversarial"], default="mixed")
+    parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed", "adversarial"], default="adversarial")
     parser.add_argument("--extra-bot-path", action="append", default=[])
     parser.add_argument("--snapshot-interval", type=int, default=2)
     parser.add_argument("--max-snapshots", type=int, default=6)
@@ -980,6 +999,8 @@ def main() -> None:
     parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
     parser.add_argument("--selection-bust-penalty", type=float, default=8000.0)
     parser.add_argument("--min-export-mean-delta", type=float, default=-1_000_000_000.0)
+    parser.add_argument("--min-training-hands", type=int, default=1_000_000)
+    parser.add_argument("--allow-smoke", action="store_true")
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()

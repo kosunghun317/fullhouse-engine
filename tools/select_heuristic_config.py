@@ -64,32 +64,32 @@ PRESETS = {
         "note": "integration-only; not enough to promote or reject defaults",
     },
     "candidate": {
-        "seed_count": 10,
+        "seed_count": 64,
         "suites": CORE_SUITES + STRESS_SUITES,
-        "note": "minimum candidate screen",
+        "note": "statistical candidate screen",
     },
     "mock-screen": {
-        "seed_count": 10,
+        "seed_count": 64,
         "suites": ["reference_6max", "mutant_6max"] + MOCK_SUITES + MOCK_FAMILY_SUITES,
         "note": "compressed-model/mock-opponent screen with expanded mock families",
     },
     "mock-family": {
-        "seed_count": 10,
+        "seed_count": 128,
         "suites": MOCK_FAMILY_SUITES,
         "note": "focused screen against expanded trained/lookup/adversarial mock families",
     },
     "strong-screen": {
-        "seed_count": 10,
+        "seed_count": 128,
         "suites": STRONG_SUITES,
         "note": "focused screen against benchmark-only strong mock opponents",
     },
     "promotion": {
-        "seed_count": 30,
+        "seed_count": 128,
         "suites": CORE_SUITES + STRESS_SUITES + MOCK_SUITES,
-        "note": "minimum default-promotion screen",
+        "note": "default-promotion screen",
     },
     "final": {
-        "seed_count": 100,
+        "seed_count": 200,
         "suites": CORE_SUITES + STRESS_SUITES + MOCK_SUITES,
         "note": "final acceptance matrix",
     },
@@ -101,6 +101,19 @@ def _parse_seeds(args, preset):
         return [int(part.strip()) for part in args.seeds.split(",") if part.strip()]
     count = args.seed_count or PRESETS[preset]["seed_count"]
     return list(range(args.seed_start, args.seed_start + count))
+
+
+def validate_budget(args, suites, seeds):
+    if args.allow_smoke or args.preset == "quick":
+        return
+    if int(args.hands) < 400:
+        raise SystemExit("--hands must be at least 400 unless --preset quick or --allow-smoke is set")
+    tasks_per_config = len(suites) * len(seeds)
+    if tasks_per_config < int(args.min_tasks_per_config):
+        raise SystemExit(
+            f"each config must have at least {args.min_tasks_per_config} suite/seed tasks; "
+            "increase --seed-count or use --allow-smoke only for wiring checks"
+        )
 
 
 def _score_suite(summary, risk_weight, min_weight, bust_penalty, error_penalty):
@@ -204,6 +217,8 @@ def main():
     parser.add_argument("--min-weight", type=float, default=0.10)
     parser.add_argument("--bust-penalty", type=float, default=8000.0)
     parser.add_argument("--error-penalty", type=float, default=20000.0)
+    parser.add_argument("--min-tasks-per-config", type=int, default=512)
+    parser.add_argument("--allow-smoke", action="store_true")
     parser.add_argument("--progress", action="store_true", help="Print config/suite progress to stderr")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -211,6 +226,7 @@ def main():
     configs = args.config or sorted(CONFIGS)
     suites = args.suite or PRESETS[args.preset]["suites"]
     seeds = _parse_seeds(args, args.preset)
+    validate_budget(args, suites, seeds)
 
     report = [
         evaluate_config_with_progress(

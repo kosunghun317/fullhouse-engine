@@ -595,8 +595,26 @@ def _export_policy(output: Path, params: dict[str, np.ndarray], mean: np.ndarray
     np.savez_compressed(output, **payload)
 
 
+def validate_training_budget(args, output: Path) -> None:
+    allow_smoke = bool(getattr(args, "allow_smoke", False))
+    min_training_hands = int(getattr(args, "min_training_hands", 1_000_000))
+    if allow_smoke:
+        if output.resolve() == DEFAULT_OUTPUT.resolve():
+            raise SystemExit("--allow-smoke requires --output outside the canonical deep-PPO artifact path")
+        return
+    total_hands = int(args.generations) * int(args.matches_per_generation) * int(args.hands)
+    if int(args.hands) < 400:
+        raise SystemExit("--hands must be at least 400 unless --allow-smoke is set")
+    if total_hands < min_training_hands:
+        raise SystemExit(
+            f"training budget {total_hands} hands is below --min-training-hands "
+            f"{min_training_hands}; use --allow-smoke only with a non-canonical --output"
+        )
+
+
 def train(args) -> dict:
     output = Path(args.output or DEFAULT_OUTPUT)
+    validate_training_budget(args, output)
     hidden = _parse_hidden(args.hidden)
     params, mean, scale = _load_policy(output, hidden, args.seed, args.resume)
     rng = np.random.default_rng(args.seed)
@@ -724,9 +742,9 @@ def train(args) -> dict:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Train the independent deep PPO strong mock")
-    parser.add_argument("--generations", type=int, default=8)
-    parser.add_argument("--matches-per-generation", type=int, default=32)
-    parser.add_argument("--hands", type=int, default=120)
+    parser.add_argument("--generations", type=int, default=24)
+    parser.add_argument("--matches-per-generation", type=int, default=128)
+    parser.add_argument("--hands", type=int, default=400)
     parser.add_argument("--players", type=int, default=6)
     parser.add_argument("--train-seats", type=int, default=2)
     parser.add_argument("--hidden", default="96,64,32")
@@ -745,12 +763,12 @@ def main() -> None:
     parser.add_argument("--reward-clip", type=float, default=10.0)
     parser.add_argument("--selection-warmup", type=int, default=0)
     parser.add_argument("--selection-bust-penalty", type=float, default=9000.0)
-    parser.add_argument("--opponent-pool", choices=["oracle", "fast", "adversarial"], default="fast")
+    parser.add_argument("--opponent-pool", choices=["oracle", "fast", "adversarial"], default="adversarial")
     parser.add_argument("--snapshot-interval", type=int, default=2)
     parser.add_argument("--max-snapshots", type=int, default=6)
     parser.add_argument("--snapshot-prob", type=float, default=0.30)
-    parser.add_argument("--bootstrap-samples", type=int, default=12000)
-    parser.add_argument("--bootstrap-holdout", type=int, default=2000)
+    parser.add_argument("--bootstrap-samples", type=int, default=60000)
+    parser.add_argument("--bootstrap-holdout", type=int, default=12000)
     parser.add_argument("--bootstrap-epochs", type=int, default=4)
     parser.add_argument("--bootstrap-style", choices=["pressure", "value", "conservative", "explore"], default="pressure")
     parser.add_argument("--workers", type=int, default=1)
@@ -758,6 +776,8 @@ def main() -> None:
     parser.add_argument("--seed", type=int, default=7171)
     parser.add_argument("--output", default=str(DEFAULT_OUTPUT))
     parser.add_argument("--resume", action="store_true")
+    parser.add_argument("--min-training-hands", type=int, default=1_000_000)
+    parser.add_argument("--allow-smoke", action="store_true")
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()

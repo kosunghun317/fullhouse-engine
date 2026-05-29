@@ -27,6 +27,7 @@ from training.fast_match import run_fast_matches_parallel
 
 BOT_ROOT = ROOT / "bots"
 STRONG_ROOT = BOT_ROOT / "strong_mocks"
+DEFAULT_RESULT_ROOT = ROOT / "runs" / "fullhouse_league_training"
 
 
 KIND_CONFIG = {
@@ -65,25 +66,25 @@ STAGES = {
     "oracle_bootstrap": {
         "train_pool": "oracle",
         "eval_pools": ["public_holdout"],
-        "generations": {"ppo": 8, "bucket": 6},
-        "matches": {"ppo": 32, "bucket": 48},
-        "hands": 100,
+        "generations": {"ppo": 20, "bucket": 20},
+        "matches": {"ppo": 128, "bucket": 128},
+        "hands": 400,
         "snapshot_prob": 0.20,
     },
     "public_adversarial": {
         "train_pool": "adversarial",
         "eval_pools": ["public_holdout", "mock_holdout"],
-        "generations": {"ppo": 14, "bucket": 12},
-        "matches": {"ppo": 64, "bucket": 80},
-        "hands": 140,
+        "generations": {"ppo": 24, "bucket": 24},
+        "matches": {"ppo": 128, "bucket": 128},
+        "hands": 400,
         "snapshot_prob": 0.30,
     },
     "league_mixed": {
         "train_pool": "mixed",
         "eval_pools": ["public_holdout", "mock_holdout", "strong_holdout"],
-        "generations": {"ppo": 14, "bucket": 12},
-        "matches": {"ppo": 80, "bucket": 96},
-        "hands": 160,
+        "generations": {"ppo": 24, "bucket": 24},
+        "matches": {"ppo": 128, "bucket": 128},
+        "hands": 400,
         "snapshot_prob": 0.45,
     },
 }
@@ -277,6 +278,8 @@ def _train_args(args, stage_name: str, stage: dict, kind: str, output: Path, ext
         early_stop_min_delta=args.early_stop_min_delta,
         selection_bust_penalty=args.selection_bust_penalty,
         min_export_mean_delta=args.min_export_mean_delta,
+        min_training_hands=args.min_training_hands,
+        allow_smoke=args.allow_smoke,
         progress=args.progress,
         json=True,
     )
@@ -375,7 +378,7 @@ def run_league(args) -> dict:
 def main() -> None:
     parser = argparse.ArgumentParser(description="Run league-style staged training for strong mock opponents")
     parser.add_argument("--run-id", default="league-local")
-    parser.add_argument("--result-root", default="/private/tmp/fullhouse_league_training")
+    parser.add_argument("--result-root", default=str(DEFAULT_RESULT_ROOT))
     parser.add_argument("--kind", choices=sorted(KIND_CONFIG), action="append")
     parser.add_argument("--stage", choices=sorted(STAGES), action="append")
     parser.add_argument("--players", type=int, default=6)
@@ -383,8 +386,8 @@ def main() -> None:
     parser.add_argument("--generation-scale", type=float, default=1.0)
     parser.add_argument("--match-scale", type=float, default=1.0)
     parser.add_argument("--hand-scale", type=float, default=1.0)
-    parser.add_argument("--eval-seeds", type=int, default=8)
-    parser.add_argument("--eval-hands", type=int, default=160)
+    parser.add_argument("--eval-seeds", type=int, default=128)
+    parser.add_argument("--eval-hands", type=int, default=400)
     parser.add_argument("--seed", type=int, default=9000)
     parser.add_argument("--seed-start", type=int, default=11001)
     parser.add_argument("--reward-scale", type=float, default=1000.0)
@@ -402,6 +405,7 @@ def main() -> None:
     parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
     parser.add_argument("--selection-bust-penalty", type=float, default=8000.0)
     parser.add_argument("--min-export-mean-delta", type=float, default=-1_000_000_000.0)
+    parser.add_argument("--min-training-hands", type=int, default=1_000_000)
     parser.add_argument("--promote-margin", type=float, default=250.0)
     parser.add_argument("--risk-weight", type=float, default=0.35)
     parser.add_argument("--min-weight", type=float, default=0.10)
@@ -411,6 +415,7 @@ def main() -> None:
     parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--resume", action="store_true")
     parser.add_argument("--promote", action="store_true")
+    parser.add_argument("--allow-smoke", action="store_true")
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -419,6 +424,10 @@ def main() -> None:
         raise SystemExit("--players must be at least 2")
     if not 1 <= args.train_seats <= args.players:
         raise SystemExit("--train-seats must be between 1 and --players")
+    if args.allow_smoke and args.promote:
+        raise SystemExit("--allow-smoke cannot be combined with --promote")
+    if not args.allow_smoke and (args.eval_seeds < 128 or args.eval_hands < 400):
+        raise SystemExit("--eval-seeds >= 128 and --eval-hands >= 400 are required unless --allow-smoke is set")
     result = run_league(args)
     print(json.dumps(result, indent=2, sort_keys=True) if args.json else result)
 

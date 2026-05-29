@@ -4,8 +4,10 @@ from __future__ import annotations
 
 import os
 import sys
+from types import SimpleNamespace
 
 import numpy as np
+import pytest
 
 sys.path.insert(0, os.path.join(os.path.dirname(__file__), ".."))
 
@@ -158,6 +160,32 @@ def test_supervised_bootstrap_improves_selector_agreement():
 
     assert result["bootstrap_final_loss"] < result["bootstrap_initial_loss"]
     assert result["bootstrap_final_agreement"] >= result["bootstrap_initial_agreement"]
+
+
+def test_arm_selector_budget_rejects_tiny_non_smoke_run(tmp_path):
+    args = SimpleNamespace(
+        allow_smoke=False,
+        generations=1,
+        matches_per_generation=2,
+        hands=40,
+        min_training_hands=1_000_000,
+    )
+
+    with pytest.raises(SystemExit):
+        train_arm_selector.validate_training_budget(args, tmp_path / "policy.npz")
+
+
+def test_arm_selector_budget_blocks_smoke_overwriting_canonical_artifact():
+    args = SimpleNamespace(
+        allow_smoke=True,
+        generations=1,
+        matches_per_generation=2,
+        hands=40,
+        min_training_hands=1_000_000,
+    )
+
+    with pytest.raises(SystemExit):
+        train_arm_selector.validate_training_budget(args, train_arm_selector.DEFAULT_OUTPUT)
 
 
 def test_tuning_stage_parser_requires_explicit_budget_shape():

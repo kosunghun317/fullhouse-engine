@@ -1,4 +1,4 @@
-"""Render a lightweight SVG plot from coevolution training metrics."""
+"""Render a lightweight SVG plot from training metrics JSONL."""
 
 from __future__ import annotations
 
@@ -63,7 +63,7 @@ def render_svg(metrics_path: Path, output_path: Path) -> dict:
         f'<line x1="{left}" y1="{top + plot_h}" x2="{left + plot_w}" y2="{top + plot_h}" stroke="#222" stroke-width="1"/>',
         f'<line x1="{left}" y1="{top}" x2="{left}" y2="{top + plot_h}" stroke="#222" stroke-width="1"/>',
         f'<text x="{width / 2}" y="24" text-anchor="middle" font-family="Arial" font-size="18">Training EV Progress</text>',
-        f'<text x="{width / 2}" y="{height - 20}" text-anchor="middle" font-family="Arial" font-size="13">Cycle</text>',
+        f'<text x="{width / 2}" y="{height - 20}" text-anchor="middle" font-family="Arial" font-size="13">Cycle / generation</text>',
         f'<text x="18" y="{height / 2}" transform="rotate(-90 18 {height / 2})" text-anchor="middle" font-family="Arial" font-size="13">Mean chip delta / EV proxy</text>',
     ]
     for frac in [0.0, 0.25, 0.5, 0.75, 1.0]:
@@ -89,7 +89,7 @@ def render_svg(metrics_path: Path, output_path: Path) -> dict:
 
 
 def main() -> None:
-    parser = argparse.ArgumentParser(description="Plot coevolution training EV/progress metrics as SVG")
+    parser = argparse.ArgumentParser(description="Plot training EV/progress metrics as SVG")
     parser.add_argument("--metrics", required=True)
     parser.add_argument("--output", required=True)
     parser.add_argument("--json", action="store_true")

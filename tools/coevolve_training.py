@@ -305,6 +305,8 @@ def train_ppo_candidate(
         early_stop_min_delta=args.early_stop_min_delta,
         selection_bust_penalty=args.selection_bust_penalty,
         min_export_mean_delta=-1_000_000_000.0,
+        min_training_hands=args.ppo_min_training_hands,
+        allow_smoke=args.allow_smoke,
         progress=args.progress,
         json=True,
     )
@@ -320,10 +322,31 @@ def _heuristic_args(args) -> Namespace:
         workers=args.workers,
         parallel_backend=args.parallel_backend,
         seed=args.seed,
+        allow_smoke=args.allow_smoke,
     )
 
 
+def validate_training_budget(args) -> None:
+    if args.allow_smoke:
+        return
+    ppo_training_hands = int(args.ppo_generations) * int(args.ppo_matches_per_generation) * int(args.ppo_hands)
+    if int(args.ppo_hands) < 400 or ppo_training_hands < int(args.ppo_min_training_hands):
+        raise SystemExit(
+            "PPO coevolution training must use 400-hand matches and at least "
+            f"{args.ppo_min_training_hands} rollout hands unless --allow-smoke is set"
+        )
+    if int(args.heuristic_population) < 16:
+        raise SystemExit("--heuristic-population must be at least 16 unless --allow-smoke is set")
+    if int(args.heuristic_matches_per_generation) < 384:
+        raise SystemExit("--heuristic-matches-per-generation must be at least 384 unless --allow-smoke is set")
+    if int(args.heuristic_hands) < 400:
+        raise SystemExit("--heuristic-hands must be at least 400 unless --allow-smoke is set")
+    if int(args.eval_seeds) < 128 or int(args.eval_hands) < 400:
+        raise SystemExit("--eval-seeds >= 128 and --eval-hands >= 400 are required unless --allow-smoke is set")
+
+
 def run_coevolution(args) -> dict:
+    validate_training_budget(args)
     run_root = _resolve_path(args.result_root) / args.run_id
     generated_root = run_root / "heuristic_generated"
     metrics_path = run_root / "metrics.jsonl"
@@ -530,7 +553,7 @@ def main() -> None:
     parser.add_argument("--result-root", default=str(DEFAULT_RESULT_ROOT))
     parser.add_argument("--cycles", type=int, default=2)
     parser.add_argument("--ppo-arm", choices=sorted(PPO_ARMS), action="append")
-    parser.add_argument("--ppo-generations", type=int, default=4)
+    parser.add_argument("--ppo-generations", type=int, default=20)
     parser.add_argument("--ppo-matches-per-generation", type=int, default=128)
     parser.add_argument("--ppo-hands", type=int, default=400)
     parser.add_argument("--ppo-hidden", type=int, default=128)
@@ -542,9 +565,9 @@ def main() -> None:
     parser.add_argument("--ppo-feature-norm-momentum", type=float, default=0.0)
     parser.add_argument("--ppo-replay-generations", type=int, default=4)
     parser.add_argument("--ppo-replay-max-decisions", type=int, default=24000)
-    parser.add_argument("--heuristic-population", type=int, default=10)
+    parser.add_argument("--heuristic-population", type=int, default=16)
     parser.add_argument("--heuristic-elite", type=int, default=3)
-    parser.add_argument("--heuristic-matches-per-generation", type=int, default=64)
+    parser.add_argument("--heuristic-matches-per-generation", type=int, default=384)
     parser.add_argument("--heuristic-hands", type=int, default=400)
     parser.add_argument("--eval-seeds", type=int, default=128)
     parser.add_argument("--eval-seed-start", type=int, default=15001)
@@ -556,10 +579,12 @@ def main() -> None:
     parser.add_argument("--early-stop-patience", type=int, default=0)
     parser.add_argument("--early-stop-min-delta", type=float, default=0.0)
     parser.add_argument("--selection-bust-penalty", type=float, default=8000.0)
+    parser.add_argument("--ppo-min-training-hands", type=int, default=1_000_000)
     parser.add_argument("--workers", type=int, default=1)
     parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
     parser.add_argument("--seed", type=int, default=12000)
     parser.add_argument("--promote-ppo", action="store_true")
+    parser.add_argument("--allow-smoke", action="store_true")
     parser.add_argument("--reset", action="store_true", help="delete the selected run directory before starting")
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")

@@ -193,10 +193,20 @@ def _restore_env(old):
             os.environ[key] = value
 
 
-def evaluate_config(name, suites, seeds, hands, summary_only=False):
+def evaluate_config(name, suites, seeds, hands, summary_only=False, workers=1, parallel_backend="process"):
     old = _set_env(CONFIGS[name])
     try:
-        results = [run_suite(suite, seeds, hands, summary_only) for suite in suites]
+        results = [
+            run_suite(
+                suite,
+                seeds,
+                hands,
+                summary_only,
+                workers=workers,
+                parallel_backend=parallel_backend,
+            )
+            for suite in suites
+        ]
     finally:
         _restore_env(old)
     return {"config": name, "env": CONFIGS[name], "results": results}
@@ -210,14 +220,31 @@ def _parse_seeds(args):
     return [101, 202, 303]
 
 
+def validate_budget(args, suites, seeds):
+    if args.allow_smoke:
+        return
+    if int(args.hands) < 400:
+        raise SystemExit("--hands must be at least 400 unless --allow-smoke is set")
+    tasks_per_config = len(suites) * len(seeds)
+    if tasks_per_config < int(args.min_tasks_per_config):
+        raise SystemExit(
+            f"each config must have at least {args.min_tasks_per_config} suite/seed tasks; "
+            "increase --seed-count or use --allow-smoke only for wiring checks"
+        )
+
+
 def main():
     parser = argparse.ArgumentParser(description="Tune heuristic threshold env configurations")
     parser.add_argument("--config", choices=sorted(CONFIGS), action="append")
     parser.add_argument("--suite", action="append", default=None)
     parser.add_argument("--seeds", default=None)
     parser.add_argument("--seed-start", type=int, default=101)
-    parser.add_argument("--seed-count", type=int, default=None)
+    parser.add_argument("--seed-count", type=int, default=128)
     parser.add_argument("--hands", type=int, default=400)
+    parser.add_argument("--workers", type=int, default=1)
+    parser.add_argument("--parallel-backend", choices=["process", "thread"], default="process")
+    parser.add_argument("--min-tasks-per-config", type=int, default=512)
+    parser.add_argument("--allow-smoke", action="store_true")
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -236,8 +263,20 @@ def main():
         "heads_up_threshold",
     ]
     seeds = _parse_seeds(args)
+    validate_budget(args, suites, seeds)
 
-    report = [evaluate_config(name, suites, seeds, args.hands, args.summary_only) for name in configs]
+    report = [
+        evaluate_config(
+            name,
+            suites,
+            seeds,
+            args.hands,
+            args.summary_only,
+            workers=args.workers,
+            parallel_backend=args.parallel_backend,
+        )
+        for name in configs
+    ]
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
         return

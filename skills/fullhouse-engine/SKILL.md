@@ -7,23 +7,13 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 
 ## First Steps
 
-- Read `docs/project-overview.md` for repo purpose, file roles, tournament format, and frozen areas.
+- Read `docs/strategy-and-training.md` for repo purpose, file roles, strategy,
+  likely competitor logic, training flow, and optimization flow.
 - Read `docs/restrictions.md` before changing or writing any bot logic.
-- Read `docs/bot-state-and-memory.md` when reasoning about `decide()` inputs, action history, opponent modeling, or in-memory bot state.
-- Read `docs/heuristic-bot-plan.md` before implementing or tuning the heuristic competition bot.
-- Read `docs/heuristic-bot-logic.md` before modifying `bots/heuristic/bot.py`; it explains the current policy and improvement backlog.
-- Read `docs/heuristic-improvement-backlog.md` before selecting heuristic bot improvements; it ranks tasks by ease and defines success criteria.
-- Read `docs/heuristic-parameter-audit.md` before tuning heuristic thresholds or bet sizes.
-- Read `docs/four-day-execution-plan.md` before starting larger heuristic implementation work.
-- Read `docs/external-poker-ai-benchmarks.md` before adding any external poker AI benchmark opponent.
+- Read `docs/heuristic-full-space-optimization.md` before running or changing
+  the full-space heuristic optimizer.
 - Read `docs/training-pipelines.md` before changing real training, league
   training, fast matches, self-training, or coevolution scripts.
-- Read `docs/heuristic-rl-arm-selector.md` before adding any new RL-assisted
-  strategy architecture.
-- Read `docs/ppo-bot-logic.md` before changing `bots/strong_mocks/ppo_policy`
-  `bots/strong_mocks/ppo_deep_policy`, or PPO training logic.
-- Read `docs/heuristic-benchmark-results.md` before comparing new heuristic
-  changes or promoting a default.
 - Read `docs/setup-poetry.md` before changing dependencies or environment setup.
 
 ## Environment
@@ -93,8 +83,8 @@ poetry run python tools/paired_heuristic_gate.py --incumbent baseline --candidat
 Use this before promoting or reverting submitted-bot defaults because it
 compares identical suite/seed pairs and exposes paired mean, mean confidence
 interval, median, p10, win rate, bust, and error changes. Promotion requires
-the paired mean-difference lower CI bound to be positive and at least 100
-paired match tasks.
+the paired mean-difference lower CI bound to be positive. The submission
+pipeline defaults run well above the tool's hard minimum of 100 paired tasks.
 
 For expanded mock-family screens, run:
 
@@ -115,7 +105,7 @@ For independent deep PPO experiments that must not touch the existing
 `ppo_policy`, use:
 
 ```bash
-poetry run python tools/strong_mocks/train_deep_ppo.py --output bots/strong_mocks/ppo_deep_policy/data/policy.npz --progress --json
+poetry run python tools/strong_mocks/train_deep_ppo.py --output bots/strong_mocks/ppo_deep_policy/data/policy.npz --bootstrap-samples 60000 --bootstrap-holdout 12000 --generations 24 --matches-per-generation 128 --hands 400 --opponent-pool adversarial --progress --json
 ```
 
 For the preferred RL-assisted architecture, train the heuristic expert-arm
@@ -123,7 +113,7 @@ selector. It learns to choose among named poker heuristic candidates rather
 than raw actions:
 
 ```bash
-poetry run python tools/strong_mocks/train_arm_selector.py --output bots/strong_mocks/heuristic_rl_selector/data/policy.npz --progress --json
+poetry run python tools/strong_mocks/train_arm_selector.py --output bots/strong_mocks/heuristic_rl_selector/data/policy.npz --bootstrap-samples 60000 --bootstrap-holdout 12000 --generations 24 --matches-per-generation 128 --hands 400 --opponent-pool adversarial --progress --json
 poetry run pytest -q tests/test_arm_selector.py
 poetry run python sandbox/validator.py bots/strong_mocks/heuristic_rl_selector --json
 ```
@@ -141,6 +131,17 @@ poetry run python tools/strong_mocks/tune_arm_selector_params.py --generations 6
 This writes to `runs/arm_selector_param_tuning/`. Do not pass
 `--promote-output` unless the run uses statistically meaningful stages and the
 held-out report has been reviewed. `--allow-smoke` is for wiring checks only.
+
+For full-space heuristic parameter search, use the staged CEM/racing tuner
+instead of ad hoc one-parameter sweeps:
+
+```bash
+poetry run python tools/tune_heuristic_full_space.py --preset strong-screen --generations 6 --population 24 --elite 6 --stages 128:400:0.5,256:400:0.25 --workers 0 --parallel-backend process --progress --json
+```
+
+This writes to `runs/heuristic_full_space_tuning/` and refuses serious runs
+below 512 suite/seed tasks per candidate stage and 1024 final-stage tasks per
+candidate. `--allow-smoke` is only for wiring checks.
 
 For a serious but bounded real-opponent run on a laptop, prefer:
 
@@ -168,6 +169,17 @@ If the final report says `"exported": false`, the run completed but kept the
 existing repo artifact because the selected checkpoint did not clear
 `MIN_EXPORT_MEAN_DELTA`.
 
+After any strong-mock training or artifact change, run the statistical strength
+gate before using the artifacts as promotion opponents:
+
+```bash
+poetry run python tools/check_strong_mocks.py --seed-count 128 --hands 400 --workers 0 --parallel-backend process --json
+```
+
+The gate covers every `bots/strong_mocks/*` wrapper against default/reference
+bots in six-max and heads-up tasks. Do not call a strong-mock artifact trained
+unless it passes this gate or the failure is intentionally documented.
+
 For league-style staged opponent training with held-out promotion gates:
 
 ```bash
@@ -192,12 +204,12 @@ CYCLES=4 \
 PPO_ARMS=stable,explore,conservative \
 PPO_INIT=auto \
 PPO_INIT_SAMPLES=80000 \
-PPO_GENERATIONS=8 \
+PPO_GENERATIONS=20 \
 PPO_MATCHES_PER_GENERATION=128 \
 PPO_HANDS=400 \
-HEURISTIC_POPULATION=14 \
+HEURISTIC_POPULATION=16 \
 HEURISTIC_ELITE=4 \
-HEURISTIC_MATCHES_PER_GENERATION=64 \
+HEURISTIC_MATCHES_PER_GENERATION=384 \
 HEURISTIC_HANDS=400 \
 EVAL_SEEDS=128 \
 EVAL_HANDS=400 \
@@ -221,6 +233,7 @@ HAND_SCALE=0.10 \
 EVAL_SEEDS=1 \
 EVAL_HANDS=12 \
 PROMOTE=0 \
+ALLOW_SMOKE=1 \
 WORKERS=1 \
 scripts/train_opponents_league.sh
 ```
@@ -240,14 +253,21 @@ poetry run pytest -q tests/test_fast_match.py
 For multi-heuristic self-training, run a smoke first:
 
 ```bash
-poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --generations 1 --population 4 --elite 2 --matches-per-generation 2 --hands 12 --seed 22 --json
+poetry run python tools/strong_mocks/self_train_heuristic.py --run-id smoke --generations 1 --population 4 --elite 2 --matches-per-generation 2 --hands 12 --seed 22 --allow-smoke --json
 ```
+
+This writes to `runs/fullhouse_self_training/<run-id>/` by default, including
+`summary.json`, `metrics.jsonl`, `ev_progress.svg`, and `generated/`.
 
 For larger parallel heuristic self-training, use:
 
 ```bash
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
 ```
+
+The wrapper defaults to 16 generations, 384 matches/generation, 400 hands per
+match, and 256 held-out strong-screen validation seeds. It also writes
+`baseline_validation.json` in the same run directory.
 
 For faster offline validations, prefer `--workers 0 --parallel-backend process`.
 Use `--parallel-backend thread` only for short local checks where process
@@ -275,13 +295,13 @@ poetry run python tools/harden_submission.py --json
 For threshold tuning comparisons, run:
 
 ```bash
-poetry run python tools/tune_heuristic_thresholds.py --json
+poetry run python tools/tune_heuristic_thresholds.py --workers 0 --parallel-backend process --summary-only --json
 ```
 
 For threshold tuning summaries, run:
 
 ```bash
-poetry run python tools/tune_heuristic_thresholds.py --seed-count 128 --summary-only --json
+poetry run python tools/tune_heuristic_thresholds.py --seed-count 128 --workers 0 --parallel-backend process --summary-only --json
 ```
 
 For risk-aware config ranking, run:

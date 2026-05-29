@@ -1,14 +1,19 @@
 # Training Pipelines
 
-Reviewed: 2026-05-28.
+Reviewed: 2026-05-29.
 
 This is the canonical guide for local-only training and benchmark pipelines.
-Use it instead of copying details between the older real-training, league,
-strong-mock, fast-runner, and coevolution notes.
+Use it together with `docs/strategy-and-training.md`; the older fragmented
+real-training, league, strong-mock, fast-runner, and coevolution notes were
+consolidated into these two files.
 
 The competition submission remains `bots/heuristic`. Everything in this file is
 offline infrastructure for building better tests, tuning heuristic parameters,
 or training benchmark-only mock opponents.
+
+For the overall strategy and file map, see `docs/strategy-and-training.md`.
+For the full-space heuristic optimizer design and references, see
+`docs/heuristic-full-space-optimization.md`.
 
 ## Pipeline Map
 
@@ -17,10 +22,12 @@ graph TD
     Heuristic["bots/heuristic - competition bot"] --> Eval["tools/evaluate_heuristic.py"]
     Eval --> Select["tools/select_heuristic_config.py"]
     Eval --> PairedGate["tools/paired_heuristic_gate.py"]
+    Eval --> FullTune["tools/tune_heuristic_full_space.py"]
     Select --> HeurSelf["tools/strong_mocks/self_train_heuristic.py"]
 
     StrongMocks["bots/strong_mocks"] --> Eval
     RealTrain["tools/strong_mocks/train_real_policy.py"] --> StrongMocks
+    StrongGate["tools/check_strong_mocks.py"] --> StrongMocks
     League["tools/strong_mocks/league_train.py"] --> RealTrain
     Coevolve["tools/coevolve_training.py"] --> RealTrain
     Coevolve --> HeurSelf
@@ -41,13 +48,15 @@ graph TD
 | `scripts/run_submission_pipeline.sh` | One-command unattended submission hardening, paired gates, strong/mock screens, final matrix, and zip rebuild. | `runs/submission_pipeline/<run-id>/` plus `dist/heuristic_bot.zip` |
 | `scripts/train_e2e_coevolution.sh` | Alternating PPO mock training and heuristic parameter evolution. | `runs/fullhouse_coevolution/<run-id>/` |
 | `scripts/train_opponents_real.sh` | Train PPO and bucket/CFR-like strong mocks from real Fullhouse rollouts. | `runs/fullhouse_real_training/<run-id>/` and optional mock artifacts |
-| `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools. | `runs/fullhouse_self_training/<run-id>/` |
+| `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools and validate the current baseline. | `runs/fullhouse_self_training/<run-id>/` |
+| `tools/tune_heuristic_full_space.py` | Search the full `HEURISTIC_*` env parameter space with staged CEM/racing. | `runs/heuristic_full_space_tuning/<run-id>/` |
 | `tools/strong_mocks/train_real_policy.py` | Direct low-level PPO or bucket training. | One `policy.npz` artifact plus JSONL logs |
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector training; preferred RL-assisted architecture. | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` or a custom output |
 | `tools/strong_mocks/tune_arm_selector_params.py` | CEM/racing tuner for selector thresholds and bet-sizing constants. | `runs/arm_selector_param_tuning/<run-id>/` plus optional promoted `params.npz` |
 | `tools/paired_heuristic_gate.py` | Paired incumbent-vs-candidate default-promotion checks on identical suite/seed tasks. | JSON report with paired mean/median/p10/win-rate and promotable flag |
-| `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | League run directory and optional promoted artifact |
+| `tools/check_strong_mocks.py` | Strength gate for every strong-mock bot against default/reference bots. | JSON report with per-candidate pass/fail and suite breakdowns |
+| `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | `runs/fullhouse_league_training/<run-id>/` plus optional promoted artifact |
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
 
 Run outputs are stored under `runs/`, which is git-ignored. Do not put large or
@@ -114,9 +123,9 @@ The bash wrappers are cumulative by default:
 
 ## PPO Strong Mock Training
 
-Read `docs/ppo-bot-logic.md` before changing PPO runtime or training code.
-For new RL-assisted strategy work, read
-`docs/heuristic-rl-arm-selector.md`; it is the preferred architecture.
+Read `docs/strategy-and-training.md` before changing strong-mock runtime or
+training code. PPO, deep PPO, CFR/bucket, rollout, ensemble, and arm-selector
+mock roles are summarized there.
 
 Current PPO defaults are intentionally conservative:
 
@@ -135,9 +144,12 @@ overwrite `bots/strong_mocks/ppo_policy`. Use the independent deep variant:
 poetry run python tools/strong_mocks/train_deep_ppo.py \
   --output bots/strong_mocks/ppo_deep_policy/data/policy.npz \
   --hidden 96,64,32 \
-  --generations 8 \
-  --matches-per-generation 32 \
-  --hands 120 \
+  --bootstrap-samples 60000 \
+  --bootstrap-holdout 12000 \
+  --generations 24 \
+  --matches-per-generation 128 \
+  --hands 400 \
+  --opponent-pool adversarial \
   --progress \
   --json
 ```
@@ -148,22 +160,23 @@ adding more raw-action PPO masks:
 ```bash
 poetry run python tools/strong_mocks/train_arm_selector.py \
   --output bots/strong_mocks/heuristic_rl_selector/data/policy.npz \
-  --bootstrap-samples 12000 \
-  --bootstrap-holdout 2400 \
+  --bootstrap-samples 60000 \
+  --bootstrap-holdout 12000 \
   --bootstrap-epochs 5 \
-  --generations 8 \
-  --matches-per-generation 40 \
-  --hands 160 \
-  --opponent-pool fast \
+  --generations 24 \
+  --matches-per-generation 128 \
+  --hands 400 \
+  --opponent-pool adversarial \
   --workers 0 \
   --parallel-backend process \
   --progress \
   --json
 ```
 
-Small selector runs are allowed only as integration checks. Do not manually
-change thresholds, arm priors, or default constants from smoke-run chip deltas.
-Use the large held-out promotion rules below before changing defaults.
+Small selector runs are allowed only as integration checks when `--allow-smoke`
+is used with a non-canonical output path. Do not manually change thresholds,
+arm priors, or default constants from smoke-run chip deltas. Use the large
+held-out promotion rules below before changing defaults.
 
 For parameter tuning, use CEM/racing rather than manual source edits:
 
@@ -201,11 +214,58 @@ Do not use `--allow-smoke` with `--promote-output`.
 Use large enough samples. For meaningful selection, prefer at least:
 
 ```text
-128 matches/generation * 400 hands
-64-128 held-out evaluation seeds * 400 hands
+384 matches/generation * 400 hands for heuristic self-training
+512 suite/seed tasks per named threshold config
+512 suite/seed tasks per tuner stage, 1024 final-stage tasks per candidate
+512 default/reference tasks per strong-mock candidate gate
+1,000,000 real rollout training hands before exporting trained strong-mock artifacts
+128-256 held-out evaluation seeds * 400 hands
 ```
 
 Smaller runs are smoke tests only.
+
+## Full-Space Heuristic Search
+
+`tools/tune_heuristic_full_space.py` is the scalable search path for the full
+heuristic parameter surface. It parses every `_float_env()` and `_int_env()`
+knob in `bots/heuristic/bot.py`, excluding only `HEURISTIC_RNG_SEED`, then
+uses a diagonal cross-entropy search with staged common-seed racing. The score
+is risk-adjusted: mean chip delta is penalized for standard deviation, worst
+suite minima, busts, and heuristic errors.
+
+Normal serious run:
+
+```bash
+poetry run python tools/tune_heuristic_full_space.py \
+  --run-id heuristic-full-space-$(date +%Y%m%d-%H%M%S) \
+  --preset strong-screen \
+  --generations 6 \
+  --population 24 \
+  --elite 6 \
+  --stages 128:400:0.5,256:400:0.25 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+With the default four-suite `strong-screen` preset, each candidate gets at
+least 512 suite/seed tasks in the first stage and finalists get 1024 tasks in
+the final stage. The tool refuses smaller serious runs unless `--allow-smoke`
+is passed. Smoke output is for wiring only; do not promote from it.
+
+Important files:
+
+| File | Meaning |
+| --- | --- |
+| `param_space.json` | Parsed parameter names, types, defaults, and search bounds. |
+| `generation_*.json` | Stage rankings and survivor details for each generation. |
+| `best_config.json` | Best risk-adjusted candidate seen so far. |
+| `best_env.sh` | Shell exports for reproducing the best candidate. |
+| `final_validation.json` | Independent held-out validation of the selected env. |
+| `metrics.jsonl` | Per-generation score trace. |
+| `ev_progress.svg` | Progress plot from the metric trace. |
+| `summary.json` | Run contract and output locations. |
 
 ## Main Commands
 
@@ -215,6 +275,10 @@ End-to-end coevolution:
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
 ```
 
+The coevolution wrapper now uses serious defaults: each PPO candidate arm gets
+at least 1,000,000 rollout hands, heuristic evolution uses 384 matches per
+generation, and held-out evaluation uses at least 128 seeds of 400 hands.
+
 Clean PPO-fix sanity run:
 
 ```bash
@@ -222,7 +286,7 @@ RUN_ID=ppo-fix-check \
 RESET=1 \
 CYCLES=2 \
 PPO_ARMS=stable,conservative \
-EVAL_SEEDS=64 \
+EVAL_SEEDS=128 \
 EVAL_HANDS=400 \
 WORKERS=0 \
 PARALLEL_BACKEND=process \
@@ -244,11 +308,44 @@ PARALLEL_BACKEND=process \
 scripts/train_opponents_real.sh
 ```
 
+The wrapper trains PPO and bucket/CFR-like artifacts with at least 400-hand
+matches, validates every strong-mock wrapper, runs a focused `strong-screen`,
+and writes a full strong-mock strength gate to:
+
+```text
+runs/fullhouse_real_training/<run-id>/strong_mock_strength_gate.json
+```
+
+The strength gate covers `oracle_imitation`, `ppo_policy`, `cfr_bucket`,
+`ppo_deep_policy`, `heuristic_rl_selector`, `rollout_search`, and `ensemble`
+against `shark`, `mathematician`, `aggressor`, `template`, and `pot_odds` in
+both six-max and heads-up tasks. A candidate must clear the configured mean,
+win-rate, task-count, and zero-error thresholds.
+
 Heuristic self-training:
 
 ```bash
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
 ```
+
+By default this runs 16 generations with 384 matches/generation and validates
+with 256 held-out `strong-screen` seeds. It writes one run directory:
+
+```text
+runs/fullhouse_self_training/<run-id>/
+```
+
+Important files:
+
+| File | Meaning |
+| --- | --- |
+| `summary.json` | Run contract, final population, top-per-generation history, and plot metadata. |
+| `metrics.jsonl` | Per-generation `generation_best` and `elite_mean` EV records. |
+| `ev_progress.svg` | Progress plot rendered from `metrics.jsonl`. |
+| `generation_*.json` | Full per-generation rankings and match results. |
+| `population_*.json` | Next-generation populations after elite selection and mutation. |
+| `generated/` | Generated heuristic wrapper bots/configs for this run. |
+| `baseline_validation.json` | Focused `strong-screen` validation of the current baseline after self-training. |
 
 ## Promotion Rules
 
