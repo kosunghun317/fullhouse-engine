@@ -26,8 +26,17 @@ graph TD
     Select --> HeurSelf["tools/strong_mocks/self_train_heuristic.py"]
 
     StrongMocks["bots/strong_mocks"] --> Eval
+    AllStrong["tools/strong_mocks/train_all_strong_mocks.py"] --> StrongMocks
     RealTrain["tools/strong_mocks/train_real_policy.py"] --> StrongMocks
+    DeepTrain["tools/strong_mocks/train_deep_ppo.py"] --> StrongMocks
+    ArmTrain["tools/strong_mocks/train_arm_selector.py"] --> StrongMocks
+    ArmTune["tools/strong_mocks/tune_arm_selector_params.py"] --> StrongMocks
     StrongGate["tools/check_strong_mocks.py"] --> StrongMocks
+    AllStrong --> RealTrain
+    AllStrong --> DeepTrain
+    AllStrong --> ArmTrain
+    AllStrong --> ArmTune
+    AllStrong --> StrongGate
     League["tools/strong_mocks/league_train.py"] --> RealTrain
     Coevolve["tools/coevolve_training.py"] --> RealTrain
     Coevolve --> HeurSelf
@@ -47,9 +56,11 @@ graph TD
 | --- | --- | --- |
 | `scripts/run_submission_pipeline.sh` | One-command unattended submission hardening, paired gates, strong/mock screens, final matrix, and zip rebuild. | `runs/submission_pipeline/<run-id>/` plus `dist/heuristic_bot.zip` |
 | `scripts/train_e2e_coevolution.sh` | Alternating PPO mock training and heuristic parameter evolution. | `runs/fullhouse_coevolution/<run-id>/` |
-| `scripts/train_opponents_real.sh` | Train PPO and bucket/CFR-like strong mocks from real Fullhouse rollouts. | `runs/fullhouse_real_training/<run-id>/` and optional mock artifacts |
+| `scripts/train_all_strong_mocks.sh` | Train oracle imitation, PPO, bucket/CFR, deep PPO, heuristic selector, tune selector params, then gate all seven strong mocks. | `runs/fullhouse_strong_mocks/<run-id>/` plus promoted mock artifacts |
+| `scripts/train_opponents_real.sh` | Lower-level PPO and bucket/CFR-only trainer kept for targeted experiments. | `runs/fullhouse_real_training/<run-id>/` and optional mock artifacts |
 | `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools and validate the current baseline. | `runs/fullhouse_self_training/<run-id>/` |
 | `tools/tune_heuristic_full_space.py` | Search the full `HEURISTIC_*` env parameter space with staged CEM/racing. | `runs/heuristic_full_space_tuning/<run-id>/` |
+| `tools/strong_mocks/train_all_strong_mocks.py` | Python orchestrator behind the all-strong-mock script. | `runs/fullhouse_strong_mocks/<run-id>/summary.json` |
 | `tools/strong_mocks/train_real_policy.py` | Direct low-level PPO or bucket training. | One `policy.npz` artifact plus JSONL logs |
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector training; preferred RL-assisted architecture. | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` or a custom output |
@@ -121,13 +132,40 @@ The bash wrappers are cumulative by default:
 - generated training artifacts should stay out of git unless explicitly
   promoted.
 
-## PPO Strong Mock Training
+## Strong Mock Training
 
 Read `docs/strategy-and-training.md` before changing strong-mock runtime or
 training code. PPO, deep PPO, CFR/bucket, rollout, ensemble, and arm-selector
 mock roles are summarized there.
 
-Current PPO defaults are intentionally conservative:
+The primary command trains and tunes the entire strong-mock pool:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_all_strong_mocks.sh
+```
+
+By default this trains:
+
+- `oracle_imitation` from 200,000 synthetic oracle-labeled states,
+- `ppo_policy` for 48 generations * 128 matches * 400 hands,
+- `cfr_bucket` for 40 generations * 128 matches * 400 hands,
+- `ppo_deep_policy` for 24 generations * 128 matches * 400 hands,
+- `heuristic_rl_selector` for 24 generations * 128 matches * 400 hands,
+- `heuristic_rl_selector/data/params.npz` with CEM/racing stages
+  `16:400:0.35,64:400:1.0`,
+- `rollout_search` and `ensemble` through the final strength gate.
+
+The run writes per-stage JSON reports and `summary.json` under:
+
+```text
+runs/fullhouse_strong_mocks/<run-id>/
+```
+
+The command exits nonzero if the final `tools/check_strong_mocks.py` gate fails.
+For wiring checks only, use `ALLOW_SMOKE=1` with tiny budgets; smoke artifacts
+are written under the run directory and are not promoted to canonical bot data.
+
+Current PPO defaults inside the strong-mock pool are intentionally conservative:
 
 - sampled-softmax inference to match rollout behavior,
 - recorded behavior temperature for PPO ratio calculations,
@@ -138,7 +176,8 @@ Current PPO defaults are intentionally conservative:
 - risk-adjusted checkpoint selection with a bust penalty.
 
 If the original PPO mock is being trained in another terminal, do not edit or
-overwrite `bots/strong_mocks/ppo_policy`. Use the independent deep variant:
+overwrite `bots/strong_mocks/ppo_policy`. Use the independent deep variant for
+isolated experiments:
 
 ```bash
 poetry run python tools/strong_mocks/train_deep_ppo.py \
@@ -178,7 +217,8 @@ is used with a non-canonical output path. Do not manually change thresholds,
 arm priors, or default constants from smoke-run chip deltas. Use the large
 held-out promotion rules below before changing defaults.
 
-For parameter tuning, use CEM/racing rather than manual source edits:
+For isolated selector-parameter experiments, use CEM/racing rather than manual
+source edits:
 
 ```bash
 poetry run python tools/strong_mocks/tune_arm_selector_params.py \
@@ -293,7 +333,28 @@ PARALLEL_BACKEND=process \
 scripts/train_e2e_coevolution.sh
 ```
 
-Real opponent training:
+All strong-mock training:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_all_strong_mocks.sh
+```
+
+This is the main opponent-building path. It trains the learned strong mocks,
+tunes the selector parameters, includes the nonlearned rollout and ensemble
+wrappers in the final gate, and writes:
+
+```text
+runs/fullhouse_strong_mocks/<run-id>/summary.json
+runs/fullhouse_strong_mocks/<run-id>/strong_mock_gate.json
+```
+
+The final gate covers `oracle_imitation`, `ppo_policy`, `cfr_bucket`,
+`ppo_deep_policy`, `heuristic_rl_selector`, `rollout_search`, and `ensemble`
+against `shark`, `mathematician`, `aggressor`, `template`, and `pot_odds` in
+both six-max and heads-up tasks. A candidate must clear the configured mean,
+win-rate, task-count, and zero-error thresholds.
+
+Targeted PPO/bucket-only training:
 
 ```bash
 OPPONENT_POOL=adversarial \
@@ -308,19 +369,13 @@ PARALLEL_BACKEND=process \
 scripts/train_opponents_real.sh
 ```
 
-The wrapper trains PPO and bucket/CFR-like artifacts with at least 400-hand
-matches, validates every strong-mock wrapper, runs a focused `strong-screen`,
-and writes a full strong-mock strength gate to:
+This older wrapper trains only PPO and bucket/CFR-like artifacts with at least
+400-hand matches, then validates the existing strong-mock wrappers and writes a
+strength gate to:
 
 ```text
 runs/fullhouse_real_training/<run-id>/strong_mock_strength_gate.json
 ```
-
-The strength gate covers `oracle_imitation`, `ppo_policy`, `cfr_bucket`,
-`ppo_deep_policy`, `heuristic_rl_selector`, `rollout_search`, and `ensemble`
-against `shark`, `mathematician`, `aggressor`, `template`, and `pot_odds` in
-both six-max and heads-up tasks. A candidate must clear the configured mean,
-win-rate, task-count, and zero-error thresholds.
 
 Heuristic self-training:
 
@@ -365,6 +420,7 @@ poetry run python sandbox/validator.py bots/heuristic --json
 poetry run python sandbox/validator.py bots/strong_mocks/ppo_policy --json
 poetry run python sandbox/validator.py bots/strong_mocks/cfr_bucket --json
 bash -n scripts/train_e2e_coevolution.sh
+bash -n scripts/train_all_strong_mocks.sh
 bash -n scripts/train_opponents_real.sh
 bash -n scripts/train_heuristics_selfplay.sh
 ```

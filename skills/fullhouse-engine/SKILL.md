@@ -96,10 +96,17 @@ For training and coevolution pipelines, read `docs/training-pipelines.md`.
 Normal large entrypoints are:
 
 ```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_all_strong_mocks.sh
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_e2e_coevolution.sh
 WORKERS=0 PARALLEL_BACKEND=process scripts/train_heuristics_selfplay.sh
 ```
+
+Use `scripts/train_all_strong_mocks.sh` as the primary opponent-building
+command. It trains oracle imitation, PPO, bucket/CFR, deep PPO, and the
+heuristic selector, tunes selector parameters, then gates all seven strong
+mocks. `scripts/train_opponents_real.sh` is only the lower-level PPO/bucket
+subset.
 
 For independent deep PPO experiments that must not touch the existing
 `ppo_policy`, use:
@@ -143,10 +150,10 @@ This writes to `runs/heuristic_full_space_tuning/` and refuses serious runs
 below 512 suite/seed tasks per candidate stage and 1024 final-stage tasks per
 candidate. `--allow-smoke` is only for wiring checks.
 
-For a serious but bounded real-opponent run on a laptop, prefer:
+For a serious but bounded full strong-mock run on a laptop, prefer:
 
 ```bash
-RUN_ID=adversarial-opponents-$(date +%Y%m%d-%H%M%S) \
+RUN_ID=adversarial-strong-mocks-$(date +%Y%m%d-%H%M%S) \
 WORKERS=0 \
 PARALLEL_BACKEND=process \
 OPPONENT_POOL=adversarial \
@@ -162,15 +169,24 @@ BUCKET_EARLY_STOP_PATIENCE=24 \
 BUCKET_GENERATIONS=32 \
 BUCKET_MATCHES_PER_GENERATION=128 \
 BUCKET_HANDS=400 \
-scripts/train_opponents_real.sh
+DEEP_GENERATIONS=24 \
+DEEP_MATCHES_PER_GENERATION=128 \
+DEEP_HANDS=400 \
+ARM_GENERATIONS=24 \
+ARM_MATCHES_PER_GENERATION=128 \
+ARM_HANDS=400 \
+GATE_SEED_COUNT=128 \
+GATE_HANDS=400 \
+scripts/train_all_strong_mocks.sh
 ```
 
 If the final report says `"exported": false`, the run completed but kept the
 existing repo artifact because the selected checkpoint did not clear
 `MIN_EXPORT_MEAN_DELTA`.
 
-After any strong-mock training or artifact change, run the statistical strength
-gate before using the artifacts as promotion opponents:
+After any targeted strong-mock artifact change outside
+`scripts/train_all_strong_mocks.sh`, run the statistical strength gate before
+using the artifacts as promotion opponents:
 
 ```bash
 poetry run python tools/check_strong_mocks.py --seed-count 128 --hands 400 --workers 0 --parallel-backend process --json

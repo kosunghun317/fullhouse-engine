@@ -76,18 +76,22 @@ The mock-opponent training path has three layers:
    `tools/strong_mocks/train_deep_ppo.py`, and
    `tools/strong_mocks/train_arm_selector.py` train stronger benchmark-only
    opponents from real Fullhouse rollouts and heuristic-teacher labels.
-3. `tools/check_strong_mocks.py` verifies every strong mock against
+3. `tools/strong_mocks/tune_arm_selector_params.py` tunes the selector
+   thresholds and risk constants with CEM/racing.
+4. `tools/check_strong_mocks.py` verifies every strong mock against
    default/reference bots before those opponents are trusted as a tuning pool.
 
 The serious wrapper is:
 
 ```bash
-WORKERS=0 PARALLEL_BACKEND=process scripts/train_opponents_real.sh
+WORKERS=0 PARALLEL_BACKEND=process scripts/train_all_strong_mocks.sh
 ```
 
-It trains PPO and bucket/CFR-like strong mocks, validates all strong-mock
-wrappers, runs a strong-screen benchmark, and writes
-`strong_mock_strength_gate.json`.
+It trains oracle imitation, PPO, bucket/CFR, deep PPO, and heuristic-selector
+strong mocks; tunes the selector `params.npz`; then gates `rollout_search` and
+`ensemble` together with the learned mocks. The older
+`scripts/train_opponents_real.sh` remains available for PPO/bucket-only
+experiments.
 
 ## Optimizing Heuristic Parameters
 
@@ -139,6 +143,7 @@ Method details and references are in
 | `tools/strong_mocks/expert_arms.py` | Human-poker expert candidate actions for the arm-selector mock. |
 | `tools/strong_mocks/arm_selector_policy.py` | Contextual selector over expert arms. |
 | `tools/strong_mocks/arm_selector_params.py` | Bounded selector-parameter registry. |
+| `tools/strong_mocks/train_all_strong_mocks.py` | Orchestrates all strong-mock training, selector tuning, and final strength gating. |
 | `tools/strong_mocks/train_real_policy.py` | Real Fullhouse rollout trainer for PPO and bucket/CFR-like strong mocks. |
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deeper PPO trainer with expanded action arms. |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector trainer. |
@@ -153,7 +158,8 @@ Method details and references are in
 | `tools/parallel.py` | Process/thread helper for local benchmark and training workloads. |
 | `tools/analyze_hand_history.py` | Post-qualifier hand-history analysis helper. |
 | `tools/coevolve_training.py` | Alternating PPO/heuristic coevolution orchestrator. |
-| `scripts/train_opponents_real.sh` | Main strong-mock training wrapper. |
+| `scripts/train_all_strong_mocks.sh` | Main train/tune/gate wrapper for the complete strong-mock pool. |
+| `scripts/train_opponents_real.sh` | Targeted PPO/bucket-only strong-mock training wrapper. |
 | `scripts/train_heuristics_selfplay.sh` | Generated-wrapper heuristic self-training wrapper. |
 | `scripts/train_e2e_coevolution.sh` | Alternating strong-mock and heuristic coevolution wrapper. |
 | `scripts/train_opponents_league.sh` | Staged league-style strong-mock training wrapper. |
@@ -181,7 +187,10 @@ Method details and references are in
 | [`tools/strong_mocks/train_real_policy.py` budget guard](../tools/strong_mocks/train_real_policy.py#L713) | Prevents tiny PPO/bucket training runs from overwriting real artifacts. |
 | [`tools/strong_mocks/train_deep_ppo.py` budget guard](../tools/strong_mocks/train_deep_ppo.py#L598) | Applies the same serious-budget rule to the deep PPO mock. |
 | [`tools/strong_mocks/train_arm_selector.py` budget guard](../tools/strong_mocks/train_arm_selector.py#L612) | Applies the same serious-budget rule to the expert-arm selector. |
-| [`scripts/train_opponents_real.sh`](../scripts/train_opponents_real.sh#L1) | Main command wrapper for training and validating strong mock opponents. |
+| [`tools/strong_mocks/train_all_strong_mocks.py` budget guard](../tools/strong_mocks/train_all_strong_mocks.py#L79) | Enforces serious budgets across every strong-mock trainer and the final gate. |
+| [`tools/strong_mocks/train_all_strong_mocks.py` orchestrator](../tools/strong_mocks/train_all_strong_mocks.py#L492) | Runs all learned strong-mock trainers, selector tuning, and strength gating. |
+| [`scripts/train_all_strong_mocks.sh`](../scripts/train_all_strong_mocks.sh#L1) | Main command wrapper for complete strong-mock training and validation. |
+| [`scripts/train_opponents_real.sh`](../scripts/train_opponents_real.sh#L1) | Lower-level PPO/bucket-only wrapper. |
 | [`scripts/train_heuristics_selfplay.sh`](../scripts/train_heuristics_selfplay.sh#L1) | Wrapper for generated heuristic config self-training and progress plots. |
 | [`scripts/run_submission_pipeline.sh`](../scripts/run_submission_pipeline.sh#L1) | Final benchmark and submission zip preparation wrapper. |
 
