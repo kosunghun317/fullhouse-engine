@@ -48,10 +48,18 @@ def _percentile(values: list[int], pct: float) -> float:
     return float(ordered[lo] * (1.0 - frac) + ordered[hi] * frac)
 
 
-def build_tasks(candidates: list[str], baselines: list[str], seeds: list[int], hands: int, modes: list[str]) -> list[dict]:
+def build_tasks(
+    candidates: list[str],
+    baselines: list[str],
+    seeds: list[int],
+    hands: int,
+    modes: list[str],
+    candidate_paths: dict[str, str] | None = None,
+) -> list[dict]:
     tasks = []
+    candidate_map = candidate_paths or CANDIDATES
     for candidate in candidates:
-        candidate_path = CANDIDATES[candidate]
+        candidate_path = candidate_map[candidate]
         for seed in seeds:
             if "sixmax" in modes:
                 bot_paths = {"candidate": candidate_path}
@@ -131,11 +139,12 @@ def summarize(rows: list[dict]) -> dict:
 
 
 def run(args) -> dict:
-    candidates = args.candidate or sorted(CANDIDATES)
+    candidate_paths = getattr(args, "candidate_paths", None) or CANDIDATES
+    candidates = args.candidate or sorted(candidate_paths)
     baselines = args.baseline or sorted(BASELINES)
     modes = args.mode or ["sixmax", "heads-up"]
     seeds = list(range(args.seed_start, args.seed_start + args.seed_count))
-    tasks = build_tasks(candidates, baselines, seeds, args.hands, modes)
+    tasks = build_tasks(candidates, baselines, seeds, args.hands, modes, candidate_paths)
     tasks_per_candidate = len(tasks) // max(1, len(candidates))
     if not args.allow_smoke:
         if args.hands < 400:
