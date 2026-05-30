@@ -18,9 +18,10 @@ sys.path.insert(0, str(ROOT))
 
 from sandbox.match import run_match
 from tools.evaluate_heuristic import SUITES
+from tools.heuristic_env_overrides import heuristic_env_scope, load_env_overrides
 from tools.parallel import map_parallel
 from tools.select_heuristic_config import PRESETS
-from tools.tune_heuristic_thresholds import CONFIGS, _restore_env, _set_env
+from tools.tune_heuristic_thresholds import CONFIGS
 
 
 def _parse_seeds(args):
@@ -85,9 +86,8 @@ def _run_task(task):
     }
 
 
-def _evaluate_config(config_name, tasks, workers, backend, progress=False):
-    old = _set_env(CONFIGS[config_name])
-    try:
+def _evaluate_env_config(config_name, env, tasks, workers, backend, progress=False):
+    with heuristic_env_scope(env):
         if progress:
             print(
                 f"[{config_name}] {len(tasks)} paired tasks",
@@ -95,9 +95,16 @@ def _evaluate_config(config_name, tasks, workers, backend, progress=False):
                 flush=True,
             )
         rows = map_parallel(_run_task, tasks, workers=workers, backend=backend)
-    finally:
-        _restore_env(old)
     return {(row["suite"], row["seed"]): row for row in rows}
+
+
+def _candidate_env_specs(args) -> list[tuple[str, dict[str, str]]]:
+    specs = [(name, CONFIGS[name]) for name in args.candidate or []]
+    names = args.candidate_env_name or []
+    for index, env_file in enumerate(args.candidate_env_file or []):
+        name = names[index] if index < len(names) else f"env-{Path(env_file).stem}"
+        specs.append((name, load_env_overrides(env_file)))
+    return specs
 
 
 def _summarize_pair(incumbent, candidate, args):
@@ -166,7 +173,9 @@ def _summarize_pair(incumbent, candidate, args):
 def main():
     parser = argparse.ArgumentParser(description="Run paired-seed heuristic config promotion gate")
     parser.add_argument("--incumbent", choices=sorted(CONFIGS), default="baseline")
-    parser.add_argument("--candidate", choices=sorted(CONFIGS), action="append", required=True)
+    parser.add_argument("--candidate", choices=sorted(CONFIGS), action="append")
+    parser.add_argument("--candidate-env-file", action="append", help="JSON or best_env.sh file to compare as a candidate")
+    parser.add_argument("--candidate-env-name", action="append", help="Display name for the matching --candidate-env-file")
     parser.add_argument("--suite", choices=sorted(SUITES), action="append")
     parser.add_argument("--preset", choices=sorted(PRESETS), default="candidate")
     parser.add_argument("--seeds", default=None)
@@ -188,22 +197,27 @@ def main():
     parser.add_argument("--progress", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+    candidate_specs = _candidate_env_specs(args)
+    if not candidate_specs:
+        parser.error("at least one --candidate or --candidate-env-file is required")
 
     suites = args.suite or PRESETS[args.preset]["suites"]
     seeds = _parse_seeds(args)
     tasks = [(suite, seed, args.hands) for suite in suites for seed in seeds]
 
-    incumbent = _evaluate_config(
+    incumbent = _evaluate_env_config(
         args.incumbent,
+        CONFIGS[args.incumbent],
         tasks,
         workers=args.workers,
         backend=args.parallel_backend,
         progress=args.progress,
     )
     candidates = {}
-    for name in args.candidate:
-        rows = _evaluate_config(
+    for name, env in candidate_specs:
+        rows = _evaluate_env_config(
             name,
+            env,
             tasks,
             workers=args.workers,
             backend=args.parallel_backend,

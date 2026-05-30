@@ -19,6 +19,7 @@ from sandbox.match import run_match
 from sandbox.validator import validate
 from tools.build_heuristic_tables import DEFAULT_OUTPUT as TABLES_OUTPUT
 from tools.build_heuristic_tables import build as build_tables
+from tools.heuristic_env_overrides import heuristic_env_scope, load_env_overrides
 from tools.package_heuristic import DEFAULT_OUTPUT as ZIP_OUTPUT
 from tools.package_heuristic import package
 
@@ -41,23 +42,24 @@ def _zip_report(path):
     }
 
 
-def _match_report(label, heuristic_path, hands, seed, docker=False):
+def _match_report(label, heuristic_path, hands, seed, docker=False, env_overrides=None):
     old = os.environ.get("USE_DOCKER")
     if docker:
         os.environ["USE_DOCKER"] = "true"
     else:
         os.environ.pop("USE_DOCKER", None)
     try:
-        result = run_match(
-            match_id=f"harden_{label}_{seed}",
-            bot_paths={
-                "heuristic": str(heuristic_path),
-                "shark": str(SHARK),
-            },
-            n_hands=hands,
-            verbose=False,
-            seed=seed,
-        )
+        with heuristic_env_scope(env_overrides or {}):
+            result = run_match(
+                match_id=f"harden_{label}_{seed}",
+                bot_paths={
+                    "heuristic": str(heuristic_path),
+                    "shark": str(SHARK),
+                },
+                n_hands=hands,
+                verbose=False,
+                seed=seed,
+            )
     finally:
         if old is None:
             os.environ.pop("USE_DOCKER", None)
@@ -78,14 +80,15 @@ def _match_report(label, heuristic_path, hands, seed, docker=False):
     }
 
 
-def harden(output, hands, seed, docker=False):
+def harden(output, hands, seed, docker=False, env_file=None):
+    env_overrides = load_env_overrides(env_file) if env_file else {}
     table_report = build_tables(TABLES_OUTPUT)
-    zip_path = package(output)
+    zip_path = package(output, env_file=env_file)
     directory_validation = validate(str(HEURISTIC_DIR))
     zip_validation = validate(str(zip_path))
     zip_contents = _zip_report(zip_path)
     matches = [
-        _match_report("directory", HEURISTIC_DIR, hands, seed, docker=False),
+        _match_report("directory", HEURISTIC_DIR, hands, seed, docker=False, env_overrides=env_overrides),
         _match_report("zip", zip_path, hands, seed + 1, docker=False),
     ]
     if docker:
@@ -101,6 +104,8 @@ def harden(output, hands, seed, docker=False):
     )
     return {
         "passed": passed,
+        "env_file": str(env_file) if env_file else None,
+        "env_override_count": len(env_overrides),
         "tables": table_report,
         "zip": {
             "output": str(zip_path),
@@ -118,11 +123,13 @@ def main():
     parser.add_argument("--output", default=str(ZIP_OUTPUT))
     parser.add_argument("--hands", type=int, default=80)
     parser.add_argument("--seed", type=int, default=9901)
+    parser.add_argument("--env-file", default=None, help="JSON or best_env.sh file whose HEURISTIC_* values are baked into the zip")
     parser.add_argument("--docker", action="store_true", help="Also run a USE_DOCKER=true zip match")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    report = harden(Path(args.output).resolve(), args.hands, args.seed, docker=args.docker)
+    env_file = Path(args.env_file).resolve() if args.env_file else None
+    report = harden(Path(args.output).resolve(), args.hands, args.seed, docker=args.docker, env_file=env_file)
     if args.json:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:

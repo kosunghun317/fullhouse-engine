@@ -39,6 +39,7 @@ FINAL_SEED_COUNT="${FINAL_SEED_COUNT:-200}"
 HARDEN_HANDS="${HARDEN_HANDS:-80}"
 HARDEN_SEED="${HARDEN_SEED:-9901}"
 SUBMISSION_ZIP="${SUBMISSION_ZIP:-dist/heuristic_bot.zip}"
+HEURISTIC_ENV_FILE="${HEURISTIC_ENV_FILE:-}"
 
 enabled() {
   [[ "$1" != "0" && "$1" != "false" && "$1" != "False" ]]
@@ -62,6 +63,7 @@ finish() {
     echo "- status: \`${status}\`"
     echo "- log: \`${LOG_FILE}\`"
     echo "- submission_zip: \`${SUBMISSION_ZIP}\`"
+    echo "- tuned_env: \`${HEURISTIC_ENV_FILE:-unset}\`"
     echo "- reports:"
     for report in "$RUN_DIR"/*.json; do
       [[ -e "$report" ]] || continue
@@ -86,6 +88,18 @@ echo "==> output=${RUN_DIR}"
 echo "==> workers=${WORKERS} backend=${PARALLEL_BACKEND} hands=${HANDS}"
 echo "==> incumbent=${INCUMBENT}"
 echo "==> candidates=${CANDIDATES}"
+if [[ -n "$HEURISTIC_ENV_FILE" ]]; then
+  if [[ ! -f "$HEURISTIC_ENV_FILE" ]]; then
+    echo "missing HEURISTIC_ENV_FILE: ${HEURISTIC_ENV_FILE}" >&2
+    exit 2
+  fi
+  echo "==> tuned_env=${HEURISTIC_ENV_FILE}"
+fi
+
+harden_args=()
+if [[ -n "$HEURISTIC_ENV_FILE" ]]; then
+  harden_args=(--env-file "$HEURISTIC_ENV_FILE")
+fi
 
 if enabled "$RUN_TESTS"; then
   echo
@@ -97,6 +111,7 @@ if enabled "$RUN_HARDEN_START"; then
   run_json "harden_start" \
     poetry run python tools/harden_submission.py \
       --output "$SUBMISSION_ZIP" \
+      "${harden_args[@]}" \
       --hands "$HARDEN_HANDS" \
       --seed "$HARDEN_SEED" \
       --json
@@ -106,12 +121,18 @@ candidate_args=()
 for candidate in $CANDIDATES; do
   candidate_args+=(--candidate "$candidate")
 done
+selector_config_args=(--config "$INCUMBENT")
+paired_candidate_args=("${candidate_args[@]}")
+if [[ -n "$HEURISTIC_ENV_FILE" ]]; then
+  selector_config_args=(--env-file "$HEURISTIC_ENV_FILE" --env-config-name tuned-env)
+  paired_candidate_args=(--candidate-env-file "$HEURISTIC_ENV_FILE" --candidate-env-name tuned-env)
+fi
 
 if enabled "$RUN_PAIRED_GATE"; then
   run_json "paired_gate" \
     poetry run python tools/paired_heuristic_gate.py \
       --incumbent "$INCUMBENT" \
-      "${candidate_args[@]}" \
+      "${paired_candidate_args[@]}" \
       --preset "$PROMOTION_PRESET" \
       --seed-count "$PROMOTION_SEED_COUNT" \
       --hands "$HANDS" \
@@ -125,7 +146,7 @@ if enabled "$RUN_STRONG_SCREEN"; then
   run_json "strong_screen" \
     poetry run python tools/select_heuristic_config.py \
       --preset strong-screen \
-      --config "$INCUMBENT" \
+      "${selector_config_args[@]}" \
       --seed-count "$STRONG_SEED_COUNT" \
       --hands "$HANDS" \
       --workers "$WORKERS" \
@@ -138,7 +159,7 @@ if enabled "$RUN_MOCK_FAMILY"; then
   run_json "mock_family" \
     poetry run python tools/select_heuristic_config.py \
       --preset mock-family \
-      --config "$INCUMBENT" \
+      "${selector_config_args[@]}" \
       --seed-count "$MOCK_SEED_COUNT" \
       --hands "$HANDS" \
       --workers "$WORKERS" \
@@ -151,7 +172,7 @@ if enabled "$RUN_FINAL"; then
   run_json "final_matrix" \
     poetry run python tools/select_heuristic_config.py \
       --preset final \
-      --config "$INCUMBENT" \
+      "${selector_config_args[@]}" \
       --seed-count "$FINAL_SEED_COUNT" \
       --hands "$HANDS" \
       --workers "$WORKERS" \
@@ -164,6 +185,7 @@ if enabled "$RUN_HARDEN_END"; then
   run_json "harden_end" \
     poetry run python tools/harden_submission.py \
       --output "$SUBMISSION_ZIP" \
+      "${harden_args[@]}" \
       --hands "$HARDEN_HANDS" \
       --seed "$((HARDEN_SEED + 100))" \
       --json

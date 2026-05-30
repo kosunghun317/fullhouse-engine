@@ -15,7 +15,8 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from tools.evaluate_heuristic import SUITES, run_suite
-from tools.tune_heuristic_thresholds import CONFIGS, _restore_env, _set_env
+from tools.heuristic_env_overrides import heuristic_env_scope, load_env_overrides
+from tools.tune_heuristic_thresholds import CONFIGS
 
 
 CORE_SUITES = [
@@ -175,9 +176,8 @@ def rank_configs(report, risk_weight, min_weight, bust_penalty, error_penalty):
     return sorted(ranking, key=lambda item: item["score"], reverse=True)
 
 
-def evaluate_config_with_progress(name, suites, seeds, hands, progress=False, workers=1, parallel_backend="process"):
-    old = _set_env(CONFIGS[name])
-    try:
+def evaluate_env_with_progress(name, env, suites, seeds, hands, progress=False, workers=1, parallel_backend="process"):
+    with heuristic_env_scope(env):
         results = []
         for index, suite in enumerate(suites, 1):
             if progress:
@@ -197,14 +197,23 @@ def evaluate_config_with_progress(name, suites, seeds, hands, progress=False, wo
                     parallel_backend=parallel_backend,
                 )
             )
-    finally:
-        _restore_env(old)
-    return {"config": name, "env": CONFIGS[name], "results": results}
+    return {"config": name, "env": env, "results": results}
+
+
+def _env_file_configs(args) -> dict[str, dict[str, str]]:
+    configs = {}
+    names = args.env_config_name or []
+    for index, env_file in enumerate(args.env_file or []):
+        name = names[index] if index < len(names) else f"env-{Path(env_file).stem}"
+        configs[name] = load_env_overrides(env_file)
+    return configs
 
 
 def main():
     parser = argparse.ArgumentParser(description="Run and rank heuristic configs with a risk-aware score")
     parser.add_argument("--config", choices=sorted(CONFIGS), action="append")
+    parser.add_argument("--env-file", action="append", help="JSON or best_env.sh file to evaluate as a config")
+    parser.add_argument("--env-config-name", action="append", help="Display name for the matching --env-file")
     parser.add_argument("--suite", choices=sorted(SUITES), action="append")
     parser.add_argument("--preset", choices=sorted(PRESETS), default="quick")
     parser.add_argument("--seeds", default=None)
@@ -223,14 +232,20 @@ def main():
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
-    configs = args.config or sorted(CONFIGS)
+    env_configs = _env_file_configs(args)
+    configs = list(args.config or [])
+    configs.extend(env_configs)
+    if not configs:
+        configs = sorted(CONFIGS)
+    config_envs = {**CONFIGS, **env_configs}
     suites = args.suite or PRESETS[args.preset]["suites"]
     seeds = _parse_seeds(args, args.preset)
     validate_budget(args, suites, seeds)
 
     report = [
-        evaluate_config_with_progress(
+        evaluate_env_with_progress(
             name,
+            config_envs[name],
             suites,
             seeds,
             args.hands,

@@ -412,6 +412,7 @@ def run(args) -> dict:
             best_report = dict(winner)
             best_env = dict(winner["env"])
             (run_root / "best_config.json").write_text(json.dumps(best_report, indent=2, sort_keys=True), encoding="utf-8")
+            (run_root / "best_env.json").write_text(json.dumps(best_env, indent=2, sort_keys=True), encoding="utf-8")
             _write_env_script(run_root / "best_env.sh", best_env)
         metric = {
             "cycle": generation,
