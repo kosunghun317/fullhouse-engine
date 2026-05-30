@@ -145,6 +145,7 @@ def test_all_strong_mock_smoke_orchestrates_train_tune_and_gate(tmp_path, monkey
     summary = all_mocks.run(args)
 
     assert summary["passed"] is True
+    assert summary["reports"]["oracle_imitation"]["style"] == "pressure"
     assert (tmp_path / "smoke" / "summary.json").is_file()
     assert [name for name, _output in calls] == [
         "oracle_imitation",

@@ -132,7 +132,7 @@ def _artifact_root(args, run_dir: Path) -> Path | None:
 def _model_artifact_paths(artifact_root: Path | None) -> dict[str, Path]:
     if artifact_root is None:
         return {
-            "oracle_imitation": train_imitation.DEFAULT_OUTPUTS["balanced"],
+            "oracle_imitation": ROOT / "bots" / "strong_mocks" / "oracle_imitation" / "data" / "policy.npz",
             "ppo_policy": train_real_policy.DEFAULT_PPO_OUTPUT,
             "cfr_bucket": train_real_policy.DEFAULT_BUCKET_OUTPUT,
             "ppo_deep_policy": train_deep_ppo.DEFAULT_OUTPUT,
@@ -173,7 +173,7 @@ def _prepare_run_local_bots(artifact_root: Path) -> dict[str, str]:
         + "from tools.strong_mocks.policies import decide_model\n\n"
         + "DATA_DIR = os.environ.get('BOT_DATA_DIR', os.path.join(os.path.dirname(__file__), 'data'))\n\n"
         + "def decide(state):\n"
-        + "    return decide_model(state, DATA_DIR, fallback_style='value')\n",
+        + "    return decide_model(state, DATA_DIR, fallback_style='pressure')\n",
     )
     _write_bot(
         artifact_root / "ppo_policy",
@@ -632,7 +632,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--opponent-pool", choices=["oracle", "fast", "mixed", "adversarial"], default="adversarial")
 
     parser.add_argument("--oracle-samples", type=int, default=200_000)
-    parser.add_argument("--oracle-style", choices=["balanced", "value", "bluff", "station", "folder", "pressure"], default="balanced")
+    parser.add_argument("--oracle-style", choices=["balanced", "value", "bluff", "station", "folder", "pressure"], default="pressure")
     parser.add_argument("--oracle-hidden", type=int, default=48)
     parser.add_argument("--oracle-seed", type=int, default=4242)
 

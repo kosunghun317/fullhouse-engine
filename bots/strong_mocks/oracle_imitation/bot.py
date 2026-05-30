@@ -1,4 +1,4 @@
-"""Strong mock: exported oracle-imitation policy with oracle fallback."""
+"""Strong mock: exported pressure oracle-imitation policy."""
 
 import os
 import sys
@@ -15,4 +15,4 @@ DATA_DIR = os.environ.get("BOT_DATA_DIR", os.path.join(os.path.dirname(__file__)
 
 
 def decide(state):
-    return decide_model(state, DATA_DIR, fallback_style="value")
+    return decide_model(state, DATA_DIR, fallback_style="pressure")
