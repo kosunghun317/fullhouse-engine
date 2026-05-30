@@ -54,6 +54,7 @@ graph TD
 
 | Entry point | Use when | Output |
 | --- | --- | --- |
+| `scripts/build_tuned_submission.sh` | Full unattended path: train/gate strong mocks, tune full heuristic env space, bake the best tuned env into the submission zip, then run the submission pipeline. | `runs/tuned_submission/<run-id>/`, `runs/heuristic_full_space_tuning/<run-id>/`, and `dist/heuristic_bot.zip` |
 | `scripts/run_submission_pipeline.sh` | One-command unattended submission hardening, paired gates, strong/mock screens, final matrix, and zip rebuild. | `runs/submission_pipeline/<run-id>/` plus `dist/heuristic_bot.zip` |
 | `scripts/train_e2e_coevolution.sh` | Alternating PPO mock training and heuristic parameter evolution. | `runs/fullhouse_coevolution/<run-id>/` |
 | `scripts/train_all_strong_mocks.sh` | Train oracle imitation, PPO, bucket/CFR, deep PPO, heuristic selector, tune selector params, then gate all seven strong mocks. | `runs/fullhouse_strong_mocks/<run-id>/` plus promoted mock artifacts |
@@ -93,13 +94,35 @@ only after the held-out score and bust rate are acceptable.
 The run-and-forget submission command is:
 
 ```bash
-WORKERS=0 PARALLEL_BACKEND=process scripts/run_submission_pipeline.sh
+WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 ```
 
-It writes JSON reports, `pipeline.log`, and `SUMMARY.md` under
-`runs/submission_pipeline/<run-id>/`, then leaves the upload candidate at
-`dist/heuristic_bot.zip`. It does not auto-promote candidate configs; use its
-paired-gate report to decide whether a follow-up source change is justified.
+It trains and gates the strong mocks, runs full-space heuristic tuning, writes a
+structured `best_env.json`, bakes those tuned `HEURISTIC_*` defaults into the
+packaged `bot.py`, runs the submission pipeline against the same tuned env, and
+leaves the upload candidate at `dist/heuristic_bot.zip`.
+
+To rerun only the final packaging and validation from an existing tuning run:
+
+```bash
+TRAIN_STRONG_MOCKS=0 \
+RUN_TUNING=0 \
+HEURISTIC_ENV_FILE=runs/heuristic_full_space_tuning/<run-id>/best_env.json \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+scripts/build_tuned_submission.sh
+```
+
+The lower-level submission pipeline still works directly. When
+`HEURISTIC_ENV_FILE` is set, it evaluates that env as `tuned-env` and passes the
+same file to `tools/harden_submission.py`, which bakes the values into the zip:
+
+```bash
+HEURISTIC_ENV_FILE=runs/heuristic_full_space_tuning/<run-id>/best_env.json \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+scripts/run_submission_pipeline.sh
+```
 
 For submitted-bot default changes, use paired comparisons after smoke tests:
 
@@ -301,6 +324,7 @@ Important files:
 | `param_space.json` | Parsed parameter names, types, defaults, and search bounds. |
 | `generation_*.json` | Stage rankings and survivor details for each generation. |
 | `best_config.json` | Best risk-adjusted candidate seen so far. |
+| `best_env.json` | Structured env overrides used by tuned packaging and pipeline gates. |
 | `best_env.sh` | Shell exports for reproducing the best candidate. |
 | `final_validation.json` | Independent held-out validation of the selected env. |
 | `metrics.jsonl` | Per-generation score trace. |

@@ -87,14 +87,31 @@ Important outputs:
 - `param_space.json`: parsed knobs and bounds.
 - `generation_*.json`: staged rankings.
 - `best_config.json`: best candidate from racing.
+- `best_env.json`: structured env overrides consumed by tuned packaging.
 - `best_env.sh`: environment exports for reproducing the best candidate.
 - `final_validation.json`: independent held-out validation of the selected env.
 - `metrics.jsonl` and `ev_progress.svg`: progress trace.
 
 Promote only after reviewing `best_config.json`, `final_validation.json`, and a
-fresh submission pipeline run. If the final candidate is strong, copy the
-specific env defaults into source intentionally; do not make generated wrapper
-bots part of the submitted bot.
+fresh submission pipeline run. The preferred promotion path is package-time
+baking, which keeps `bots/heuristic/bot.py` unchanged while producing a
+self-contained zip:
+
+```bash
+HEURISTIC_ENV_FILE=runs/heuristic_full_space_tuning/<run-id>/best_env.json \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+scripts/run_submission_pipeline.sh
+```
+
+For a full train/tune/package run, use:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
+```
+
+Only copy tuned defaults into source if you intentionally want to change the
+repo baseline. Generated wrapper bots are still not submission artifacts.
 
 ## Strong-Mock Requirement
 

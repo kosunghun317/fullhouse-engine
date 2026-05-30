@@ -110,6 +110,13 @@ plus `final_validation.json`.
 Method details and references are in
 `docs/heuristic-full-space-optimization.md`.
 
+For a single serious command that trains the strong mocks, tunes the heuristic,
+bakes the best tuned env into the zip, and runs final submission validation:
+
+```bash
+WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
+```
+
 ## Repo File Map
 
 | Path | Role in the story |
@@ -152,8 +159,9 @@ Method details and references are in
 | `tools/strong_mocks/league_train.py` | Staged strong-mock training with held-out promotion gates. |
 | `tools/build_heuristic_tables.py` | Rebuilds optional heuristic lookup data. |
 | `tools/generate_preflop_table.py` | Generates explicit preflop score tables. |
-| `tools/package_heuristic.py` | Builds `dist/heuristic_bot.zip`. |
-| `tools/harden_submission.py` | Runs packaging, validation, zip inspection, and sanity matches. |
+| `tools/heuristic_env_overrides.py` | Loads tuned `HEURISTIC_*` env files and bakes them into packaged bot source. |
+| `tools/package_heuristic.py` | Builds `dist/heuristic_bot.zip`, optionally with tuned env defaults baked into `bot.py`. |
+| `tools/harden_submission.py` | Runs packaging, validation, zip inspection, and sanity matches, optionally against a tuned env file. |
 | `tools/plot_training_progress.py` | Converts JSONL training traces to SVG plots. |
 | `tools/parallel.py` | Process/thread helper for local benchmark and training workloads. |
 | `tools/analyze_hand_history.py` | Post-qualifier hand-history analysis helper. |
@@ -163,6 +171,7 @@ Method details and references are in
 | `scripts/train_heuristics_selfplay.sh` | Generated-wrapper heuristic self-training wrapper. |
 | `scripts/train_e2e_coevolution.sh` | Alternating strong-mock and heuristic coevolution wrapper. |
 | `scripts/train_opponents_league.sh` | Staged league-style strong-mock training wrapper. |
+| `scripts/build_tuned_submission.sh` | End-to-end strong-mock training, full-space heuristic tuning, tuned-env baking, and submission zip generation. |
 | `scripts/run_submission_pipeline.sh` | Final unattended benchmark and zip-preparation wrapper. |
 | `tests/*.py` | Regression tests for engine behavior, heuristic profiles, strong-mock trainers, optimizers, gates, docs, and packaging helpers. |
 

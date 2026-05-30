@@ -68,11 +68,18 @@ poetry run python tools/select_heuristic_config.py --preset final --config basel
 For a one-command unattended submission pass, run:
 
 ```bash
-WORKERS=0 PARALLEL_BACKEND=process scripts/run_submission_pipeline.sh
+WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 ```
 
-This writes reports under `runs/submission_pipeline/<run-id>/` and rebuilds
-`dist/heuristic_bot.zip`.
+This trains/gates strong mocks, runs full-space heuristic tuning, bakes the
+selected `best_env.json` into the packaged `bot.py`, runs submission validation,
+and rebuilds `dist/heuristic_bot.zip`.
+
+For a packaging-only rerun from an existing full-space tune:
+
+```bash
+TRAIN_STRONG_MOCKS=0 RUN_TUNING=0 HEURISTIC_ENV_FILE=runs/heuristic_full_space_tuning/<run-id>/best_env.json WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
+```
 
 For default-promotion decisions, prefer paired incumbent-vs-candidate gates:
 
@@ -148,7 +155,10 @@ poetry run python tools/tune_heuristic_full_space.py --preset strong-screen --ge
 
 This writes to `runs/heuristic_full_space_tuning/` and refuses serious runs
 below 512 suite/seed tasks per candidate stage and 1024 final-stage tasks per
-candidate. `--allow-smoke` is only for wiring checks.
+candidate. It writes both `best_env.json` and `best_env.sh`; use
+`HEURISTIC_ENV_FILE=<run>/best_env.json` with packaging/pipeline commands when
+the tuned env should be baked into the submission zip. `--allow-smoke` is only
+for wiring checks.
 
 For a serious but bounded full strong-mock run on a laptop, prefer:
 
@@ -306,6 +316,12 @@ For heuristic submission packaging, run:
 
 ```bash
 poetry run python tools/harden_submission.py --json
+```
+
+To package tuned defaults without editing `bots/heuristic/bot.py`, pass:
+
+```bash
+poetry run python tools/harden_submission.py --env-file runs/heuristic_full_space_tuning/<run-id>/best_env.json --json
 ```
 
 For threshold tuning comparisons, run:
