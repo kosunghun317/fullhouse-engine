@@ -156,7 +156,7 @@ rollout gate, set `ROLLOUT_FINAL_BOT_PATH`:
 
 ```bash
 ROLLOUT_RUN_ID=rollout-final-$(date +%Y%m%d-%H%M%S) && \
-SUBMISSION_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && \
+BUILD_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && \
 poetry run python tools/strong_mocks/tune_rollout_search.py \
   --run-id "$ROLLOUT_RUN_ID" \
   --generations 4 \
@@ -168,7 +168,7 @@ poetry run python tools/strong_mocks/tune_rollout_search.py \
   --progress \
   --json && \
 TRAIN_STRONG_MOCKS=0 \
-RUN_ID="$SUBMISSION_RUN_ID" \
+RUN_ID="$BUILD_RUN_ID" \
 TUNE_PROFILE=deadline-24h \
 SUBMISSION_PROFILE=deadline-24h \
 ROLLOUT_FINAL_BOT_PATH="runs/rollout_search_tuning/${ROLLOUT_RUN_ID}/best_bot" \
@@ -178,8 +178,8 @@ scripts/build_tuned_submission.sh
 ```
 
 The final report to inspect is
-`runs/submission_pipeline/<run-id>/final_rollout_gate.json`. The packaged zip
-is still `dist/heuristic_bot.zip`.
+`runs/submission_pipeline/${BUILD_RUN_ID}-submission/final_rollout_gate.json`.
+The packaged zip is still `dist/heuristic_bot.zip`.
 
 For submitted-bot default changes, use paired comparisons after smoke tests:
 

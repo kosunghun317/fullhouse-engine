@@ -209,8 +209,9 @@ def _env_file_configs(args) -> dict[str, dict[str, str]]:
     return configs
 
 
-def _apply_bot_overrides(suites: dict, overrides: list[str] | None) -> dict[str, str]:
+def _apply_bot_overrides(suites: dict, selected_suite_names: list[str], overrides: list[str] | None) -> dict[str, str]:
     applied: dict[str, str] = {}
+    selected = {name: suites[name] for name in selected_suite_names}
     for raw in overrides or []:
         if "=" not in raw:
             raise SystemExit(f"invalid --bot-override {raw!r}; expected bot_id=path")
@@ -220,7 +221,7 @@ def _apply_bot_overrides(suites: dict, overrides: list[str] | None) -> dict[str,
         if not bot_id or not path:
             raise SystemExit(f"invalid --bot-override {raw!r}; expected bot_id=path")
         matched = False
-        for suite in suites.values():
+        for suite in selected.values():
             bots = suite.get("bots", {})
             if bot_id in bots:
                 bots[bot_id] = path
@@ -262,7 +263,7 @@ def main():
         configs = sorted(CONFIGS)
     config_envs = {**CONFIGS, **env_configs}
     suites = args.suite or PRESETS[args.preset]["suites"]
-    bot_overrides = _apply_bot_overrides(SUITES, args.bot_override)
+    bot_overrides = _apply_bot_overrides(SUITES, suites, args.bot_override)
     seeds = _parse_seeds(args, args.preset)
     validate_budget(args, suites, seeds)
 

@@ -159,8 +159,9 @@ tools/select_heuristic_config.py \
   --seed-count 512
 ```
 
-Use `runs/submission_pipeline/<run-id>/final_rollout_gate.json` to decide
-whether the tuned heuristic is good enough against rollout search before
+When using `scripts/build_tuned_submission.sh`, inspect
+`runs/submission_pipeline/<build-run-id>-submission/final_rollout_gate.json` to
+decide whether the tuned heuristic is good enough against rollout search before
 submitting the generated zip.
 
 Use `TRAIN_STRONG_MOCKS=0` when the strong mocks already exist locally. If all
@@ -171,7 +172,7 @@ Full command order for optimizing both rollout search and heuristics:
 
 ```bash
 ROLLOUT_RUN_ID=rollout-final-$(date +%Y%m%d-%H%M%S) && \
-SUBMISSION_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && \
+BUILD_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && \
 poetry run python tools/strong_mocks/tune_rollout_search.py \
   --run-id "$ROLLOUT_RUN_ID" \
   --generations 4 \
@@ -183,7 +184,7 @@ poetry run python tools/strong_mocks/tune_rollout_search.py \
   --progress \
   --json && \
 TRAIN_STRONG_MOCKS=0 \
-RUN_ID="$SUBMISSION_RUN_ID" \
+RUN_ID="$BUILD_RUN_ID" \
 TUNE_PROFILE=deadline-24h \
 SUBMISSION_PROFILE=deadline-24h \
 ROLLOUT_FINAL_BOT_PATH="runs/rollout_search_tuning/${ROLLOUT_RUN_ID}/best_bot" \
@@ -194,5 +195,6 @@ scripts/build_tuned_submission.sh
 
 This writes the tuned rollout wrapper first, then tunes and packages the
 heuristic, then compares the final tuned heuristic against the tuned rollout
-wrapper in `final_rollout_gate.json`, and finally leaves the submission zip at
-`dist/heuristic_bot.zip`.
+wrapper in
+`runs/submission_pipeline/${BUILD_RUN_ID}-submission/final_rollout_gate.json`,
+and finally leaves the submission zip at `dist/heuristic_bot.zip`.

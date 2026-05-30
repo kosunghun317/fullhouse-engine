@@ -51,11 +51,11 @@ def test_select_config_rejects_tiny_non_smoke_promotion_budget():
 def test_select_config_bot_override_updates_matching_suite_only():
     suites = {
         "a": {"bots": {"heuristic": "bots/heuristic/bot.py", "rollout_search": "old"}},
-        "b": {"bots": {"heuristic": "bots/heuristic/bot.py", "shark": "bots/shark/bot.py"}},
+        "b": {"bots": {"heuristic": "bots/heuristic/bot.py", "rollout_search": "also-old"}},
     }
 
-    applied = _apply_bot_overrides(suites, ["rollout_search=runs/rollout/best_bot"])
+    applied = _apply_bot_overrides(suites, ["a"], ["rollout_search=runs/rollout/best_bot"])
 
     assert applied == {"rollout_search": "runs/rollout/best_bot"}
     assert suites["a"]["bots"]["rollout_search"] == "runs/rollout/best_bot"
-    assert "rollout_search" not in suites["b"]["bots"]
+    assert suites["b"]["bots"]["rollout_search"] == "also-old"
