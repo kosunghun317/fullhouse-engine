@@ -155,6 +155,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deeper PPO trainer with expanded action arms. |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector trainer. |
 | `tools/strong_mocks/tune_arm_selector_params.py` | CEM/racing tuner for arm-selector parameters. |
+| `tools/strong_mocks/tune_rollout_search.py` | CEM/racing tuner for rollout-search f/g equity-to-sizing functions. |
 | `tools/strong_mocks/self_train_heuristic.py` | Older generated-wrapper heuristic self-training loop; useful for candidate discovery, not final promotion. |
 | `tools/strong_mocks/league_train.py` | Staged strong-mock training with held-out promotion gates. |
 | `tools/build_heuristic_tables.py` | Rebuilds optional heuristic lookup data. |
@@ -191,6 +192,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | [`tools/tune_heuristic_full_space.py` optimizer loop](../tools/tune_heuristic_full_space.py#L344) | Implements staged CEM/racing, artifacts, plots, and final validation. |
 | [`tools/check_strong_mocks.py` candidate registry](../tools/check_strong_mocks.py#L19) | Lists all strong-mock opponents that must pass the strength gate. |
 | [`tools/check_strong_mocks.py` gate runner](../tools/check_strong_mocks.py#L133) | Enforces default/reference strength checks before trusting strong mocks. |
+| [`tools/strong_mocks/tune_rollout_search.py` CLI](../tools/strong_mocks/tune_rollout_search.py#L526) | Searches smooth rollout-search f/g sizing parameters and checks 1024-sample latency against the 2-second action budget. |
 | [`tools/select_heuristic_config.py` CLI](../tools/select_heuristic_config.py#L205) | Runs risk-aware named config screens and promotion/final matrices. |
 | [`tools/tune_heuristic_thresholds.py` CLI](../tools/tune_heuristic_thresholds.py#L236) | Runs named hypothesis comparisons with budget guards. |
 | [`tools/strong_mocks/train_real_policy.py` budget guard](../tools/strong_mocks/train_real_policy.py#L713) | Prevents tiny PPO/bucket training runs from overwriting real artifacts. |

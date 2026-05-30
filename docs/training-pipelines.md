@@ -66,6 +66,7 @@ graph TD
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
 | `tools/strong_mocks/train_arm_selector.py` | Heuristic expert-arm selector training; preferred RL-assisted architecture. | `bots/strong_mocks/heuristic_rl_selector/data/policy.npz` or a custom output |
 | `tools/strong_mocks/tune_arm_selector_params.py` | CEM/racing tuner for selector thresholds and bet-sizing constants. | `runs/arm_selector_param_tuning/<run-id>/` plus optional promoted `params.npz` |
+| `tools/strong_mocks/tune_rollout_search.py` | CEM/racing tuner for rollout-search f/g equity-to-sizing functions. | `runs/rollout_search_tuning/<run-id>/best_params.json` and a generated `best_bot/` wrapper |
 | `tools/paired_heuristic_gate.py` | Paired incumbent-vs-candidate default-promotion checks on identical suite/seed tasks. | JSON report with paired mean/median/p10/win-rate and promotable flag |
 | `tools/check_strong_mocks.py` | Strength gate for every strong-mock bot against default/reference bots. | JSON report with per-candidate pass/fail and suite breakdowns |
 | `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | `runs/fullhouse_league_training/<run-id>/` plus optional promoted artifact |
@@ -377,6 +378,27 @@ The final gate covers `oracle_imitation`, `ppo_policy`, `cfr_bucket`,
 against `shark`, `mathematician`, `aggressor`, `template`, and `pot_odds` in
 both six-max and heads-up tasks. A candidate must clear the configured mean,
 win-rate, task-count, and zero-error thresholds.
+
+Rollout-search f/g tuning:
+
+```bash
+poetry run python tools/strong_mocks/tune_rollout_search.py \
+  --generations 4 \
+  --population 12 \
+  --elite 3 \
+  --stages 4:120:0.5,12:240:0.5 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+The rollout mock uses 1024 eval7 samples for preflop and postflop equity. The
+tuner searches a smooth monotone `f(equity)` raise-size function for spots where
+the bot can check and a contextual `g(equity, pot_odds, active_players,
+owed/pot)` fold/call/raise-size function when facing a bet. It uses staged
+common-seed CEM/racing instead of brute-force threshold grids and fails early if
+representative 1024-sample decisions exceed the 2-second action budget.
 
 Targeted PPO/bucket-only training:
 

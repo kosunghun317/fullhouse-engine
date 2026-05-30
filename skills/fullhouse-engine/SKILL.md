@@ -146,6 +146,17 @@ This writes to `runs/arm_selector_param_tuning/`. Do not pass
 `--promote-output` unless the run uses statistically meaningful stages and the
 held-out report has been reviewed. `--allow-smoke` is for wiring checks only.
 
+For rollout-search f/g sizing experiments, use the dedicated CEM/racing tuner:
+
+```bash
+poetry run python tools/strong_mocks/tune_rollout_search.py --generations 4 --population 12 --elite 3 --stages 4:120:0.5,12:240:0.5 --workers 0 --parallel-backend process --progress --json
+```
+
+It writes generated wrappers and `best_params.json` under
+`runs/rollout_search_tuning/`, uses 1024 eval7 samples for preflop and postflop
+equity, and performs a representative 2-second decision-latency check before
+trusting the result.
+
 For full-space heuristic parameter search, use the staged CEM/racing tuner
 instead of ad hoc one-parameter sweeps:
 

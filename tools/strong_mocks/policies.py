@@ -10,6 +10,7 @@ import eval7
 import numpy as np
 
 from tools.strong_mocks.actions import ACTION_LABELS, action_index_to_action, masked_argmax
+from tools.strong_mocks.actions import raise_to_fraction
 from tools.strong_mocks.abstractions import abstract_bucket_id
 from tools.strong_mocks.dataset import oracle_logits
 from tools.strong_mocks.features import extract_features
@@ -18,6 +19,26 @@ from tools.strong_mocks.features import extract_features
 RANKS = "23456789TJQKA"
 SUITS = "shdc"
 FULL_DECK = [eval7.Card(rank + suit) for rank in RANKS for suit in SUITS]
+ROLLOUT_DEFAULT_PARAMS = {
+    "samples": 1024.0,
+    "deep_samples": 1024.0,
+    "f_min_equity": 0.40,
+    "f_center": 0.61,
+    "f_scale": 0.075,
+    "f_min_raise": 0.48,
+    "f_max_raise": 1.05,
+    "g_call_edge_base": 0.06,
+    "g_call_edge_active": 0.035,
+    "g_pressure_discount": 0.02,
+    "g_thin_call_edge": 0.01,
+    "g_raise_edge": 0.16,
+    "g_raise_equity": 0.86,
+    "g_raise_max_owed_pot": 0.22,
+    "g_raise_center": 0.87,
+    "g_raise_scale": 0.045,
+    "g_min_raise": 0.80,
+    "g_max_raise": 1.20,
+}
 
 
 def _softmax(logits: np.ndarray) -> np.ndarray:
@@ -25,6 +46,67 @@ def _softmax(logits: np.ndarray) -> np.ndarray:
     values = values - np.max(values)
     exp = np.exp(values)
     return exp / max(1e-9, float(np.sum(exp)))
+
+
+def _sigmoid(value: float) -> float:
+    value = max(-60.0, min(60.0, float(value)))
+    return 1.0 / (1.0 + float(np.exp(-value)))
+
+
+def rollout_params(overrides: dict[str, float] | None = None) -> dict[str, float]:
+    params = dict(ROLLOUT_DEFAULT_PARAMS)
+    if overrides:
+        for key, value in overrides.items():
+            if key in params:
+                params[key] = float(value)
+    params["samples"] = max(1.0, params["samples"])
+    params["deep_samples"] = max(1.0, params["deep_samples"])
+    params["f_scale"] = max(0.005, params["f_scale"])
+    params["g_raise_scale"] = max(0.005, params["g_raise_scale"])
+    params["f_min_raise"] = max(0.10, min(2.50, params["f_min_raise"]))
+    params["f_max_raise"] = max(params["f_min_raise"], min(2.50, params["f_max_raise"]))
+    params["g_min_raise"] = max(0.10, min(2.50, params["g_min_raise"]))
+    params["g_max_raise"] = max(params["g_min_raise"], min(2.50, params["g_max_raise"]))
+    return params
+
+
+def rollout_check_raise_fraction(equity: float, params: dict[str, float] | None = None) -> float:
+    """f(equity): raise size when checking is available, or 0.0 to check."""
+    params = rollout_params(params)
+    equity = float(equity)
+    if equity < params["f_min_equity"]:
+        return 0.0
+    weight = _sigmoid((equity - params["f_center"]) / params["f_scale"])
+    return params["f_min_raise"] + weight * (params["f_max_raise"] - params["f_min_raise"])
+
+
+def rollout_facing_bet_raise_fraction(
+    equity: float,
+    pot_odds: float,
+    active_players: int,
+    owed_pot_ratio: float,
+    style: str = "balanced",
+    params: dict[str, float] | None = None,
+) -> float:
+    """g(equity, odds, context): -1 fold, 0 call, positive raise fraction."""
+    params = rollout_params(params)
+    edge = float(equity) - float(pot_odds)
+    active_extra = max(0, int(active_players) - 2)
+    call_edge = params["g_call_edge_base"] + params["g_call_edge_active"] * active_extra
+    if style == "rollout_pressure":
+        call_edge -= params["g_pressure_discount"]
+    if edge < call_edge:
+        if style == "rollout_pressure" and edge > params["g_thin_call_edge"]:
+            return 0.0
+        return -1.0
+    if (
+        edge < params["g_raise_edge"]
+        or float(equity) < params["g_raise_equity"]
+        or float(owed_pot_ratio) > params["g_raise_max_owed_pot"]
+    ):
+        return 0.0
+    weight = _sigmoid((float(equity) - params["g_raise_center"]) / params["g_raise_scale"])
+    return params["g_min_raise"] + weight * (params["g_max_raise"] - params["g_min_raise"])
 
 
 def _softmax_masked(logits: np.ndarray, mask: np.ndarray, temperature: float = 1.0) -> np.ndarray:
@@ -182,14 +264,14 @@ def _rollout_equity(
 ) -> float:
     board = state.get("community_cards", [])
     cards = state.get("your_cards", [])
-    if not board:
-        active = sum(1 for player in state.get("players", []) if not player.get("is_folded"))
-        return max(0.03, _preflop_strength(cards) - 0.055 * max(0, active - 2))
     try:
         hero = [eval7.Card(card) for card in cards]
         community = [eval7.Card(card) for card in board]
     except Exception:
         return 0.0
+    if len(hero) < 2:
+        active = sum(1 for player in state.get("players", []) if not player.get("is_folded"))
+        return max(0.03, _preflop_strength(cards) - 0.055 * max(0, active - 2))
     active = sum(1 for player in state.get("players", []) if not player.get("is_folded"))
     opponents = max(1, min(5, active - 1 if budget_opponents is None else budget_opponents))
     dead = set(hero + community)
@@ -218,30 +300,25 @@ def _rollout_equity(
     return wins / max(1, samples)
 
 
-def decide_rollout(state: dict, style: str = "balanced") -> dict:
-    samples = 520 if style == "rollout_deep" else 300
+def decide_rollout(state: dict, style: str = "balanced", params: dict[str, float] | None = None) -> dict:
+    params = rollout_params(params)
+    samples = int(params["deep_samples"] if style == "rollout_deep" else params["samples"])
     equity = _rollout_equity(state, samples=samples, rng=_state_rng(state, salt=style))
     owed = max(0, int(state.get("amount_owed", 0) or 0))
     pot = max(1, int(state.get("pot", 0) or 0))
     odds = owed / max(1, pot + owed)
     can_check = bool(state.get("can_check"))
     active = sum(1 for player in state.get("players", []) if not player.get("is_folded"))
-    margin = 0.06 + 0.035 * max(0, active - 2)
-    if style == "rollout_pressure":
-        margin -= 0.02
     if can_check:
-        if equity > 0.72:
-            return action_index_to_action(state, 5)
-        if equity > 0.58:
-            return action_index_to_action(state, 4)
-        if equity > 0.40 and style == "rollout_pressure":
-            return action_index_to_action(state, 3)
+        fraction = rollout_check_raise_fraction(equity, params)
+        if fraction > 0.0:
+            return raise_to_fraction(state, fraction)
         return action_index_to_action(state, 1)
-    if equity > odds + margin:
-        if equity > 0.86 and owed < pot * 0.22:
-            return action_index_to_action(state, 5)
-        return action_index_to_action(state, 1)
-    if equity > odds + 0.01 and style == "rollout_pressure":
+    owed_pot_ratio = owed / max(1.0, float(pot))
+    fraction = rollout_facing_bet_raise_fraction(equity, odds, active, owed_pot_ratio, style, params)
+    if fraction > 0.0:
+        return raise_to_fraction(state, fraction)
+    if fraction == 0.0:
         return action_index_to_action(state, 1)
     return action_index_to_action(state, 0)
 
