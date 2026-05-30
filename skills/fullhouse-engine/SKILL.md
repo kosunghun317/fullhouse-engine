@@ -68,12 +68,21 @@ poetry run python tools/select_heuristic_config.py --preset final --config basel
 For a one-command unattended submission pass, run:
 
 ```bash
-WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
+TRAIN_STRONG_MOCKS=0 WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 ```
 
-This trains/gates strong mocks, runs full-space heuristic tuning, bakes the
+This uses the default deadline profile: 3 generations, 16 candidates, 4 elites,
+stages `128:400:0.5,256:400:0.25`, and a final rollout-search gate. It
+reuses existing strong mocks, runs full-space heuristic tuning, bakes the
 selected `best_env.json` into the packaged `bot.py`, runs submission validation,
-and rebuilds `dist/heuristic_bot.zip`.
+and rebuilds `dist/heuristic_bot.zip`. Omit `TRAIN_STRONG_MOCKS=0` only when
+there is enough time to retrain and gate the strong-mock pool first.
+
+For the older full-strength profile, set:
+
+```bash
+TUNE_PROFILE=full SUBMISSION_PROFILE=full WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
+```
 
 For a packaging-only rerun from an existing full-space tune:
 
@@ -156,6 +165,10 @@ It writes generated wrappers and `best_params.json` under
 `runs/rollout_search_tuning/`, uses 1024 eval7 samples for preflop and postflop
 equity, and performs a representative 2-second decision-latency check before
 trusting the result.
+
+Read `docs/rollout-search.md` for the exact rollout-search equity sampler,
+f/g formulas, tunable parameters, and the final rollout gate used by deadline
+submission runs.
 
 For full-space heuristic parameter search, use the staged CEM/racing tuner
 instead of ad hoc one-parameter sweeps:

@@ -193,6 +193,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | [`tools/check_strong_mocks.py` candidate registry](../tools/check_strong_mocks.py#L19) | Lists all strong-mock opponents that must pass the strength gate. |
 | [`tools/check_strong_mocks.py` gate runner](../tools/check_strong_mocks.py#L133) | Enforces default/reference strength checks before trusting strong mocks. |
 | [`tools/strong_mocks/tune_rollout_search.py` CLI](../tools/strong_mocks/tune_rollout_search.py#L526) | Searches smooth rollout-search f/g sizing parameters and checks 1024-sample latency against the 2-second action budget. |
+| [`docs/rollout-search.md`](rollout-search.md) | Documents rollout-search equity estimation, f/g formulas, tunable parameters, and the final rollout gate. |
 | [`tools/select_heuristic_config.py` CLI](../tools/select_heuristic_config.py#L205) | Runs risk-aware named config screens and promotion/final matrices. |
 | [`tools/tune_heuristic_thresholds.py` CLI](../tools/tune_heuristic_thresholds.py#L236) | Runs named hypothesis comparisons with budget guards. |
 | [`tools/strong_mocks/train_real_policy.py` budget guard](../tools/strong_mocks/train_real_policy.py#L713) | Prevents tiny PPO/bucket training runs from overwriting real artifacts. |

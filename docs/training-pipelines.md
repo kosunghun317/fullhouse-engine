@@ -14,6 +14,8 @@ or training benchmark-only mock opponents.
 For the overall strategy and file map, see `docs/strategy-and-training.md`.
 For the full-space heuristic optimizer design and references, see
 `docs/heuristic-full-space-optimization.md`.
+For the rollout-search mock's exact equity, f/g sizing, and tuning logic, see
+`docs/rollout-search.md`.
 
 ## Pipeline Map
 
@@ -102,6 +104,30 @@ It trains and gates the strong mocks, runs full-space heuristic tuning, writes a
 structured `best_env.json`, bakes those tuned `HEURISTIC_*` defaults into the
 packaged `bot.py`, runs the submission pipeline against the same tuned env, and
 leaves the upload candidate at `dist/heuristic_bot.zip`.
+
+For a 24-hour deadline on the current 8-core laptop, use the deadline profile:
+
+```bash
+TRAIN_STRONG_MOCKS=0 \
+TUNE_PROFILE=deadline-24h \
+SUBMISSION_PROFILE=deadline-24h \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+scripts/build_tuned_submission.sh
+```
+
+This is the smallest non-smoke full-space tuning budget accepted by
+`tools/tune_heuristic_full_space.py`: 3 generations, 16 candidates, 4 elites,
+and stages `128:400:0.5,256:400:0.25`. It keeps 512 suite/seed tasks per
+candidate in stage 1 and 1024 tasks per finalist in stage 2, then runs the
+required 1024-task final validation. The deadline submission profile skips the
+broad paired, strong, mock-family, and final matrices and instead runs the
+rollout-search gate last.
+
+`TRAIN_STRONG_MOCKS=0` is intentional for the 24-hour path: it reuses existing
+strong mocks and spends the deadline on heuristic tuning plus the final
+rollout-search decision gate. Omit it only if the deadline includes enough time
+to retrain and gate the strong-mock pool first.
 
 To rerun only the final packaging and validation from an existing tuning run:
 

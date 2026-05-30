@@ -31,11 +31,52 @@ TUNE_RUN_ROOT="${TUNE_RUN_ROOT:-runs/heuristic_full_space_tuning/${TUNE_RUN_ID}}
 SUBMISSION_RUN_ID="${SUBMISSION_RUN_ID:-${RUN_ID}-submission}"
 
 TUNE_PRESET="${TUNE_PRESET:-strong-screen}"
-TUNE_GENERATIONS="${TUNE_GENERATIONS:-6}"
-TUNE_POPULATION="${TUNE_POPULATION:-24}"
-TUNE_ELITE="${TUNE_ELITE:-6}"
+TUNE_PROFILE="${TUNE_PROFILE:-deadline-24h}"
+case "$TUNE_PROFILE" in
+  deadline|deadline-24h)
+    DEFAULT_TUNE_GENERATIONS=3
+    DEFAULT_TUNE_POPULATION=16
+    DEFAULT_TUNE_ELITE=4
+    ;;
+  full|serious)
+    DEFAULT_TUNE_GENERATIONS=6
+    DEFAULT_TUNE_POPULATION=24
+    DEFAULT_TUNE_ELITE=6
+    ;;
+  custom)
+    DEFAULT_TUNE_GENERATIONS=6
+    DEFAULT_TUNE_POPULATION=24
+    DEFAULT_TUNE_ELITE=6
+    ;;
+  *)
+    echo "unknown TUNE_PROFILE=${TUNE_PROFILE}; expected deadline-24h, full, or custom" >&2
+    exit 2
+    ;;
+esac
+TUNE_GENERATIONS="${TUNE_GENERATIONS:-$DEFAULT_TUNE_GENERATIONS}"
+TUNE_POPULATION="${TUNE_POPULATION:-$DEFAULT_TUNE_POPULATION}"
+TUNE_ELITE="${TUNE_ELITE:-$DEFAULT_TUNE_ELITE}"
 TUNE_STAGES="${TUNE_STAGES:-128:400:0.5,256:400:0.25}"
 HEURISTIC_ENV_FILE="${HEURISTIC_ENV_FILE:-}"
+
+SUBMISSION_PROFILE="${SUBMISSION_PROFILE:-$TUNE_PROFILE}"
+case "$SUBMISSION_PROFILE" in
+  deadline|deadline-24h)
+    RUN_PAIRED_GATE="${RUN_PAIRED_GATE:-0}"
+    RUN_STRONG_SCREEN="${RUN_STRONG_SCREEN:-0}"
+    RUN_MOCK_FAMILY="${RUN_MOCK_FAMILY:-0}"
+    RUN_FINAL="${RUN_FINAL:-0}"
+    RUN_ROLLOUT_FINAL_GATE="${RUN_ROLLOUT_FINAL_GATE:-1}"
+    ROLLOUT_FINAL_SEED_COUNT="${ROLLOUT_FINAL_SEED_COUNT:-512}"
+    ;;
+  full|serious|custom)
+    RUN_ROLLOUT_FINAL_GATE="${RUN_ROLLOUT_FINAL_GATE:-1}"
+    ;;
+  *)
+    echo "unknown SUBMISSION_PROFILE=${SUBMISSION_PROFILE}; expected deadline-24h, full, or custom" >&2
+    exit 2
+    ;;
+esac
 
 enabled() {
   [[ "$1" != "0" && "$1" != "false" && "$1" != "False" ]]
@@ -51,6 +92,9 @@ finish() {
     echo "- log: \`${LOG_FILE}\`"
     echo "- strong_mocks_run: \`${STRONG_RUN_ID}\`"
     echo "- tune_run_root: \`${TUNE_RUN_ROOT}\`"
+    echo "- tune_profile: \`${TUNE_PROFILE}\`"
+    echo "- tune_budget: \`${TUNE_GENERATIONS} generations, ${TUNE_POPULATION} population, ${TUNE_ELITE} elite, stages ${TUNE_STAGES}\`"
+    echo "- submission_profile: \`${SUBMISSION_PROFILE}\`"
     echo "- tuned_env: \`${HEURISTIC_ENV_FILE:-unset}\`"
     echo "- submission_run: \`${SUBMISSION_RUN_ID}\`"
     echo "- submission_zip: \`${SUBMISSION_ZIP}\`"
@@ -70,6 +114,8 @@ trap finish EXIT
 echo "==> Tuned submission build"
 echo "==> run_id=${RUN_ID}"
 echo "==> workers=${WORKERS} backend=${PARALLEL_BACKEND}"
+echo "==> tune_profile=${TUNE_PROFILE} generations=${TUNE_GENERATIONS} population=${TUNE_POPULATION} elite=${TUNE_ELITE} stages=${TUNE_STAGES}"
+echo "==> submission_profile=${SUBMISSION_PROFILE}"
 
 if enabled "$TRAIN_STRONG_MOCKS"; then
   echo
@@ -117,5 +163,11 @@ if enabled "$RUN_PIPELINE"; then
     PARALLEL_BACKEND="$PARALLEL_BACKEND" \
     SUBMISSION_ZIP="$SUBMISSION_ZIP" \
     HEURISTIC_ENV_FILE="$HEURISTIC_ENV_FILE" \
+    RUN_PAIRED_GATE="${RUN_PAIRED_GATE:-}" \
+    RUN_STRONG_SCREEN="${RUN_STRONG_SCREEN:-}" \
+    RUN_MOCK_FAMILY="${RUN_MOCK_FAMILY:-}" \
+    RUN_FINAL="${RUN_FINAL:-}" \
+    RUN_ROLLOUT_FINAL_GATE="${RUN_ROLLOUT_FINAL_GATE:-}" \
+    ROLLOUT_FINAL_SEED_COUNT="${ROLLOUT_FINAL_SEED_COUNT:-}" \
     scripts/run_submission_pipeline.sh
 fi

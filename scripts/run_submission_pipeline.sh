@@ -30,12 +30,16 @@ RUN_STRONG_SCREEN="${RUN_STRONG_SCREEN:-1}"
 RUN_MOCK_FAMILY="${RUN_MOCK_FAMILY:-1}"
 RUN_FINAL="${RUN_FINAL:-1}"
 RUN_HARDEN_END="${RUN_HARDEN_END:-1}"
+RUN_ROLLOUT_FINAL_GATE="${RUN_ROLLOUT_FINAL_GATE:-0}"
 
 PROMOTION_PRESET="${PROMOTION_PRESET:-promotion}"
 PROMOTION_SEED_COUNT="${PROMOTION_SEED_COUNT:-128}"
 STRONG_SEED_COUNT="${STRONG_SEED_COUNT:-128}"
 MOCK_SEED_COUNT="${MOCK_SEED_COUNT:-128}"
 FINAL_SEED_COUNT="${FINAL_SEED_COUNT:-200}"
+ROLLOUT_FINAL_SUITES="${ROLLOUT_FINAL_SUITES:-heads_up_strong_rollout}"
+ROLLOUT_FINAL_SEED_COUNT="${ROLLOUT_FINAL_SEED_COUNT:-512}"
+ROLLOUT_FINAL_HANDS="${ROLLOUT_FINAL_HANDS:-$HANDS}"
 HARDEN_HANDS="${HARDEN_HANDS:-80}"
 HARDEN_SEED="${HARDEN_SEED:-9901}"
 SUBMISSION_ZIP="${SUBMISSION_ZIP:-dist/heuristic_bot.zip}"
@@ -188,5 +192,23 @@ if enabled "$RUN_HARDEN_END"; then
       "${harden_args[@]}" \
       --hands "$HARDEN_HANDS" \
       --seed "$((HARDEN_SEED + 100))" \
+      --json
+fi
+
+if enabled "$RUN_ROLLOUT_FINAL_GATE"; then
+  rollout_suite_args=()
+  for suite in $ROLLOUT_FINAL_SUITES; do
+    rollout_suite_args+=(--suite "$suite")
+  done
+  run_json "final_rollout_gate" \
+    poetry run python tools/select_heuristic_config.py \
+      "${rollout_suite_args[@]}" \
+      "${selector_config_args[@]}" \
+      --seed-count "$ROLLOUT_FINAL_SEED_COUNT" \
+      --hands "$ROLLOUT_FINAL_HANDS" \
+      --min-tasks-per-config "$ROLLOUT_FINAL_SEED_COUNT" \
+      --workers "$WORKERS" \
+      --parallel-backend "$PARALLEL_BACKEND" \
+      --progress \
       --json
 fi
