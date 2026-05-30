@@ -21,4 +21,4 @@ node_modules/
 runs/
 
 .DS_Store
-.npz
+*.npz
