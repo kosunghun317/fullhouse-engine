@@ -151,6 +151,36 @@ PARALLEL_BACKEND=process \
 scripts/run_submission_pipeline.sh
 ```
 
+To optimize rollout search first and use that tuned wrapper in the final
+rollout gate, set `ROLLOUT_FINAL_BOT_PATH`:
+
+```bash
+ROLLOUT_RUN_ID=rollout-final-$(date +%Y%m%d-%H%M%S) && \
+SUBMISSION_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && \
+poetry run python tools/strong_mocks/tune_rollout_search.py \
+  --run-id "$ROLLOUT_RUN_ID" \
+  --generations 4 \
+  --population 12 \
+  --elite 3 \
+  --stages 4:120:0.5,12:240:0.5 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json && \
+TRAIN_STRONG_MOCKS=0 \
+RUN_ID="$SUBMISSION_RUN_ID" \
+TUNE_PROFILE=deadline-24h \
+SUBMISSION_PROFILE=deadline-24h \
+ROLLOUT_FINAL_BOT_PATH="runs/rollout_search_tuning/${ROLLOUT_RUN_ID}/best_bot" \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+scripts/build_tuned_submission.sh
+```
+
+The final report to inspect is
+`runs/submission_pipeline/<run-id>/final_rollout_gate.json`. The packaged zip
+is still `dist/heuristic_bot.zip`.
+
 For submitted-bot default changes, use paired comparisons after smoke tests:
 
 ```bash

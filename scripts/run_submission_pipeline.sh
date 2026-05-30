@@ -40,6 +40,7 @@ FINAL_SEED_COUNT="${FINAL_SEED_COUNT:-200}"
 ROLLOUT_FINAL_SUITES="${ROLLOUT_FINAL_SUITES:-heads_up_strong_rollout}"
 ROLLOUT_FINAL_SEED_COUNT="${ROLLOUT_FINAL_SEED_COUNT:-512}"
 ROLLOUT_FINAL_HANDS="${ROLLOUT_FINAL_HANDS:-$HANDS}"
+ROLLOUT_FINAL_BOT_PATH="${ROLLOUT_FINAL_BOT_PATH:-}"
 HARDEN_HANDS="${HARDEN_HANDS:-80}"
 HARDEN_SEED="${HARDEN_SEED:-9901}"
 SUBMISSION_ZIP="${SUBMISSION_ZIP:-dist/heuristic_bot.zip}"
@@ -200,9 +201,18 @@ if enabled "$RUN_ROLLOUT_FINAL_GATE"; then
   for suite in $ROLLOUT_FINAL_SUITES; do
     rollout_suite_args+=(--suite "$suite")
   done
+  rollout_bot_args=()
+  if [[ -n "$ROLLOUT_FINAL_BOT_PATH" ]]; then
+    if [[ ! -e "$ROLLOUT_FINAL_BOT_PATH" ]]; then
+      echo "missing ROLLOUT_FINAL_BOT_PATH: ${ROLLOUT_FINAL_BOT_PATH}" >&2
+      exit 2
+    fi
+    rollout_bot_args=(--bot-override "rollout_search=${ROLLOUT_FINAL_BOT_PATH}")
+  fi
   run_json "final_rollout_gate" \
     poetry run python tools/select_heuristic_config.py \
       "${rollout_suite_args[@]}" \
+      "${rollout_bot_args[@]}" \
       "${selector_config_args[@]}" \
       --seed-count "$ROLLOUT_FINAL_SEED_COUNT" \
       --hands "$ROLLOUT_FINAL_HANDS" \

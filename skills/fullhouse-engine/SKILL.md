@@ -170,6 +170,13 @@ Read `docs/rollout-search.md` for the exact rollout-search equity sampler,
 f/g formulas, tunable parameters, and the final rollout gate used by deadline
 submission runs.
 
+To tune rollout search first, then tune/package the heuristic and compare
+against the tuned rollout wrapper last, run:
+
+```bash
+ROLLOUT_RUN_ID=rollout-final-$(date +%Y%m%d-%H%M%S) && SUBMISSION_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && poetry run python tools/strong_mocks/tune_rollout_search.py --run-id "$ROLLOUT_RUN_ID" --generations 4 --population 12 --elite 3 --stages 4:120:0.5,12:240:0.5 --workers 0 --parallel-backend process --progress --json && TRAIN_STRONG_MOCKS=0 RUN_ID="$SUBMISSION_RUN_ID" TUNE_PROFILE=deadline-24h SUBMISSION_PROFILE=deadline-24h ROLLOUT_FINAL_BOT_PATH="runs/rollout_search_tuning/${ROLLOUT_RUN_ID}/best_bot" WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
+```
+
 For full-space heuristic parameter search, use the staged CEM/racing tuner
 instead of ad hoc one-parameter sweeps:
 

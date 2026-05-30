@@ -153,7 +153,10 @@ The deadline submission profile skips the broad post-tuning gates and runs a
 final direct rollout-search gate at the end:
 
 ```text
-tools/select_heuristic_config.py --suite heads_up_strong_rollout --seed-count 512
+tools/select_heuristic_config.py \
+  --suite heads_up_strong_rollout \
+  --bot-override rollout_search=<rollout-run>/best_bot \
+  --seed-count 512
 ```
 
 Use `runs/submission_pipeline/<run-id>/final_rollout_gate.json` to decide
@@ -163,3 +166,33 @@ submitting the generated zip.
 Use `TRAIN_STRONG_MOCKS=0` when the strong mocks already exist locally. If all
 strong mocks must be retrained first, budget additional time outside this
 24-hour tuning estimate.
+
+Full command order for optimizing both rollout search and heuristics:
+
+```bash
+ROLLOUT_RUN_ID=rollout-final-$(date +%Y%m%d-%H%M%S) && \
+SUBMISSION_RUN_ID=tuned-final-$(date +%Y%m%d-%H%M%S) && \
+poetry run python tools/strong_mocks/tune_rollout_search.py \
+  --run-id "$ROLLOUT_RUN_ID" \
+  --generations 4 \
+  --population 12 \
+  --elite 3 \
+  --stages 4:120:0.5,12:240:0.5 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json && \
+TRAIN_STRONG_MOCKS=0 \
+RUN_ID="$SUBMISSION_RUN_ID" \
+TUNE_PROFILE=deadline-24h \
+SUBMISSION_PROFILE=deadline-24h \
+ROLLOUT_FINAL_BOT_PATH="runs/rollout_search_tuning/${ROLLOUT_RUN_ID}/best_bot" \
+WORKERS=0 \
+PARALLEL_BACKEND=process \
+scripts/build_tuned_submission.sh
+```
+
+This writes the tuned rollout wrapper first, then tunes and packages the
+heuristic, then compares the final tuned heuristic against the tuned rollout
+wrapper in `final_rollout_gate.json`, and finally leaves the submission zip at
+`dist/heuristic_bot.zip`.

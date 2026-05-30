@@ -209,12 +209,35 @@ def _env_file_configs(args) -> dict[str, dict[str, str]]:
     return configs
 
 
+def _apply_bot_overrides(suites: dict, overrides: list[str] | None) -> dict[str, str]:
+    applied: dict[str, str] = {}
+    for raw in overrides or []:
+        if "=" not in raw:
+            raise SystemExit(f"invalid --bot-override {raw!r}; expected bot_id=path")
+        bot_id, path = raw.split("=", 1)
+        bot_id = bot_id.strip()
+        path = path.strip()
+        if not bot_id or not path:
+            raise SystemExit(f"invalid --bot-override {raw!r}; expected bot_id=path")
+        matched = False
+        for suite in suites.values():
+            bots = suite.get("bots", {})
+            if bot_id in bots:
+                bots[bot_id] = path
+                matched = True
+        if not matched:
+            raise SystemExit(f"--bot-override bot id {bot_id!r} did not match any selected suite")
+        applied[bot_id] = path
+    return applied
+
+
 def main():
     parser = argparse.ArgumentParser(description="Run and rank heuristic configs with a risk-aware score")
     parser.add_argument("--config", choices=sorted(CONFIGS), action="append")
     parser.add_argument("--env-file", action="append", help="JSON or best_env.sh file to evaluate as a config")
     parser.add_argument("--env-config-name", action="append", help="Display name for the matching --env-file")
     parser.add_argument("--suite", choices=sorted(SUITES), action="append")
+    parser.add_argument("--bot-override", action="append", help="Override a suite bot path, e.g. rollout_search=runs/.../best_bot")
     parser.add_argument("--preset", choices=sorted(PRESETS), default="quick")
     parser.add_argument("--seeds", default=None)
     parser.add_argument("--seed-start", type=int, default=7001)
@@ -239,6 +262,7 @@ def main():
         configs = sorted(CONFIGS)
     config_envs = {**CONFIGS, **env_configs}
     suites = args.suite or PRESETS[args.preset]["suites"]
+    bot_overrides = _apply_bot_overrides(SUITES, args.bot_override)
     seeds = _parse_seeds(args, args.preset)
     validate_budget(args, suites, seeds)
 
@@ -268,6 +292,7 @@ def main():
         "hands": args.hands,
         "seeds": seeds,
         "suites": suites,
+        "bot_overrides": bot_overrides,
         "score_formula": (
             "mean_delta - risk_weight*stdev_delta + min_weight*min_delta "
             "- bust_penalty*bust_rate - error_penalty*error_rate"
