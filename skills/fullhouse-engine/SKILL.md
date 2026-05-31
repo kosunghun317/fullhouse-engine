@@ -179,6 +179,12 @@ PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 poetry run python tools/benchmark_a
 It prints streaming per-suite completion lines and a final `tabulate` summary.
 Use `--json` only when another tool should consume the raw rows.
 
+To run the packaged submission heuristic on that same suite matrix, use:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 poetry run python tools/benchmark_submission_heuristic.py --hands 512 --seeds 128
+```
+
 To tune rollout search first, then tune/package the heuristic and compare
 against the tuned rollout wrapper last, run:
 

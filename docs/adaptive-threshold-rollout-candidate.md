@@ -142,3 +142,25 @@ poetry run python tools/benchmark_adaptive_threshold_rollout.py \
 Change the final table style with `--table-format`, for example
 `--table-format simple_grid`. Use `--json` when another tool should consume the
 raw result rows.
+
+To run the current submission-ready heuristic zip on the exact same suite
+matrix, use:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+poetry run python tools/benchmark_submission_heuristic.py \
+  --hands 512 \
+  --seeds 128
+```
+
+For a side-by-side comparison with rollout candidates:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+poetry run python tools/benchmark_submission_heuristic.py \
+  --hands 512 \
+  --seeds 128 \
+  --candidate rollout=bots/rollout_search_submission \
+  --candidate adaptive=bots/adaptive_threshold_rollout_submission \
+  --candidate blend_rollout=bots/blend_rollout_heuristic
+```
