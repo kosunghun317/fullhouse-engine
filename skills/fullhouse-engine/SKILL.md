@@ -170,6 +170,15 @@ Read `docs/rollout-search.md` for the exact rollout-search equity sampler,
 f/g formulas, tunable parameters, and the final rollout gate used by deadline
 submission runs.
 
+For adaptive threshold-rollout candidate screens, use the tabulated benchmark:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 poetry run python tools/benchmark_adaptive_threshold_rollout.py --hands 200 --seeds 16
+```
+
+It prints streaming per-suite completion lines and a final `tabulate` summary.
+Use `--json` only when another tool should consume the raw rows.
+
 To tune rollout search first, then tune/package the heuristic and compare
 against the tuned rollout wrapper last, run:
 

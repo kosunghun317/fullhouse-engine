@@ -125,3 +125,20 @@ without destabilizing the broad rollout baseline. The previous static threshold
 variant improved some mechanical-style opponents but performed badly against
 strong heads-up rollout opponents. This adaptive version therefore uses the
 threshold layer as a gated exploit, not as the default policy.
+
+## Benchmark Command
+
+Use the benchmark helper for larger screens. Non-JSON output streams one
+completion line per suite and prints a final `tabulate` summary table sorted by
+suite and mean result:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
+poetry run python tools/benchmark_adaptive_threshold_rollout.py \
+  --hands 200 \
+  --seeds 16
+```
+
+Change the final table style with `--table-format`, for example
+`--table-format simple_grid`. Use `--json` when another tool should consume the
+raw result rows.

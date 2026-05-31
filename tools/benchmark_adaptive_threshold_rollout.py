@@ -9,6 +9,8 @@ import statistics
 import sys
 from pathlib import Path
 
+from tabulate import tabulate
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
@@ -92,6 +94,60 @@ SUITES = {
 }
 
 
+def _rate(value: float) -> str:
+    return f"{100.0 * float(value):.1f}%"
+
+
+def _chips(value: float) -> str:
+    return f"{float(value):,.1f}"
+
+
+def _suite_order() -> dict[str, int]:
+    return {suite_id: index for index, suite_id in enumerate(SUITES)}
+
+
+def _ranked_rows(rows: list[dict]) -> list[dict]:
+    order = _suite_order()
+    return sorted(rows, key=lambda row: (order.get(row["suite"], 10_000), -float(row["mean_delta"]), row["candidate"]))
+
+
+def render_results_table(rows: list[dict], tablefmt: str = "github") -> str:
+    table_rows = []
+    for row in _ranked_rows(rows):
+        table_rows.append([
+            row["suite"],
+            row["candidate"],
+            row["matches"],
+            row["hands"],
+            _chips(row["mean_delta"]),
+            _chips(row["ci95"]),
+            _chips(row["median_delta"]),
+            _chips(row["p10_delta"]),
+            _rate(row["positive_rate"]),
+            _rate(row["bust_rate"]),
+            row["bot_error_count"],
+        ])
+    return tabulate(
+        table_rows,
+        headers=[
+            "suite",
+            "candidate",
+            "matches",
+            "hands",
+            "mean",
+            "ci95",
+            "median",
+            "p10",
+            "pos",
+            "bust",
+            "errors",
+        ],
+        tablefmt=tablefmt,
+        stralign="left",
+        numalign="right",
+    )
+
+
 def _existing(paths: list[str]) -> bool:
     return all((ROOT / path).exists() for path in paths)
 
@@ -151,6 +207,8 @@ def main() -> int:
                         help="candidate_id=path. May be passed multiple times.")
     parser.add_argument("--suite", action="append", default=[],
                         help="Suite id to run. Defaults to all known suites.")
+    parser.add_argument("--table-format", default="github",
+                        help="tabulate tablefmt for the final non-JSON summary table.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -177,7 +235,7 @@ def main() -> int:
             rows.append(row)
             if not args.json:
                 print(
-                    f"{candidate_id:28s} {suite_id:24s} "
+                    f"completed {candidate_id:28s} {suite_id:24s} "
                     f"mean={row['mean_delta']:8.1f} ci95={row['ci95']:7.1f} "
                     f"pos={row['positive_rate']:.3f} bust={row['bust_rate']:.3f} "
                     f"errors={row['bot_error_count']}"
@@ -185,6 +243,9 @@ def main() -> int:
 
     if args.json:
         print(json.dumps({"results": rows}, indent=2, sort_keys=True))
+    elif rows:
+        print()
+        print(render_results_table(rows, tablefmt=args.table_format))
     return 0
 
 
