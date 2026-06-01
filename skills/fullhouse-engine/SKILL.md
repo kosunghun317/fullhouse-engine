@@ -185,6 +185,16 @@ To run the packaged submission heuristic on that same suite matrix, use:
 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 poetry run python tools/benchmark_submission_heuristic.py --hands 512 --seeds 128
 ```
 
+To build a candidate that replaces the packaged heuristic's preflop score with
+Monte Carlo, use:
+
+```bash
+PYTHONDONTWRITEBYTECODE=1 poetry run python tools/build_preflop_mc_heuristic.py --input dist/heuristic_bot.zip --output runs/preflop_mc_heuristic/preflop-mc-4096/bot --samples 4096 --budget 0.35 --min-samples 512 --json
+```
+
+Read `docs/preflop-monte-carlo-heuristic.md` for latency results and benchmark
+commands before promoting this variant.
+
 To tune rollout search first, then tune/package the heuristic and compare
 against the tuned rollout wrapper last, run:
 
