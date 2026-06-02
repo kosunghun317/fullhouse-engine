@@ -14,6 +14,8 @@ or training benchmark-only mock opponents.
 For the overall strategy and file map, see `docs/strategy-and-training.md`.
 For public qualifier replay analysis and replay-derived mocks, see
 `docs/qualifier-2-strategy.md`.
+For the separate replay-exploit Qualifier 2 candidate and its optimizer, see
+`docs/replay-exploit-heuristic.md`.
 For the full-space heuristic optimizer design and references, see
 `docs/heuristic-full-space-optimization.md`.
 For the rollout-search mock's exact equity, f/g sizing, and tuning logic, see
@@ -24,9 +26,11 @@ For the rollout-search mock's exact equity, f/g sizing, and tuning logic, see
 ```mermaid
 graph TD
     Heuristic["bots/heuristic - competition bot"] --> Eval["tools/evaluate_heuristic.py"]
+    ReplayExploit["bots/replay_exploit_heuristic - Q2 candidate"] --> Eval
     Eval --> Select["tools/select_heuristic_config.py"]
     Eval --> PairedGate["tools/paired_heuristic_gate.py"]
     Eval --> FullTune["tools/tune_heuristic_full_space.py"]
+    Eval --> ReplayTune["tools/tune_replay_exploit.py"]
     Select --> HeurSelf["tools/strong_mocks/self_train_heuristic.py"]
 
     StrongMocks["bots/strong_mocks"] --> Eval
@@ -52,6 +56,9 @@ graph TD
     FastRunner["training/fast_match.py"] --> Eval
     FastRunner --> RealTrain
     FastRunner --> HeurSelf
+    PortalMocks["runs/portal_profile_mocks"] --> MockLeague["tools/evaluate_mock_league.py"]
+    PortalMocks --> ReplayTune
+    MockLeague --> ReplayTune
 ```
 
 ## Entry Points
@@ -65,6 +72,7 @@ graph TD
 | `scripts/train_opponents_real.sh` | Lower-level PPO and bucket/CFR-only trainer kept for targeted experiments. | `runs/fullhouse_real_training/<run-id>/` and optional mock artifacts |
 | `scripts/train_heuristics_selfplay.sh` | Evolve heuristic env-config variants against mock pools and validate the current baseline. | `runs/fullhouse_self_training/<run-id>/` |
 | `tools/tune_heuristic_full_space.py` | Search the full `HEURISTIC_*` env parameter space with staged CEM/racing. | `runs/heuristic_full_space_tuning/<run-id>/` |
+| `tools/tune_replay_exploit.py` | Search focused `REPLAY_EXPLOIT_*` risk, sizing, call-off, and style-rotation parameters for the separate replay-exploit candidate. | `runs/replay_exploit_tuning/<run-id>/` |
 | `tools/strong_mocks/train_all_strong_mocks.py` | Python orchestrator behind the all-strong-mock script. | `runs/fullhouse_strong_mocks/<run-id>/summary.json` |
 | `tools/strong_mocks/train_real_policy.py` | Direct low-level PPO or bucket training. | One `policy.npz` artifact plus JSONL logs |
 | `tools/strong_mocks/train_deep_ppo.py` | Independent deep PPO mock with 14 action arms. | `bots/strong_mocks/ppo_deep_policy/data/policy.npz` or a custom output |
@@ -80,6 +88,7 @@ graph TD
 | `tools/build_portal_profiles.py` | Builds replay-derived profile summaries and profile-level mock configs. | `runs/portal_history/<run-id>/profiles/` |
 | `tools/build_portal_profile_mocks.py` | Creates local profile mock bot directories from profile artifacts. | `runs/portal_profile_mocks/<run-id>/` |
 | `tools/evaluate_portal_profile_mocks.py` | Runs sandbox matches against generated profile mocks. | Text or JSON candidate-vs-profile report |
+| `tools/evaluate_mock_league.py` | Runs mock-vs-mock leagues to calibrate built-in and replay-derived mock pools before tuning against them. | JSON mock ranking and optional per-run report |
 
 Run outputs are stored under `runs/`, which is git-ignored. Do not put large or
 temporary training outputs in `/private/tmp`; repo-local runs are easier to
@@ -512,6 +521,72 @@ Important files:
 | `metrics.jsonl` | Per-generation score trace. |
 | `ev_progress.svg` | Progress plot from the metric trace. |
 | `summary.json` | Run contract and output locations. |
+
+## Replay-Exploit Optimization
+
+`bots/replay_exploit_heuristic` is a separate Qualifier 2 candidate, not the
+current packaged submission default. Its risky behaviors are exposed as
+`REPLAY_EXPLOIT_*` parameters and should be selected with staged optimization,
+not hand-picked from small match samples.
+
+First calibrate the generated opponent pool by letting mocks play each other:
+
+```bash
+poetry run python tools/evaluate_mock_league.py \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 \
+  --mode both \
+  --hands 400 \
+  --seed-count 64 \
+  --workers 0 \
+  --parallel-backend process \
+  --summary-only \
+  --output runs/replay_exploit_tuning/top64_mock_league.json \
+  --json
+```
+
+This report is diagnostic. It can reveal mock blind spots or over-dominant
+profile artifacts, but it should not be used to manually choose submitted bot
+constants.
+
+Then run the replay-exploit tuner. It uses CEM with successive racing, common
+seed blocks, and score penalties for stdev, worst-suite minimum, busts, and
+errors:
+
+```bash
+poetry run python tools/tune_replay_exploit.py \
+  --run-id q2-replay-exploit-16h \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 \
+  --portal-label top64 \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-label public \
+  --include-portal-heads-up \
+  --portal-profile large_size_jammer \
+  --portal-profile pressure_overfolder \
+  --portal-profile sticky_station \
+  --portal-profile tight_overfolder \
+  --generations 4 \
+  --population 20 \
+  --elite 5 \
+  --stages 32:240:0.5,96:400:0.35 \
+  --min-tasks-per-candidate 512 \
+  --final-validation-seed-count 192 \
+  --final-validation-hands 400 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+The command above gets past the 512 suite/seed task floor because it appends
+multiple top-64 and all-public portal profile suites. A no-portal serious run
+uses the tool default stages `64:240:0.5,128:400:0.35` for the same reason.
+Use `--allow-smoke --skip-final-validation` only for wiring checks.
+
+Promotion requires reviewing
+`runs/replay_exploit_tuning/q2-replay-exploit-16h/final_validation.json` and
+then running a separate held-out comparison against the incumbent and untuned
+candidate. Do not promote a tuned env that only wins the racing seeds or raises
+held-out bust rate.
 
 ## Main Commands
 

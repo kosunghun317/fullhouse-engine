@@ -1,6 +1,6 @@
 # Strategy And Training Story
 
-Reviewed: 2026-05-29.
+Reviewed: 2026-06-02.
 
 This repo's strategy is to submit one compact, legal, interpretable heuristic
 bot, then train and tune it offline against opponents that resemble likely
@@ -11,6 +11,8 @@ For the second-chance qualifier workflow based on public portal replay data,
 see `docs/qualifier-2-strategy.md`. That document is the source of truth for
 portal data collection, replay-derived opponent profiles, and Qualifier 2
 counter-strategy hypotheses.
+For the separate replay-exploit Qualifier 2 candidate, see
+`docs/replay-exploit-heuristic.md`.
 
 The submitted bot is `bots/heuristic`. Everything under `bots/strong_mocks`,
 `bots/mock_competitors`, `bots/benchmarks`, `tools`, `training`, and `scripts`
@@ -116,6 +118,12 @@ plus `final_validation.json`.
 Method details and references are in
 `docs/heuristic-full-space-optimization.md`.
 
+The separate `bots/replay_exploit_heuristic` candidate has its own focused
+`REPLAY_EXPLOIT_*` optimizer in `tools/tune_replay_exploit.py`. Use it for
+replay-derived guardrail, sizing, call-off, and style-rotation parameters after
+calibrating portal mocks with `tools/evaluate_mock_league.py`; do not promote
+constants from small smoke samples.
+
 For a single serious command that trains the strong mocks, tunes the heuristic,
 bakes the best tuned env into the zip, and runs final submission validation:
 
@@ -146,6 +154,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/paired_heuristic_gate.py` | Paired incumbent-vs-candidate gate using identical suite/seed tasks. |
 | `tools/tune_heuristic_thresholds.py` | Named env-config definitions and statistically gated comparison runner. |
 | `tools/tune_heuristic_full_space.py` | Full-space CEM/racing optimizer for all numeric `HEURISTIC_*` env knobs. |
+| `tools/tune_replay_exploit.py` | Focused CEM/racing optimizer for the separate replay-exploit candidate's `REPLAY_EXPLOIT_*` knobs. |
 | `tools/check_strong_mocks.py` | Statistical gate proving strong mocks beat default/reference bots before use. |
 | `tools/train_mock_numpy_policy.py` | Synthetic-label trainer for lightweight numpy-policy mock competitors. |
 | `tools/strong_mocks/features.py` | Public-state feature vector shared by strong-mock policies. |
@@ -180,6 +189,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/build_portal_profiles.py` | Builds profile summaries and profile-level mock configs from portal strategy reports. |
 | `tools/build_portal_profile_mocks.py` | Materializes generated profile mock bot directories under `runs/portal_profile_mocks/`. |
 | `tools/evaluate_portal_profile_mocks.py` | Runs sandbox candidate-vs-profile-mock evaluations from a generated mock manifest. |
+| `tools/evaluate_mock_league.py` | Runs built-in or portal-profile mocks against each other to calibrate the opponent pool before tuning. |
 | `tools/coevolve_training.py` | Alternating PPO/heuristic coevolution orchestrator. |
 | `scripts/train_all_strong_mocks.sh` | Main train/tune/gate wrapper for the complete strong-mock pool. |
 | `scripts/train_opponents_real.sh` | Targeted PPO/bucket-only strong-mock training wrapper. |
@@ -204,6 +214,8 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | [`tools/tune_heuristic_full_space.py` parameter parser](../tools/tune_heuristic_full_space.py#L119) | Discovers the full numeric `HEURISTIC_*` search space from source. |
 | [`tools/tune_heuristic_full_space.py` budget guard](../tools/tune_heuristic_full_space.py#L304) | Enforces meaningful sample sizes before serious optimization runs. |
 | [`tools/tune_heuristic_full_space.py` optimizer loop](../tools/tune_heuristic_full_space.py#L344) | Implements staged CEM/racing, artifacts, plots, and final validation. |
+| [`tools/tune_replay_exploit.py` tuner](../tools/tune_replay_exploit.py#L1) | Optimizes focused replay-exploit guardrail, sizing, call-off, and style-rotation parameters with staged CEM/racing. |
+| [`tools/evaluate_mock_league.py` league runner](../tools/evaluate_mock_league.py#L1) | Calibrates built-in and portal-profile mocks through mock-vs-mock six-max and heads-up leagues. |
 | [`tools/check_strong_mocks.py` candidate registry](../tools/check_strong_mocks.py#L19) | Lists all strong-mock opponents that must pass the strength gate. |
 | [`tools/check_strong_mocks.py` gate runner](../tools/check_strong_mocks.py#L133) | Enforces default/reference strength checks before trusting strong mocks. |
 | [`tools/strong_mocks/tune_rollout_search.py` CLI](../tools/strong_mocks/tune_rollout_search.py#L526) | Searches smooth rollout-search f/g sizing parameters and checks 1024-sample latency against the 2-second action budget. |
