@@ -154,7 +154,13 @@ poetry run python tools/analyze_portal_strategy.py \
 ```
 
 For all complete public qualifier matches, use the dedicated all-match mode
-once it exists rather than simulating it through `--rank-lte 9999`.
+instead of simulating it through `--rank-lte 9999`:
+
+```bash
+poetry run python tools/download_portal_targeted_history.py \
+  --all-complete-source-matches \
+  --output runs/portal_history/all_qualifier_public
+```
 
 ## Modular Tooling Plan
 

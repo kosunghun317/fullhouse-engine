@@ -1,5 +1,7 @@
 # Internal — kept in separate private repo
 portal/
+!tools/portal/
+!tools/portal/**
 supabase/
 matchqueue/
 queue/
