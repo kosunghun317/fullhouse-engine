@@ -78,12 +78,14 @@ poetry run python tools/evaluate_heuristic.py --portal-mocks-dir runs/portal_pro
 poetry run python tools/tune_heuristic_full_space.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --generations 4 --population 20 --elite 5 --stages 128:400:0.5,256:400:0.25 --workers 0 --parallel-backend process --progress --json
 ```
 
-For the separate replay-exploit Qualifier 2 candidate, calibrate mocks before
-tuning and do not promote from smoke output:
+For the separate replay-exploit Qualifier 2 candidate, read
+`docs/replay-exploit-heuristic.md` for the current findings, tuning phases,
+mock calibration command, and promotion gate. Calibrate mocks before tuning and
+do not promote from smoke output:
 
 ```bash
 poetry run python tools/evaluate_mock_league.py --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --mode both --hands 400 --seed-count 64 --workers 0 --parallel-backend process --summary-only --output runs/replay_exploit_tuning/top64_mock_league.json --json
-poetry run python tools/tune_replay_exploit.py --run-id q2-replay-exploit-16h --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --portal-label top64 --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public --portal-label public --include-portal-heads-up --portal-profile large_size_jammer --portal-profile pressure_overfolder --portal-profile sticky_station --portal-profile tight_overfolder --generations 4 --population 20 --elite 5 --stages 32:240:0.5,96:400:0.35 --min-tasks-per-candidate 512 --final-validation-seed-count 192 --final-validation-hands 400 --workers 0 --parallel-backend process --progress --json
+poetry run python tools/tune_replay_exploit.py --run-id q2-replay-exploit-16h --phase focused --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --portal-label top64 --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public --portal-label public --include-portal-heads-up --portal-profile large_size_jammer --portal-profile pressure_overfolder --portal-profile sticky_station --portal-profile tight_overfolder --generations 4 --population 20 --elite 5 --stages 32:240:0.5,96:400:0.35 --min-tasks-per-candidate 512 --final-validation-seed-count 192 --final-validation-hands 400 --workers 0 --parallel-backend process --progress --json
 ```
 
 `tools/tune_replay_exploit.py` defaults to a 512 suite/seed task floor for

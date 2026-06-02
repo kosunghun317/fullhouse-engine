@@ -1,6 +1,6 @@
 # Training Pipelines
 
-Reviewed: 2026-05-29.
+Reviewed: 2026-06-02.
 
 This is the canonical guide for local-only training and benchmark pipelines.
 Use it together with `docs/strategy-and-training.md`; the older fragmented
@@ -524,69 +524,10 @@ Important files:
 
 ## Replay-Exploit Optimization
 
-`bots/replay_exploit_heuristic` is a separate Qualifier 2 candidate, not the
-current packaged submission default. Its risky behaviors are exposed as
-`REPLAY_EXPLOIT_*` parameters and should be selected with staged optimization,
-not hand-picked from small match samples.
-
-First calibrate the generated opponent pool by letting mocks play each other:
-
-```bash
-poetry run python tools/evaluate_mock_league.py \
-  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 \
-  --mode both \
-  --hands 400 \
-  --seed-count 64 \
-  --workers 0 \
-  --parallel-backend process \
-  --summary-only \
-  --output runs/replay_exploit_tuning/top64_mock_league.json \
-  --json
-```
-
-This report is diagnostic. It can reveal mock blind spots or over-dominant
-profile artifacts, but it should not be used to manually choose submitted bot
-constants.
-
-Then run the replay-exploit tuner. It uses CEM with successive racing, common
-seed blocks, and score penalties for stdev, worst-suite minimum, busts, and
-errors:
-
-```bash
-poetry run python tools/tune_replay_exploit.py \
-  --run-id q2-replay-exploit-16h \
-  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 \
-  --portal-label top64 \
-  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
-  --portal-label public \
-  --include-portal-heads-up \
-  --portal-profile large_size_jammer \
-  --portal-profile pressure_overfolder \
-  --portal-profile sticky_station \
-  --portal-profile tight_overfolder \
-  --generations 4 \
-  --population 20 \
-  --elite 5 \
-  --stages 32:240:0.5,96:400:0.35 \
-  --min-tasks-per-candidate 512 \
-  --final-validation-seed-count 192 \
-  --final-validation-hands 400 \
-  --workers 0 \
-  --parallel-backend process \
-  --progress \
-  --json
-```
-
-The command above gets past the 512 suite/seed task floor because it appends
-multiple top-64 and all-public portal profile suites. A no-portal serious run
-uses the tool default stages `64:240:0.5,128:400:0.35` for the same reason.
-Use `--allow-smoke --skip-final-validation` only for wiring checks.
-
-Promotion requires reviewing
-`runs/replay_exploit_tuning/q2-replay-exploit-16h/final_validation.json` and
-then running a separate held-out comparison against the incumbent and untuned
-candidate. Do not promote a tuned env that only wins the racing seeds or raises
-held-out bust rate.
+`bots/replay_exploit_heuristic` is a separate Qualifier 2 candidate. The
+canonical findings, improvement plan, tuning command, mock calibration command,
+and promotion rules live in `docs/replay-exploit-heuristic.md`; this file only
+tracks where the replay-exploit tooling sits in the broader training pipeline.
 
 ## Main Commands
 
