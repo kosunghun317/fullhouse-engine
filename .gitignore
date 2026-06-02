@@ -22,3 +22,6 @@ runs/
 
 .DS_Store
 *.npz
+
+# mit course materials
+docs/class-resources-2026/

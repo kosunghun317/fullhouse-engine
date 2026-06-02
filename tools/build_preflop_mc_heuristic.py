@@ -51,7 +51,12 @@ def _copy_candidate_input(input_path: Path, output_dir: Path) -> None:
         raise ValueError(f"candidate input did not contain bot.py: {input_path}")
 
 
-def preflop_mc_override_source(samples: int, budget_s: float, min_samples: int = 256) -> str:
+def preflop_mc_override_source(
+    samples: int,
+    budget_s: float,
+    min_samples: int = 256,
+    mc_probability: float = 1.0,
+) -> str:
     return textwrap.dedent(
         f"""
 
@@ -62,6 +67,7 @@ def preflop_mc_override_source(samples: int, budget_s: float, min_samples: int =
         PREFLOP_MC_SAMPLES = _int_env("HEURISTIC_PREFLOP_MC_SAMPLES", {int(samples)})
         PREFLOP_MC_BUDGET_S = _float_env("HEURISTIC_PREFLOP_MC_BUDGET_S", {float(budget_s):.6f})
         PREFLOP_MC_MIN_SAMPLES = _int_env("HEURISTIC_PREFLOP_MC_MIN_SAMPLES", {int(min_samples)})
+        PREFLOP_MC_PROBABILITY = _float_env("HEURISTIC_PREFLOP_MC_PROBABILITY", {float(mc_probability):.6f})
         PREFLOP_MC_CACHE = {{}}
         _TABLE_PREFLOP_SCORE = _preflop_score
 
@@ -75,6 +81,9 @@ def preflop_mc_override_source(samples: int, budget_s: float, min_samples: int =
 
         def _preflop_score(cards):
             cls = _hand_class(cards)
+            mc_probability = _clamp(float(PREFLOP_MC_PROBABILITY), 0.0, 1.0)
+            if mc_probability <= 0.0 or random.random() >= mc_probability:
+                return _TABLE_PREFLOP_SCORE(cards)
             key = (cls, int(PREFLOP_MC_SAMPLES))
             cached = PREFLOP_MC_CACHE.get(key)
             if cached is not None:
@@ -127,13 +136,25 @@ def preflop_mc_override_source(samples: int, budget_s: float, min_samples: int =
     )
 
 
-def build_preflop_mc_candidate(input_path: Path, output_dir: Path, samples: int, budget_s: float, min_samples: int = 256) -> dict:
+def build_preflop_mc_candidate(
+    input_path: Path,
+    output_dir: Path,
+    samples: int,
+    budget_s: float,
+    min_samples: int = 256,
+    mc_probability: float = 1.0,
+) -> dict:
     input_path = input_path.resolve()
     output_dir = output_dir.resolve()
     _copy_candidate_input(input_path, output_dir)
     bot_path = output_dir / "bot.py"
     source = bot_path.read_text(encoding="utf-8")
-    source += preflop_mc_override_source(samples=samples, budget_s=budget_s, min_samples=min_samples)
+    source += preflop_mc_override_source(
+        samples=samples,
+        budget_s=budget_s,
+        min_samples=min_samples,
+        mc_probability=mc_probability,
+    )
     bot_path.write_text(source, encoding="utf-8")
     data_files = sorted(str(path.relative_to(output_dir)) for path in (output_dir / "data").glob("*") if path.is_file()) if (output_dir / "data").is_dir() else []
     return {
@@ -143,6 +164,7 @@ def build_preflop_mc_candidate(input_path: Path, output_dir: Path, samples: int,
         "samples": int(samples),
         "budget_s": float(budget_s),
         "min_samples": int(min_samples),
+        "mc_probability": float(mc_probability),
         "data_files": data_files,
     }
 
@@ -170,6 +192,8 @@ def main() -> int:
     parser.add_argument("--samples", type=int, default=4096)
     parser.add_argument("--budget", type=float, default=0.35)
     parser.add_argument("--min-samples", type=int, default=256)
+    parser.add_argument("--mc-probability", type=float, default=1.0,
+                        help="Probability that a preflop score call uses Monte Carlo instead of the table score.")
     parser.add_argument("--zip-output", default=None, help="Optional zip output path for the generated candidate.")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -181,6 +205,7 @@ def main() -> int:
         samples=args.samples,
         budget_s=args.budget,
         min_samples=args.min_samples,
+        mc_probability=args.mc_probability,
     )
     if args.zip_output:
         report["zip_output"] = str(zip_candidate(Path(report["output"]), Path(args.zip_output)))
@@ -188,7 +213,10 @@ def main() -> int:
         print(json.dumps(report, indent=2, sort_keys=True))
     else:
         print(f"built preflop-MC heuristic candidate: {report['output']}")
-        print(f"samples={report['samples']} budget_s={report['budget_s']} min_samples={report['min_samples']}")
+        print(
+            f"samples={report['samples']} budget_s={report['budget_s']} "
+            f"min_samples={report['min_samples']} mc_probability={report['mc_probability']}"
+        )
     return 0
 
 

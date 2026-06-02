@@ -15,10 +15,12 @@ from tools.build_preflop_mc_heuristic import build_preflop_mc_candidate, preflop
 
 
 def test_preflop_mc_override_replaces_preflop_score_name():
-    source = preflop_mc_override_source(samples=1024, budget_s=0.2, min_samples=128)
+    source = preflop_mc_override_source(samples=1024, budget_s=0.2, min_samples=128, mc_probability=0.5)
 
     assert 'PREFLOP_MC_SAMPLES = _int_env("HEURISTIC_PREFLOP_MC_SAMPLES", 1024)' in source
+    assert 'PREFLOP_MC_PROBABILITY = _float_env("HEURISTIC_PREFLOP_MC_PROBABILITY", 0.500000)' in source
     assert "_TABLE_PREFLOP_SCORE = _preflop_score" in source
+    assert "random.random() >= mc_probability" in source
     assert "def _preflop_score(cards):" in source
     assert "eval7.evaluate(hero + board)" in source
 
@@ -36,6 +38,7 @@ def test_build_preflop_mc_candidate_from_zip(tmp_path):
         samples=512,
         budget_s=0.1,
         min_samples=64,
+        mc_probability=0.5,
     )
 
     assert report["output"] == str(output.resolve())
@@ -44,6 +47,8 @@ def test_build_preflop_mc_candidate_from_zip(tmp_path):
     text = (output / "bot.py").read_text(encoding="utf-8")
     assert "PREFLOP_MC_SAMPLES" in text
     assert 'HEURISTIC_PREFLOP_MC_SAMPLES", 512' in text
+    assert report["mc_probability"] == 0.5
+    assert 'HEURISTIC_PREFLOP_MC_PROBABILITY", 0.500000' in text
 
 
 def test_build_preflop_mc_candidate_refuses_existing_output(tmp_path):
