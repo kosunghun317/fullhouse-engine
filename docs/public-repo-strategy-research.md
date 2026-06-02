@@ -177,9 +177,19 @@ Evidence-backed adoption:
 - Value-heavy pressure and tighter call-off response are justified by both
   source and replay metrics.
 
+Implemented in `bots/replay_exploit_heuristic`:
+
+- `skantbot` and `sticky_aggressive` ids map to `sticky_aggressive`.
+- Online stats can classify sticky-aggressive opponents from high raise rate,
+  enough call rate, bounded fold rate, and moderate pressure-fold rate.
+- Style selection has tunable weights, and sticky-aggressive opponents bias
+  style toward value while suppressing pressure.
+- Sticky-aggressive call-off, bluff, opening, and re-pressure adjustments are
+  exposed as `REPLAY_EXPLOIT_*` parameters for CEM instead of hard-coded
+  adoption.
+
 Not adopted:
 
 - Do not copy preflop charts or source code.
 - Do not assume all SkantBot variants fold to 3-bets or cbets.
 - Do not tune directly on 13 selected matches or one public bot file.
-
