@@ -35,6 +35,22 @@ poetry install --no-root
 
 The workaround is necessary because `eval7==0.1.7` imports Cython from `setup.py`, but Poetry and modern pip build isolation do not expose the already-installed Cython package to the isolated build environment.
 
+If `poetry install` was run first and failed with `ModuleNotFoundError: No
+module named 'Cython'` while building `eval7`, repair the existing venv with:
+
+```bash
+poetry run python -m pip install setuptools wheel "Cython<3"
+poetry run python -m pip install --no-build-isolation eval7==0.1.7
+poetry install --no-root
+```
+
+Verify the fix with:
+
+```bash
+poetry run python -c 'import eval7; print(eval7.Card("As"))'
+poetry run python -m pytest -q tests/test_engine.py
+```
+
 ## Common Commands
 
 ```bash
