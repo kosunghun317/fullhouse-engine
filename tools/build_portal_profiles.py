@@ -15,6 +15,8 @@ def main() -> int:
     parser.add_argument("--report-json", type=Path)
     parser.add_argument("--output", type=Path)
     parser.add_argument("--min-hands", type=int, default=200)
+    parser.add_argument("--rank-gte", type=int)
+    parser.add_argument("--rank-lte", type=int)
     parser.add_argument("--top", type=int, default=100_000)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
@@ -24,6 +26,8 @@ def main() -> int:
         args.directory,
         report_json=args.report_json,
         min_hands=args.min_hands,
+        rank_gte=args.rank_gte,
+        rank_lte=args.rank_lte,
         top=args.top,
     )
     write_profile_artifacts(summary, output)

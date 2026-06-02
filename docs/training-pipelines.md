@@ -370,6 +370,15 @@ poetry run python tools/build_portal_profile_mocks.py \
   runs/portal_history/all_qualifier_public \
   --output runs/portal_profile_mocks/all_qualifier_public
 
+poetry run python tools/build_portal_profiles.py \
+  runs/portal_history/all_qualifier_public \
+  --rank-lte 64 \
+  --output runs/portal_history/all_qualifier_public/profiles_top64
+
+poetry run python tools/build_portal_profile_mocks.py \
+  runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json \
+  --output runs/portal_profile_mocks/all_qualifier_top64
+
 poetry run python tools/evaluate_portal_profile_mocks.py \
   runs/portal_profile_mocks/all_qualifier_public \
   --mode sixmax \

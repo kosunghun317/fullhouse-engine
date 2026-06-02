@@ -37,6 +37,7 @@ The broad all-public qualifier pull has also been completed locally:
 - Tracked manifest: `docs/portal-replay-artifacts.md`
 - Profile artifacts: `runs/portal_history/all_qualifier_public/profiles/`
 - Generated profile mocks: `runs/portal_profile_mocks/all_qualifier_public/`
+- Top-64 profile mocks: `runs/portal_profile_mocks/all_qualifier_top64/`
 
 Observed official top-16 tendencies:
 
@@ -359,6 +360,11 @@ poetry run python tools/build_portal_profiles.py \
 
 The first all-public run generated eight profiles and profiled 297 of 298 bots
 with the default 200-hand cutoff.
+
+The top-64 filtered run generated seven profiles and profiled 63 of the 64
+ranked bots with the same cutoff. Compared with the full-field profile average,
+top-field mocks have higher PFR and similar high pressure-fold rates, so they
+are the preferred first exploit target for Qualifier 2 screening.
 
 ### Subtask 5: Build Replay-Derived Mocks
 

@@ -68,6 +68,8 @@ poetry run python tools/download_portal_targeted_history.py --rank-lte 64 --bot-
 poetry run python tools/analyze_portal_strategy.py runs/portal_history/top64_plus_slop3 --output-json runs/portal_history/top64_plus_slop3/strategy_report.json
 poetry run python tools/build_portal_profiles.py runs/portal_history/top64_plus_slop3
 poetry run python tools/build_portal_profile_mocks.py runs/portal_history/top64_plus_slop3 --output runs/portal_profile_mocks/top64_plus_slop3
+poetry run python tools/build_portal_profiles.py runs/portal_history/all_qualifier_public --rank-lte 64 --output runs/portal_history/all_qualifier_public/profiles_top64
+poetry run python tools/build_portal_profile_mocks.py runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json --output runs/portal_profile_mocks/all_qualifier_top64
 poetry run python tools/evaluate_portal_profile_mocks.py runs/portal_profile_mocks/top64_plus_slop3 --mode sixmax --hands 400 --seed-count 64 --json
 poetry run python tools/evaluate_heuristic.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --portal-only --hands 400 --seed-count 64 --summary-only --json
 poetry run python tools/tune_heuristic_full_space.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --generations 4 --population 20 --elite 5 --stages 128:400:0.5,256:400:0.25 --workers 0 --parallel-backend process --progress --json

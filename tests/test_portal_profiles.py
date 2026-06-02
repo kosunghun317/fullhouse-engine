@@ -67,6 +67,19 @@ def test_build_profiles_from_existing_report_rows(tmp_path):
                 "showdown_rate": 0.16,
             },
             {
+                "bot_id": "lower",
+                "bot_name": "LowerRank",
+                "hands_alive": 1100,
+                "official_rank": 130,
+                "official_delta": -100,
+                "vpip": 0.18,
+                "pfr": 0.12,
+                "raise_rate": 0.13,
+                "call_rate": 0.08,
+                "pressure_fold_rate": 0.86,
+                "showdown_rate": 0.04,
+            },
+            {
                 "bot_id": "thin",
                 "bot_name": "TooFewHands",
                 "hands_alive": 10,
@@ -78,10 +91,14 @@ def test_build_profiles_from_existing_report_rows(tmp_path):
     report_path.write_text(json.dumps(report), encoding="utf-8")
 
     summary = build_profiles(tmp_path, report_path, min_hands=100)
+    top_only = build_profiles(tmp_path, report_path, min_hands=100, rank_lte=64)
 
-    assert summary["input_bot_count"] == 3
-    assert summary["profiled_bot_count"] == 2
+    assert summary["input_bot_count"] == 4
+    assert summary["profiled_bot_count"] == 3
     profiles = {row["profile"]: row for row in summary["profiles"]}
-    assert set(profiles) == {"large_size_jammer", "sticky_station"}
+    assert set(profiles) == {"large_size_jammer", "sticky_station", "tight_overfolder"}
     assert profiles["large_size_jammer"]["mock_config"]["profile"] == "large_size_jammer"
     assert summary["bots"][0]["bot_name"] == "Jammer"
+    assert top_only["rank_lte"] == 64
+    assert top_only["profiled_bot_count"] == 2
+    assert {row["bot_name"] for row in top_only["bots"]} == {"Jammer", "Station"}

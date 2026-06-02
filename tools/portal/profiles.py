@@ -187,9 +187,18 @@ def build_profiles(
     report_json: Path | None = None,
     min_hands: int = 200,
     top: int = 100_000,
+    rank_gte: int | None = None,
+    rank_lte: int | None = None,
 ) -> dict:
     report = load_or_build_report(directory, report_json, top)
     bots = [row for row in report.get("bots", []) if _float(row, "hands_alive") >= min_hands]
+    if rank_gte is not None or rank_lte is not None:
+        lo = rank_gte if rank_gte is not None else 1
+        hi = rank_lte if rank_lte is not None else 10**9
+        bots = [
+            row for row in bots
+            if isinstance(row.get("official_rank"), int) and lo <= row["official_rank"] <= hi
+        ]
     grouped: dict[str, list[dict]] = defaultdict(list)
     bot_rows = []
     for row in bots:
@@ -217,6 +226,8 @@ def build_profiles(
         "source_directory": str(directory),
         "source_report": str(report_json or directory / "strategy_report.json"),
         "min_hands": min_hands,
+        "rank_gte": rank_gte,
+        "rank_lte": rank_lte,
         "input_bot_count": len(report.get("bots", [])),
         "profiled_bot_count": len(bot_rows),
         "profile_count": len(profiles),

@@ -129,6 +129,39 @@ Generated profile mix from `profile_summary.json`:
 | `passive_caller` | 6 | 45 | 0.2033 | 0.1099 | 0.7101 |
 | `loose_passive_overfolder` | 3 | 134 | 0.4096 | 0.1518 | 0.8129 |
 
+## Top-64 Profile Mocks
+
+The same all-public report can be filtered by official rank before profile
+construction:
+
+```bash
+poetry run python tools/build_portal_profiles.py \
+  runs/portal_history/all_qualifier_public \
+  --rank-lte 64 \
+  --output runs/portal_history/all_qualifier_public/profiles_top64
+
+poetry run python tools/build_portal_profile_mocks.py \
+  runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json \
+  --output runs/portal_profile_mocks/all_qualifier_top64
+```
+
+Generated top-64 profile mix:
+
+| Profile | Bots | Mock VPIP | Mock PFR | Mock pressure fold |
+| --- | ---: | ---: | ---: | ---: |
+| `large_size_jammer` | 14 | 0.2767 | 0.2058 | 0.7574 |
+| `pressure_overfolder` | 14 | 0.3008 | 0.2599 | 0.7884 |
+| `sticky_station` | 13 | 0.3453 | 0.2402 | 0.6198 |
+| `tight_overfolder` | 10 | 0.1949 | 0.1406 | 0.8323 |
+| `unknown_mixed` | 6 | 0.2745 | 0.1899 | 0.7507 |
+| `balanced_aggressor` | 5 | 0.4074 | 0.2981 | 0.6756 |
+| `passive_caller` | 1 | 0.2096 | 0.1330 | 0.7267 |
+
+The top-64 slice is a stronger tuning target than the full-field average:
+initiative is higher, but pressure-fold rates remain high enough to justify
+selective re-pressure. It should be used together with the full-field mocks so
+the bot does not overfit only to winner profiles.
+
 The immediate exploit direction remains the same as the smaller sample:
 increase initiative against the field, reduce passive calls, pressure high-fold
 profiles, and switch to value-heavy lines against sticky callers.
