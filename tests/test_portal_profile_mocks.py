@@ -37,6 +37,28 @@ def test_materializes_profile_mocks(tmp_path):
     assert json.loads((tmp_path / "mocks" / "manifest.json").read_text(encoding="utf-8"))["profile_count"] == 2
 
 
+def test_materializes_deterministic_profile_variants(tmp_path):
+    template = tmp_path / "bot.py"
+    template.write_text("def decide(state):\n    return {'action': 'check'}\n", encoding="utf-8")
+
+    manifest = materialize_profile_mocks(
+        _summary(),
+        tmp_path / "variant_mocks",
+        template=template,
+        variants_per_profile=3,
+        variant_seed=11,
+        variant_spread=0.10,
+    )
+
+    assert manifest["source_profile_count"] == 2
+    assert manifest["variants_per_profile"] == 3
+    assert manifest["profile_count"] == 6
+    assert (tmp_path / "variant_mocks" / "tight_overfolder_v01" / "bot.py").exists()
+    variants = [row for row in manifest["profiles"] if row["profile"] == "tight_overfolder"]
+    assert {row["variant"]["name"] for row in variants} == {"v01", "v02", "v03"}
+    assert len({row["mock_config"]["vpip"] for row in variants}) > 1
+
+
 def test_builds_sixmax_and_heads_up_match_specs(tmp_path):
     manifest = {
         "profiles": [

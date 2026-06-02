@@ -19,6 +19,9 @@ def main() -> int:
     parser.add_argument("source", type=Path, help="Portal run dir, profiles dir, or profile_summary.json")
     parser.add_argument("--output", type=Path)
     parser.add_argument("--template", type=Path, default=DEFAULT_TEMPLATE)
+    parser.add_argument("--variants-per-profile", type=int, default=1)
+    parser.add_argument("--variant-seed", type=int, default=1729)
+    parser.add_argument("--variant-spread", type=float, default=0.12)
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
@@ -33,6 +36,9 @@ def main() -> int:
         output,
         template=args.template,
         source_profile_summary=summary_path,
+        variants_per_profile=args.variants_per_profile,
+        variant_seed=args.variant_seed,
+        variant_spread=args.variant_spread,
     )
     if args.json:
         print(json.dumps(manifest, indent=2, sort_keys=True))

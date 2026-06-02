@@ -72,9 +72,9 @@ For public portal replay analysis, keep all repo Python commands under Poetry:
 poetry run python tools/download_portal_targeted_history.py --rank-lte 64 --bot-name slop3 --output runs/portal_history/top64_plus_slop3
 poetry run python tools/analyze_portal_strategy.py runs/portal_history/top64_plus_slop3 --output-json runs/portal_history/top64_plus_slop3/strategy_report.json
 poetry run python tools/build_portal_profiles.py runs/portal_history/top64_plus_slop3
-poetry run python tools/build_portal_profile_mocks.py runs/portal_history/top64_plus_slop3 --output runs/portal_profile_mocks/top64_plus_slop3
+poetry run python tools/build_portal_profile_mocks.py runs/portal_history/top64_plus_slop3 --output runs/portal_profile_mocks/top64_plus_slop3 --variants-per-profile 3 --variant-seed 1729 --variant-spread 0.12
 poetry run python tools/build_portal_profiles.py runs/portal_history/all_qualifier_public --rank-lte 64 --output runs/portal_history/all_qualifier_public/profiles_top64
-poetry run python tools/build_portal_profile_mocks.py runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json --output runs/portal_profile_mocks/all_qualifier_top64
+poetry run python tools/build_portal_profile_mocks.py runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json --output runs/portal_profile_mocks/all_qualifier_top64 --variants-per-profile 3 --variant-seed 1729 --variant-spread 0.12
 poetry run python tools/evaluate_portal_profile_mocks.py runs/portal_profile_mocks/top64_plus_slop3 --mode sixmax --hands 400 --seed-count 64 --json
 poetry run python tools/evaluate_heuristic.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --portal-only --hands 400 --seed-count 64 --summary-only --json
 poetry run python tools/tune_heuristic_full_space.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --generations 4 --population 20 --elite 5 --stages 128:400:0.5,256:400:0.25 --workers 0 --parallel-backend process --progress --json
@@ -91,7 +91,7 @@ mock calibration command, and promotion gate. Calibrate mocks before tuning and
 do not promote from smoke output:
 
 ```bash
-poetry run python tools/evaluate_mock_league.py --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --mode both --hands 400 --seed-count 64 --workers 0 --parallel-backend process --summary-only --output runs/replay_exploit_tuning/top64_mock_league.json --json
+poetry run python tools/evaluate_mock_league.py --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --mode both --hands 400 --seed-count 64 --seat-rotations 2 --workers 0 --parallel-backend process --summary-only --output runs/replay_exploit_tuning/top64_mock_league.json --json
 poetry run python tools/tune_replay_exploit.py --run-id q2-replay-exploit-16h --phase focused --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --portal-label top64 --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public --portal-label public --include-portal-heads-up --portal-profile large_size_jammer --portal-profile pressure_overfolder --portal-profile sticky_station --portal-profile tight_overfolder --generations 4 --population 20 --elite 5 --stages 32:240:0.5,96:400:0.35 --min-tasks-per-candidate 512 --final-validation-seed-count 192 --final-validation-hands 400 --workers 0 --parallel-backend process --progress --json
 poetry run python tools/paired_replay_exploit_gate.py --candidate-env-file runs/replay_exploit_tuning/q2-replay-exploit-16h/best_env.json --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --portal-label top64 --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public --portal-label public --seed-count 128 --hands 400 --workers 0 --parallel-backend process --progress --json
 ```

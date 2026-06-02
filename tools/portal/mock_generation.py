@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import json
+import random
 import shutil
 import statistics
 import sys
@@ -15,6 +16,19 @@ from sandbox.match import run_match
 
 DEFAULT_TEMPLATE = ROOT / "bots" / "mock_competitors" / "portal_profile" / "bot.py"
 DEFAULT_CANDIDATE = "bots/heuristic/bot.py"
+VARIANT_NUMERIC_BOUNDS = {
+    "vpip": (0.04, 0.70),
+    "pfr": (0.01, 0.60),
+    "raise_rate": (0.01, 0.60),
+    "call_rate": (0.01, 0.50),
+    "pressure_fold_rate": (0.02, 0.96),
+    "showdown_rate": (0.005, 0.40),
+    "all_in_rate": (0.0, 0.10),
+    "avg_raise_to_pot": (0.20, 9.0),
+    "aggression_bias": (-0.40, 0.55),
+    "bluff_bias": (-0.45, 0.55),
+    "value_bias": (-0.25, 0.50),
+}
 
 
 def safe_profile_name(name: str) -> str:
@@ -34,39 +48,89 @@ def profile_summary_path(source: Path) -> Path:
     return source
 
 
+def _clamp(value: float, lo: float, hi: float) -> float:
+    return min(hi, max(lo, value))
+
+
+def variant_mock_config(config: dict, rng: random.Random, spread: float) -> dict:
+    adjusted = dict(config)
+    for key, bounds in VARIANT_NUMERIC_BOUNDS.items():
+        value = adjusted.get(key)
+        if not isinstance(value, (int, float)):
+            continue
+        lo, hi = bounds
+        width = max(0.01, abs(float(value)) * spread)
+        adjusted[key] = round(_clamp(rng.gauss(float(value), width), lo, hi), 4)
+    if isinstance(adjusted.get("pfr"), (int, float)) and isinstance(adjusted.get("vpip"), (int, float)):
+        adjusted["pfr"] = round(min(float(adjusted["pfr"]), float(adjusted["vpip"]) * 0.95), 4)
+    return adjusted
+
+
+def profile_variant(profile: dict, variant_index: int, rng: random.Random, spread: float) -> dict:
+    if variant_index <= 0:
+        variant = dict(profile)
+        variant["mock_config"] = dict(profile.get("mock_config", {}))
+        variant["variant"] = {"index": 0, "name": "base", "spread": 0.0}
+        return variant
+    variant = dict(profile)
+    variant["mock_config"] = variant_mock_config(profile.get("mock_config", {}), rng, spread)
+    variant["variant"] = {
+        "index": variant_index,
+        "name": f"v{variant_index:02d}",
+        "spread": spread,
+    }
+    return variant
+
+
 def materialize_profile_mocks(
     profile_summary: dict,
     output: Path,
     template: Path = DEFAULT_TEMPLATE,
     source_profile_summary: Path | None = None,
+    variants_per_profile: int = 1,
+    variant_seed: int = 1729,
+    variant_spread: float = 0.12,
 ) -> dict:
     output.mkdir(parents=True, exist_ok=True)
     profiles = []
-    for profile in profile_summary.get("profiles", []):
+    source_profiles = list(profile_summary.get("profiles", []))
+    variant_count = max(1, int(variants_per_profile))
+    spread = max(0.0, float(variant_spread))
+    rng = random.Random(int(variant_seed))
+    for profile in source_profiles:
         name = str(profile["profile"])
         safe_name = safe_profile_name(name)
-        bot_id = "portal_" + safe_name
-        bot_dir = output / safe_name
-        data_dir = bot_dir / "data"
-        data_dir.mkdir(parents=True, exist_ok=True)
-        shutil.copyfile(template, bot_dir / "bot.py")
-        (data_dir / "profile.json").write_text(
-            json.dumps(profile, indent=2, sort_keys=True),
-            encoding="utf-8",
-        )
-        profiles.append({
-            "profile": name,
-            "bot_id": bot_id,
-            "path": str(bot_dir),
-            "bot_count": profile.get("bot_count"),
-            "top_official_rank": profile.get("top_official_rank"),
-            "mock_config": profile.get("mock_config", {}),
-        })
+        for variant_index in range(variant_count):
+            variant = profile_variant(profile, 0 if variant_count == 1 else variant_index + 1, rng, spread)
+            variant_name = variant["variant"]["name"]
+            dir_name = safe_name if variant_count == 1 else f"{safe_name}_{variant_name}"
+            bot_id = "portal_" + dir_name
+            bot_dir = output / dir_name
+            data_dir = bot_dir / "data"
+            data_dir.mkdir(parents=True, exist_ok=True)
+            shutil.copyfile(template, bot_dir / "bot.py")
+            (data_dir / "profile.json").write_text(
+                json.dumps(variant, indent=2, sort_keys=True),
+                encoding="utf-8",
+            )
+            profiles.append({
+                "profile": name,
+                "variant": variant["variant"],
+                "bot_id": bot_id,
+                "path": str(bot_dir),
+                "bot_count": profile.get("bot_count"),
+                "top_official_rank": profile.get("top_official_rank"),
+                "mock_config": variant.get("mock_config", {}),
+            })
 
     manifest = {
         "source_profile_summary": str(source_profile_summary) if source_profile_summary else None,
         "template": str(template),
         "output": str(output),
+        "source_profile_count": len(source_profiles),
+        "variants_per_profile": variant_count,
+        "variant_seed": int(variant_seed),
+        "variant_spread": spread,
         "profile_count": len(profiles),
         "profiles": profiles,
         "suite_bots": {row["bot_id"]: row["path"] for row in profiles},
@@ -96,6 +160,8 @@ def build_match_specs(
     profiles: list[str] | None = None,
     mode: str = "sixmax",
     candidate_id: str = "candidate",
+    table_count: int | None = None,
+    table_seed: int = 1729,
 ) -> list[dict]:
     rows = selected_profile_rows(manifest, profiles)
     if not rows:
@@ -108,11 +174,22 @@ def build_match_specs(
                 "bots": {candidate_id: candidate, row["bot_id"]: row["path"]},
             })
         return specs
-    for index in range(0, len(rows), 5):
-        chunk = rows[index:index + 5]
+    if len(rows) <= 5:
+        table_rows = [rows]
+    else:
+        rng = random.Random(int(table_seed))
+        shuffled = list(rows)
+        rng.shuffle(shuffled)
+        count = table_count or max(1, (len(shuffled) + 4) // 5)
+        stride = max(1, len(shuffled) // 5)
+        table_rows = [
+            [shuffled[(index + offset * stride) % len(shuffled)] for offset in range(5)]
+            for index in range(count)
+        ]
+    for index, chunk in enumerate(table_rows):
         bots = {candidate_id: candidate}
         bots.update({row["bot_id"]: row["path"] for row in chunk})
-        specs.append({"name": f"portal_profiles_{index // 5 + 1}", "bots": bots})
+        specs.append({"name": f"portal_profiles_{index + 1}", "bots": bots})
     return specs
 
 

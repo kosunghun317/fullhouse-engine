@@ -19,6 +19,8 @@ not committed.
 - Profile count: 8
 - Profiled bots: 297 of 298; one bot was below the 200-hand default cutoff
 - Generated profile mocks: `runs/portal_profile_mocks/all_qualifier_public/`
+  for smoke checks; serious tuning should regenerate with
+  `--variants-per-profile 3` or higher.
 - Total artifact size: about 546 MB
 - `hands.ndjson`: about 208 MB
 - per-match JSON directory: about 332 MB
@@ -56,7 +58,10 @@ Mock generation command:
 ```bash
 poetry run python tools/build_portal_profile_mocks.py \
   runs/portal_history/all_qualifier_public \
-  --output runs/portal_profile_mocks/all_qualifier_public
+  --output runs/portal_profile_mocks/all_qualifier_public \
+  --variants-per-profile 3 \
+  --variant-seed 1729 \
+  --variant-spread 0.12
 ```
 
 Mock evaluation smoke command:
@@ -142,7 +147,10 @@ poetry run python tools/build_portal_profiles.py \
 
 poetry run python tools/build_portal_profile_mocks.py \
   runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json \
-  --output runs/portal_profile_mocks/all_qualifier_top64
+  --output runs/portal_profile_mocks/all_qualifier_top64 \
+  --variants-per-profile 3 \
+  --variant-seed 1729 \
+  --variant-spread 0.12
 ```
 
 Generated top-64 profile mix:

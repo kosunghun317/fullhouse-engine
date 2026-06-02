@@ -10,13 +10,14 @@ from tools.evaluate_mock_league import build_specs, portal_pool, summarize_bot_r
 def test_build_specs_supports_heads_up_and_sixmax():
     pool = {f"bot_{idx}": f"path_{idx}" for idx in range(7)}
 
-    sixmax = build_specs(pool, "sixmax", table_size=6, max_tables=3)
-    heads_up = build_specs(pool, "heads-up", max_pairs=4)
+    sixmax = build_specs(pool, "sixmax", table_size=6, max_tables=3, seat_rotations=2)
+    heads_up = build_specs(pool, "heads-up", max_pairs=4, seat_rotations=2)
 
-    assert len(sixmax) == 3
+    assert len(sixmax) == 6
     assert all(len(spec["bots"]) == 6 for spec in sixmax)
-    assert len(heads_up) == 4
+    assert len(heads_up) == 8
     assert all(len(spec["bots"]) == 2 for spec in heads_up)
+    assert list(sixmax[0]["bots"]) != list(sixmax[1]["bots"])
 
 
 def test_portal_pool_loads_manifest_profiles(tmp_path):
@@ -53,3 +54,5 @@ def test_summarize_bot_results_ranks_by_risk_adjusted_score():
 
     assert ranking[0]["bot_id"] == "steady"
     assert ranking[1]["bust_count"] == 1
+    assert "mean_delta_ci" in ranking[0]
+    assert "reliability_adjusted_score" in ranking[0]
