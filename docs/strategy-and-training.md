@@ -124,8 +124,10 @@ Method details and references are in
 The separate `bots/replay_exploit_heuristic` candidate has its own focused
 `REPLAY_EXPLOIT_*` optimizer in `tools/tune_replay_exploit.py`. Use it for
 replay-derived guardrail, sizing, call-off, and style-rotation parameters after
-calibrating portal mocks with `tools/evaluate_mock_league.py`; do not promote
-constants from small smoke samples.
+calibrating portal mocks with `tools/evaluate_mock_league.py`. Its scorer now
+uses both soft bust targets and hard global/worst-suite bust caps, so CEM ranks
+survivable candidates ahead of high-mean candidates that collapse in portal
+suites. Do not promote constants from small smoke samples.
 
 For a single serious command that trains the strong mocks, tunes the heuristic,
 bakes the best tuned env into the zip, and runs final submission validation:

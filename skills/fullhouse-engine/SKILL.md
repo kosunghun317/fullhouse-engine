@@ -448,6 +448,27 @@ For risk-aware config ranking, run:
 poetry run python tools/select_heuristic_config.py --preset candidate --progress
 ```
 
+For replay-exploit CEM/racing, keep hard bust caps enabled. The tuner ranks
+configs that exceed `--max-bust-rate` or `--max-suite-bust-rate` behind
+survivable configs; if all configs violate a cap, it ranks lower-bust configs
+first. After a high-upside but fragile focused run, use stricter guardrail caps:
+
+```bash
+poetry run python tools/tune_replay_exploit.py \
+  --phase guardrails \
+  --initial-env-file runs/replay_exploit_tuning/<focused-run>/best_env.json \
+  --bust-rate-target 0.22 \
+  --max-bust-rate 0.30 \
+  --suite-bust-rate-target 0.28 \
+  --max-suite-bust-rate 0.45 \
+  --bust-target-penalty 100000 \
+  --suite-bust-penalty 90000 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
 For weak-spot candidate checks, use at least a 64-seed candidate screen and a
 128-seed gate before changing defaults. The latest tested weak-spot configs are
 `pressure-control`, `equity-control`, `trap-control`, and `weakspot-control`;
