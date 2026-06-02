@@ -15,6 +15,9 @@ not committed.
 - Downloaded hands: 310,799
 - Strategy report bots: 298
 - Strategy report parser errors: none
+- Profile artifacts: `runs/portal_history/all_qualifier_public/profiles/`
+- Profile count: 8
+- Profiled bots: 297 of 298; one bot was below the 200-hand default cutoff
 - Total artifact size: about 546 MB
 - `hands.ndjson`: about 208 MB
 - per-match JSON directory: about 332 MB
@@ -40,6 +43,13 @@ poetry run python tools/analyze_portal_strategy.py \
   --output-json runs/portal_history/all_qualifier_public/strategy_report.json
 ```
 
+Profile command:
+
+```bash
+poetry run python tools/build_portal_profiles.py \
+  runs/portal_history/all_qualifier_public
+```
+
 ## High-Signal Snapshot
 
 Top official-rank rows in the all-public report:
@@ -57,6 +67,19 @@ Top official-rank rows in the all-public report:
 | Rank | Delta | Hands alive | VPIP | PFR | Call rate | Fold rate | Showdown | Pressure fold |
 | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: | ---: |
 | 158 | -22,449 | 3,055 | 0.3221 | 0.1555 | 0.2063 | 0.4925 | 0.1391 | 0.7804 |
+
+Generated profile mix from `profile_summary.json`:
+
+| Profile | Bots | Top official rank | Mock VPIP | Mock PFR | Mock pressure fold |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| `tight_overfolder` | 87 | 3 | 0.1701 | 0.1294 | 0.8343 |
+| `large_size_jammer` | 67 | 2 | 0.2571 | 0.1872 | 0.7301 |
+| `sticky_station` | 44 | 4 | 0.3176 | 0.1977 | 0.6147 |
+| `pressure_overfolder` | 41 | 1 | 0.2941 | 0.2463 | 0.7844 |
+| `unknown_mixed` | 39 | 24 | 0.2601 | 0.1846 | 0.7323 |
+| `balanced_aggressor` | 10 | 20 | 0.3712 | 0.2833 | 0.6783 |
+| `passive_caller` | 6 | 45 | 0.2033 | 0.1099 | 0.7101 |
+| `loose_passive_overfolder` | 3 | 134 | 0.4096 | 0.1518 | 0.8129 |
 
 The immediate exploit direction remains the same as the smaller sample:
 increase initiative against the field, reduce passive calls, pressure high-fold

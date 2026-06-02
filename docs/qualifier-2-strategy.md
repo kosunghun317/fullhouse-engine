@@ -35,6 +35,7 @@ The broad all-public qualifier pull has also been completed locally:
 - Bots: 298
 - Report: `runs/portal_history/all_qualifier_public/strategy_report.json`
 - Tracked manifest: `docs/portal-replay-artifacts.md`
+- Profile artifacts: `runs/portal_history/all_qualifier_public/profiles/`
 
 Observed official top-16 tendencies:
 
@@ -186,6 +187,7 @@ The portal workflow should be separated into reusable modules:
 | `tools/download_portal_match_history.py` | Thin CLI wrapper for full table dumps. |
 | `tools/download_portal_targeted_history.py` | Thin CLI wrapper for targeted/all-match replay downloads. |
 | `tools/analyze_portal_strategy.py` | Thin CLI wrapper for strategy reports. |
+| `tools/build_portal_profiles.py` | Thin CLI wrapper for profile artifacts and mock configs. |
 
 This gives future training tools a clean import path instead of copying query
 logic across scripts.
@@ -343,6 +345,16 @@ For a candidate to replace the incumbent:
 - Store generated profiles under `runs/portal_history/<run>/profiles/`.
 - Add a small checked-in example fixture only if tests need one.
 - Commit tooling and tests.
+
+Current command:
+
+```bash
+poetry run python tools/build_portal_profiles.py \
+  runs/portal_history/all_qualifier_public
+```
+
+The first all-public run generated eight profiles and profiled 297 of 298 bots
+with the default 200-hand cutoff.
 
 ### Subtask 5: Build Replay-Derived Mocks
 
