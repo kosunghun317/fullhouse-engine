@@ -21,6 +21,9 @@ not committed.
 - Generated profile mocks: `runs/portal_profile_mocks/all_qualifier_public/`
   for smoke checks; serious tuning should regenerate with
   `--variants-per-profile 3` or higher.
+- Generated behavior-clone mocks:
+  `runs/portal_behavior_clones/all_qualifier_top64_profile/` when materialized
+  from the top-64 slice with profile grouping.
 - Total artifact size: about 546 MB
 - `hands.ndjson`: about 208 MB
 - per-match JSON directory: about 332 MB
@@ -62,6 +65,17 @@ poetry run python tools/build_portal_profile_mocks.py \
   --variants-per-profile 3 \
   --variant-seed 1729 \
   --variant-spread 0.12
+```
+
+Behavior-clone generation command:
+
+```bash
+poetry run python tools/build_portal_behavior_clones.py \
+  runs/portal_history/all_qualifier_public \
+  --rank-lte 64 \
+  --group-by profile \
+  --variants-per-policy 3 \
+  --output runs/portal_behavior_clones/all_qualifier_top64_profile
 ```
 
 Mock evaluation smoke command:

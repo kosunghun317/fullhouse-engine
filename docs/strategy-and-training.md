@@ -146,6 +146,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `bots/benchmarks/*/bot.py` | Simple exploit-target bots for stress tests: callers, folders, minraisers, jammers, pressure, and short-stack lines. |
 | `bots/mock_competitors/*/bot.py` | Likely-submission approximations: bucket policies, equity bots, numpy policies, pressure bots, pot-odds bots, and anti-heuristic bots. |
 | `bots/mock_competitors/portal_profile/bot.py` | Replay-profile mock template that reads `data/profile.json` and uses bounded `eval7` equity sampling. |
+| `bots/mock_competitors/portal_behavior_clone/bot.py` | Replay-conditioned clone mock template that reads `data/policy.json` action and sizing distributions. |
 | `bots/mock_competitors/common.py` | Shared helpers for benchmark-only mock competitors. |
 | `bots/strong_mocks/*/bot.py` | Stronger trained or rollout opponents used only for offline evaluation. |
 | `bots/self_training/heuristic_variant_template/bot.py` | Wrapper template for generated heuristic env-config variants. |
@@ -194,6 +195,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/analyze_portal_strategy.py` | Portal replay analyzer for bot-level VPIP/PFR/aggression/pressure/showdown tendencies. |
 | `tools/build_portal_profiles.py` | Builds profile summaries and profile-level mock configs from portal strategy reports. |
 | `tools/build_portal_profile_mocks.py` | Materializes generated profile mock bot directories under `runs/portal_profile_mocks/`. |
+| `tools/build_portal_behavior_clones.py` | Materializes replay-conditioned behavior-clone mock bot directories under `runs/portal_behavior_clones/`. |
 | `tools/evaluate_portal_profile_mocks.py` | Runs sandbox candidate-vs-profile-mock evaluations from a generated mock manifest. |
 | `tools/evaluate_mock_league.py` | Runs built-in or portal-profile mocks against each other to calibrate the opponent pool before tuning. |
 | `tools/coevolve_training.py` | Alternating PPO/heuristic coevolution orchestrator. |

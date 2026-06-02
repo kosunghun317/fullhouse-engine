@@ -87,6 +87,7 @@ graph TD
 | `tools/analyze_portal_strategy.py` | Strategy tendency report over downloaded portal replays. | `strategy_report.json` under the portal run directory |
 | `tools/build_portal_profiles.py` | Builds replay-derived profile summaries and profile-level mock configs. | `runs/portal_history/<run-id>/profiles/` |
 | `tools/build_portal_profile_mocks.py` | Creates local profile mock bot directories from profile artifacts. | `runs/portal_profile_mocks/<run-id>/` |
+| `tools/build_portal_behavior_clones.py` | Creates replay-conditioned action/sizing clone mock directories from top-ranked portal opponents. | `runs/portal_behavior_clones/<run-id>/` |
 | `tools/evaluate_portal_profile_mocks.py` | Runs sandbox matches against generated profile mocks. | Text or JSON candidate-vs-profile report |
 | `tools/evaluate_mock_league.py` | Runs mock-vs-mock leagues to calibrate built-in and replay-derived mock pools before tuning against them. | JSON mock ranking and optional per-run report |
 
@@ -99,6 +100,10 @@ commit only code, docs, small fixtures, or lightweight manifests.
 
 Generated portal profile mocks live under `runs/portal_profile_mocks/` and are
 also git-ignored.
+
+Generated portal behavior-clone mocks live under `runs/portal_behavior_clones/`
+and use the same manifest shape as profile mocks, so they can be passed through
+`--portal-mocks-dir` in existing evaluation and tuning commands.
 
 ## Recommended Workflow
 
@@ -387,6 +392,13 @@ poetry run python tools/build_portal_profiles.py \
 poetry run python tools/build_portal_profile_mocks.py \
   runs/portal_history/all_qualifier_public/profiles_top64/profile_summary.json \
   --output runs/portal_profile_mocks/all_qualifier_top64
+
+poetry run python tools/build_portal_behavior_clones.py \
+  runs/portal_history/all_qualifier_public \
+  --rank-lte 64 \
+  --group-by profile \
+  --variants-per-policy 3 \
+  --output runs/portal_behavior_clones/all_qualifier_top64_profile
 
 poetry run python tools/evaluate_portal_profile_mocks.py \
   runs/portal_profile_mocks/all_qualifier_public \

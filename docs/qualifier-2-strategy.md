@@ -187,11 +187,13 @@ The portal workflow should be separated into reusable modules:
 | `tools/portal/analysis.py` | Action-log parsing, seat-to-bot mapping, bot-level strategy statistics. |
 | `tools/portal/profiles.py` | Cluster/profile construction and artifact serialization. |
 | `tools/portal/mock_generation.py` | Profile-mock materialization and candidate-vs-profile evaluation helpers. |
+| `tools/portal/behavior_clone.py` | Replay-conditioned action/sizing clone extraction and mock materialization helpers. |
 | `tools/download_portal_match_history.py` | Thin CLI wrapper for full table dumps. |
 | `tools/download_portal_targeted_history.py` | Thin CLI wrapper for targeted/all-match replay downloads. |
 | `tools/analyze_portal_strategy.py` | Thin CLI wrapper for strategy reports. |
 | `tools/build_portal_profiles.py` | Thin CLI wrapper for profile artifacts and mock configs. |
 | `tools/build_portal_profile_mocks.py` | Thin CLI wrapper that creates local bot directories for each profile. |
+| `tools/build_portal_behavior_clones.py` | Thin CLI wrapper that creates replay-conditioned behavior-clone mock directories. |
 | `tools/evaluate_portal_profile_mocks.py` | Candidate-vs-generated-profile mock sandbox evaluator. |
 
 This gives future training tools a clean import path instead of copying query
@@ -395,6 +397,22 @@ poetry run python tools/evaluate_portal_profile_mocks.py \
 
 The generated mock bot uses `eval7` for bounded equity sampling when available
 and falls back to a deterministic card-score heuristic if the import fails.
+
+Replay-conditioned clone mocks are a complementary opponent model. They learn
+action and sizing distributions from public table context rather than aggregate
+VPIP/PFR profiles:
+
+```bash
+poetry run python tools/build_portal_behavior_clones.py \
+  runs/portal_history/all_qualifier_public \
+  --rank-lte 64 \
+  --group-by profile \
+  --variants-per-policy 3 \
+  --output runs/portal_behavior_clones/all_qualifier_top64_profile
+```
+
+The generated clone manifest is compatible with the same
+`--portal-mocks-dir` suite registration path as profile mocks.
 
 ### Subtask 6: Wire Tuning/Evaluation
 
