@@ -27,6 +27,15 @@ Initial downloaded cohort:
 - Hands: 104,430
 - Report: `runs/portal_history/top16_plus_slop3/strategy_report.json`
 
+The broad all-public qualifier pull has also been completed locally:
+
+- Output: `runs/portal_history/all_qualifier_public/`
+- Matches: 675
+- Hands: 310,799
+- Bots: 298
+- Report: `runs/portal_history/all_qualifier_public/strategy_report.json`
+- Tracked manifest: `docs/portal-replay-artifacts.md`
+
 Observed official top-16 tendencies:
 
 | Group | Tendency | Strategic implication |
