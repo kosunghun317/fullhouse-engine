@@ -13,6 +13,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
   replay-derived opponent profiles, or second-chance qualifier strategy.
 - Read `docs/replay-exploit-heuristic.md` before changing or evaluating
   `bots/replay_exploit_heuristic`.
+- Read `docs/public-repo-strategy-research.md` before using public forks,
+  public bot source, or source-to-portal matches to shape strategy.
 - Read `docs/restrictions.md` before changing or writing any bot logic.
 - Read `docs/heuristic-full-space-optimization.md` before running or changing
   the full-space heuristic optimizer.
@@ -77,6 +79,11 @@ poetry run python tools/evaluate_portal_profile_mocks.py runs/portal_profile_moc
 poetry run python tools/evaluate_heuristic.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --portal-only --hands 400 --seed-count 64 --summary-only --json
 poetry run python tools/tune_heuristic_full_space.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --generations 4 --population 20 --elite 5 --stages 128:400:0.5,256:400:0.25 --workers 0 --parallel-backend process --progress --json
 ```
+
+For public fork and public-source competitor research, keep it separate from
+candidate tuning. Use `docs/public-repo-strategy-research.md` as the evidence
+log. Only direct or highly plausible portal-source matches should influence
+counter-specific logic, and replay metrics override source-code speculation.
 
 For the separate replay-exploit Qualifier 2 candidate, read
 `docs/replay-exploit-heuristic.md` for the current findings, tuning phases,

@@ -13,6 +13,8 @@ portal data collection, replay-derived opponent profiles, and Qualifier 2
 counter-strategy hypotheses.
 For the separate replay-exploit Qualifier 2 candidate, see
 `docs/replay-exploit-heuristic.md`.
+For public-fork source inspection and source-to-portal match evidence, see
+`docs/public-repo-strategy-research.md`.
 
 The submitted bot is `bots/heuristic`. Everything under `bots/strong_mocks`,
 `bots/mock_competitors`, `bots/benchmarks`, `tools`, `training`, and `scripts`
@@ -68,6 +70,7 @@ bot can be tuned without changing its submission shape.
 | Pressure bot | Uses frequent raises, half-pot pressure, all-ins, or short-stack aggression. | `bots/benchmarks/half_pot_pressure`, `bots/benchmarks/jammer`, `bots/benchmarks/short_stacker`, `bots/mock_competitors/pressure_heads_up` |
 | Opponent modeler | Adjusts to public action frequencies and tries to exploit loose or passive patterns. | `bots/mock_competitors/opponent_modeler`, `bots/mock_competitors/anti_heuristic` |
 | Replay-derived portal profile | Uses actual qualifier VPIP/PFR/call/fold/pressure/showdown profiles to approximate the observed field. | `bots/mock_competitors/portal_profile`, `tools/build_portal_profiles.py`, `tools/build_portal_profile_mocks.py`, `tools/evaluate_portal_profile_mocks.py` |
+| Public-source qualifier match | Compares public fork bot code against portal replay metrics before adopting counter-specific hypotheses. | `docs/public-repo-strategy-research.md`, `runs/portal_history/all_qualifier_public/strategy_report.json` |
 | Reference/simple bots | Baseline field behavior from bundled bots. | `bots/shark`, `bots/mathematician`, `bots/aggressor`, `bots/template` |
 
 These opponents are not assumed to be perfect poker agents. They are designed
