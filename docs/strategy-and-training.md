@@ -65,6 +65,7 @@ bot can be tuned without changing its submission shape.
 | Threshold/pot-odds bot | Calls or folds around fixed odds/equity thresholds and may be exploitable by sizing. | `bots/benchmarks/threshold_caller`, `bots/mock_competitors/pot_odds_plus`, `bots/ref_bot_2` |
 | Pressure bot | Uses frequent raises, half-pot pressure, all-ins, or short-stack aggression. | `bots/benchmarks/half_pot_pressure`, `bots/benchmarks/jammer`, `bots/benchmarks/short_stacker`, `bots/mock_competitors/pressure_heads_up` |
 | Opponent modeler | Adjusts to public action frequencies and tries to exploit loose or passive patterns. | `bots/mock_competitors/opponent_modeler`, `bots/mock_competitors/anti_heuristic` |
+| Replay-derived portal profile | Uses actual qualifier VPIP/PFR/call/fold/pressure/showdown profiles to approximate the observed field. | `bots/mock_competitors/portal_profile`, `tools/build_portal_profiles.py`, `tools/build_portal_profile_mocks.py`, `tools/evaluate_portal_profile_mocks.py` |
 | Reference/simple bots | Baseline field behavior from bundled bots. | `bots/shark`, `bots/mathematician`, `bots/aggressor`, `bots/template` |
 
 These opponents are not assumed to be perfect poker agents. They are designed
@@ -130,6 +131,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `bots/heuristic/data/tables.npz` | Optional read-only generated table used by the submitted bot. |
 | `bots/benchmarks/*/bot.py` | Simple exploit-target bots for stress tests: callers, folders, minraisers, jammers, pressure, and short-stack lines. |
 | `bots/mock_competitors/*/bot.py` | Likely-submission approximations: bucket policies, equity bots, numpy policies, pressure bots, pot-odds bots, and anti-heuristic bots. |
+| `bots/mock_competitors/portal_profile/bot.py` | Replay-profile mock template that reads `data/profile.json` and uses bounded `eval7` equity sampling. |
 | `bots/mock_competitors/common.py` | Shared helpers for benchmark-only mock competitors. |
 | `bots/strong_mocks/*/bot.py` | Stronger trained or rollout opponents used only for offline evaluation. |
 | `bots/self_training/heuristic_variant_template/bot.py` | Wrapper template for generated heuristic env-config variants. |
@@ -174,6 +176,9 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/download_portal_match_history.py` | Supabase REST downloader for public portal metadata and hand-history tables. |
 | `tools/download_portal_targeted_history.py` | Targeted/streamed portal replay downloader by rank, bot, or match selection. |
 | `tools/analyze_portal_strategy.py` | Portal replay analyzer for bot-level VPIP/PFR/aggression/pressure/showdown tendencies. |
+| `tools/build_portal_profiles.py` | Builds profile summaries and profile-level mock configs from portal strategy reports. |
+| `tools/build_portal_profile_mocks.py` | Materializes generated profile mock bot directories under `runs/portal_profile_mocks/`. |
+| `tools/evaluate_portal_profile_mocks.py` | Runs sandbox candidate-vs-profile-mock evaluations from a generated mock manifest. |
 | `tools/coevolve_training.py` | Alternating PPO/heuristic coevolution orchestrator. |
 | `scripts/train_all_strong_mocks.sh` | Main train/tune/gate wrapper for the complete strong-mock pool. |
 | `scripts/train_opponents_real.sh` | Targeted PPO/bucket-only strong-mock training wrapper. |

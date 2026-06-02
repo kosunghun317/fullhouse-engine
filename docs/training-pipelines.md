@@ -77,6 +77,9 @@ graph TD
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
 | `tools/download_portal_targeted_history.py` | Public portal replay downloader by rank, bot name/id, or match id; streams hand rows to disk. | `runs/portal_history/<run-id>/` |
 | `tools/analyze_portal_strategy.py` | Strategy tendency report over downloaded portal replays. | `strategy_report.json` under the portal run directory |
+| `tools/build_portal_profiles.py` | Builds replay-derived profile summaries and profile-level mock configs. | `runs/portal_history/<run-id>/profiles/` |
+| `tools/build_portal_profile_mocks.py` | Creates local profile mock bot directories from profile artifacts. | `runs/portal_profile_mocks/<run-id>/` |
+| `tools/evaluate_portal_profile_mocks.py` | Runs sandbox matches against generated profile mocks. | Text or JSON candidate-vs-profile report |
 
 Run outputs are stored under `runs/`, which is git-ignored. Do not put large or
 temporary training outputs in `/private/tmp`; repo-local runs are easier to
@@ -84,6 +87,9 @@ inspect and resume.
 
 Portal replay outputs can be large. Keep them under `runs/portal_history/` and
 commit only code, docs, small fixtures, or lightweight manifests.
+
+Generated portal profile mocks live under `runs/portal_profile_mocks/` and are
+also git-ignored.
 
 ## Recommended Workflow
 
@@ -350,6 +356,32 @@ Use large enough samples. For meaningful selection, prefer at least:
 ```
 
 Smaller runs are smoke tests only.
+
+## Replay-Derived Profile Mocks
+
+Use the public replay pipeline to generate profile mocks before tuning against
+the Qualifier 2 field:
+
+```bash
+poetry run python tools/build_portal_profiles.py \
+  runs/portal_history/all_qualifier_public
+
+poetry run python tools/build_portal_profile_mocks.py \
+  runs/portal_history/all_qualifier_public \
+  --output runs/portal_profile_mocks/all_qualifier_public
+
+poetry run python tools/evaluate_portal_profile_mocks.py \
+  runs/portal_profile_mocks/all_qualifier_public \
+  --mode sixmax \
+  --hands 400 \
+  --seed-count 64 \
+  --json
+```
+
+For wiring checks only, shrink `--hands` and `--seed-count`. Promotion or
+parameter-learning decisions should use held-out seeds and should be compared
+against existing strong/mock-family suites so the heuristic does not overfit to
+the replay-derived profiles alone.
 
 ## Full-Space Heuristic Search
 

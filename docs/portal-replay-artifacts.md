@@ -18,6 +18,7 @@ not committed.
 - Profile artifacts: `runs/portal_history/all_qualifier_public/profiles/`
 - Profile count: 8
 - Profiled bots: 297 of 298; one bot was below the 200-hand default cutoff
+- Generated profile mocks: `runs/portal_profile_mocks/all_qualifier_public/`
 - Total artifact size: about 546 MB
 - `hands.ndjson`: about 208 MB
 - per-match JSON directory: about 332 MB
@@ -49,6 +50,30 @@ Profile command:
 poetry run python tools/build_portal_profiles.py \
   runs/portal_history/all_qualifier_public
 ```
+
+Mock generation command:
+
+```bash
+poetry run python tools/build_portal_profile_mocks.py \
+  runs/portal_history/all_qualifier_public \
+  --output runs/portal_profile_mocks/all_qualifier_public
+```
+
+Mock evaluation smoke command:
+
+```bash
+poetry run python tools/evaluate_portal_profile_mocks.py \
+  runs/portal_profile_mocks/all_qualifier_public \
+  --mode heads-up \
+  --profile tight_overfolder \
+  --hands 20 \
+  --seeds 7
+```
+
+Smoke result: the generated `tight_overfolder` mock directory passed
+`sandbox/validator.py`, and the 20-hand heads-up evaluation completed with
+zero candidate errors. The candidate lost that one tiny smoke sample by 3,325
+chips; this is a wiring check only, not a strategy conclusion.
 
 ## High-Signal Snapshot
 

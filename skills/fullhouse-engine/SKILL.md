@@ -67,10 +67,13 @@ For public portal replay analysis, keep all repo Python commands under Poetry:
 poetry run python tools/download_portal_targeted_history.py --rank-lte 64 --bot-name slop3 --output runs/portal_history/top64_plus_slop3
 poetry run python tools/analyze_portal_strategy.py runs/portal_history/top64_plus_slop3 --output-json runs/portal_history/top64_plus_slop3/strategy_report.json
 poetry run python tools/build_portal_profiles.py runs/portal_history/top64_plus_slop3
+poetry run python tools/build_portal_profile_mocks.py runs/portal_history/top64_plus_slop3 --output runs/portal_profile_mocks/top64_plus_slop3
+poetry run python tools/evaluate_portal_profile_mocks.py runs/portal_profile_mocks/top64_plus_slop3 --mode sixmax --hands 400 --seed-count 64 --json
 ```
 
 Replay outputs under `runs/portal_history/` can be large and should not be
-committed. Commit code, docs, and small fixtures/manifests only.
+committed. Generated profile mocks under `runs/portal_profile_mocks/` are also
+local-only. Commit code, docs, and small fixtures/manifests only.
 
 For full benchmark summaries, run:
 

@@ -36,6 +36,7 @@ The broad all-public qualifier pull has also been completed locally:
 - Report: `runs/portal_history/all_qualifier_public/strategy_report.json`
 - Tracked manifest: `docs/portal-replay-artifacts.md`
 - Profile artifacts: `runs/portal_history/all_qualifier_public/profiles/`
+- Generated profile mocks: `runs/portal_profile_mocks/all_qualifier_public/`
 
 Observed official top-16 tendencies:
 
@@ -184,10 +185,13 @@ The portal workflow should be separated into reusable modules:
 | `tools/portal/download.py` | Metadata fetch, source-tournament resolution, selected hand streaming, per-match writers. |
 | `tools/portal/analysis.py` | Action-log parsing, seat-to-bot mapping, bot-level strategy statistics. |
 | `tools/portal/profiles.py` | Cluster/profile construction and artifact serialization. |
+| `tools/portal/mock_generation.py` | Profile-mock materialization and candidate-vs-profile evaluation helpers. |
 | `tools/download_portal_match_history.py` | Thin CLI wrapper for full table dumps. |
 | `tools/download_portal_targeted_history.py` | Thin CLI wrapper for targeted/all-match replay downloads. |
 | `tools/analyze_portal_strategy.py` | Thin CLI wrapper for strategy reports. |
 | `tools/build_portal_profiles.py` | Thin CLI wrapper for profile artifacts and mock configs. |
+| `tools/build_portal_profile_mocks.py` | Thin CLI wrapper that creates local bot directories for each profile. |
+| `tools/evaluate_portal_profile_mocks.py` | Candidate-vs-generated-profile mock sandbox evaluator. |
 
 This gives future training tools a clean import path instead of copying query
 logic across scripts.
@@ -363,6 +367,28 @@ with the default 200-hand cutoff.
   under `runs/portal_profile_mocks/` or a non-committed run directory.
 - Add tests for action legality and profile loading.
 - Commit.
+
+Current commands:
+
+```bash
+poetry run python tools/build_portal_profile_mocks.py \
+  runs/portal_history/all_qualifier_public \
+  --output runs/portal_profile_mocks/all_qualifier_public
+
+poetry run python sandbox/validator.py \
+  runs/portal_profile_mocks/all_qualifier_public/tight_overfolder \
+  --json
+
+poetry run python tools/evaluate_portal_profile_mocks.py \
+  runs/portal_profile_mocks/all_qualifier_public \
+  --mode heads-up \
+  --profile tight_overfolder \
+  --hands 20 \
+  --seeds 7
+```
+
+The generated mock bot uses `eval7` for bounded equity sampling when available
+and falls back to a deterministic card-score heuristic if the import fails.
 
 ### Subtask 6: Wire Tuning/Evaluation
 
