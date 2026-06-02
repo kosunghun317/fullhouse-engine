@@ -158,6 +158,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/tune_heuristic_thresholds.py` | Named env-config definitions and statistically gated comparison runner. |
 | `tools/tune_heuristic_full_space.py` | Full-space CEM/racing optimizer for all numeric `HEURISTIC_*` env knobs. |
 | `tools/tune_replay_exploit.py` | Focused CEM/racing optimizer for the separate replay-exploit candidate's `REPLAY_EXPLOIT_*` knobs. |
+| `tools/paired_replay_exploit_gate.py` | Paired incumbent-vs-replay-candidate gate with candidate bust root-cause labels. |
 | `tools/check_strong_mocks.py` | Statistical gate proving strong mocks beat default/reference bots before use. |
 | `tools/train_mock_numpy_policy.py` | Synthetic-label trainer for lightweight numpy-policy mock competitors. |
 | `tools/strong_mocks/features.py` | Public-state feature vector shared by strong-mock policies. |

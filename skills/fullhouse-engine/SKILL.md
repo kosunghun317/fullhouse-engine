@@ -93,11 +93,14 @@ do not promote from smoke output:
 ```bash
 poetry run python tools/evaluate_mock_league.py --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --mode both --hands 400 --seed-count 64 --workers 0 --parallel-backend process --summary-only --output runs/replay_exploit_tuning/top64_mock_league.json --json
 poetry run python tools/tune_replay_exploit.py --run-id q2-replay-exploit-16h --phase focused --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --portal-label top64 --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public --portal-label public --include-portal-heads-up --portal-profile large_size_jammer --portal-profile pressure_overfolder --portal-profile sticky_station --portal-profile tight_overfolder --generations 4 --population 20 --elite 5 --stages 32:240:0.5,96:400:0.35 --min-tasks-per-candidate 512 --final-validation-seed-count 192 --final-validation-hands 400 --workers 0 --parallel-backend process --progress --json
+poetry run python tools/paired_replay_exploit_gate.py --candidate-env-file runs/replay_exploit_tuning/q2-replay-exploit-16h/best_env.json --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_top64 --portal-label top64 --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public --portal-label public --seed-count 128 --hands 400 --workers 0 --parallel-backend process --progress --json
 ```
 
 `tools/tune_replay_exploit.py` defaults to a 512 suite/seed task floor for
 serious runs. Use `--allow-smoke --skip-final-validation` only to check wiring
-or expose likely blind spots before adding guardrails.
+or expose likely blind spots before adding guardrails. Use
+`tools/paired_replay_exploit_gate.py` for held-out replay-candidate promotion;
+it reports paired deltas plus candidate bust root-cause labels.
 
 Replay outputs under `runs/portal_history/` can be large and should not be
 committed. Generated profile mocks under `runs/portal_profile_mocks/` are also
