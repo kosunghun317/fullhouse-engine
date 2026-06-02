@@ -456,3 +456,10 @@ profile-aware pressure/value heuristic:
 This is different from parameter-only tuning because the opponent pool and
 profile response curves come from actual qualifier replays. It is still
 compatible with the validator and the existing one-file submission shape.
+
+The first concrete implementation is `bots/replay_exploit_heuristic/bot.py`.
+It keeps the same validator-compatible shape but uses `REPLAY_EXPLOIT_*`
+parameters, immediate recognition of generated portal profile mock ids, online
+public-action opponent profiling, and bounded multiway `eval7` equity sampling
+instead of a one-villain equity shortcut. See
+`docs/replay-exploit-heuristic.md` for the command set and equity logic.

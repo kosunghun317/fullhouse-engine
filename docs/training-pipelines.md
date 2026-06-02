@@ -410,6 +410,21 @@ poetry run python tools/select_heuristic_config.py \
 Use `--portal-only` for focused replay-profile checks. Omit it to append the
 generated profile suites to the selected normal preset.
 
+To screen a candidate bot other than `bots/heuristic`, pass `--candidate`.
+This keeps the report key as `heuristic` so existing scoring code still works:
+
+```bash
+poetry run python tools/evaluate_heuristic.py \
+  --candidate bots/replay_exploit_heuristic \
+  --suite reference_6max \
+  --suite sizing_6max \
+  --suite pressure_6max \
+  --hands 120 \
+  --seed-count 6 \
+  --summary-only \
+  --json
+```
+
 For wiring checks only, shrink `--hands` and `--seed-count`. Promotion or
 parameter-learning decisions should use held-out seeds and should be compared
 against existing strong/mock-family suites so the heuristic does not overfit to

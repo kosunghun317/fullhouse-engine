@@ -320,12 +320,23 @@ def _run_match_task(task):
     }
 
 
-def run_suite(name, seeds, hands_override=None, summary_only=False, workers=1, parallel_backend="process"):
+def _suite_bots(name, candidate=None):
+    if name not in SUITES:
+        raise KeyError(f"unknown suite {name!r}; available suites: {', '.join(sorted(SUITES))}")
+    suite = SUITES[name]
+    bots = dict(suite["bots"])
+    if candidate is not None:
+        bots["heuristic"] = candidate
+    return bots
+
+
+def run_suite(name, seeds, hands_override=None, summary_only=False, workers=1, parallel_backend="process", candidate=None):
     if name not in SUITES:
         raise KeyError(f"unknown suite {name!r}; available suites: {', '.join(sorted(SUITES))}")
     suite = SUITES[name]
     hands = hands_override or suite["hands"]
-    tasks = [(name, seed, hands, suite["bots"]) for seed in seeds]
+    bots = _suite_bots(name, candidate)
+    tasks = [(name, seed, hands, bots) for seed in seeds]
     results = map_parallel(_run_match_task, tasks, workers=workers, backend=parallel_backend)
     report = {"suite": name, "hands": hands, "summary": summarize(results)}
     if not summary_only:
@@ -343,6 +354,7 @@ def _parse_seeds(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark bots/heuristic/bot.py")
+    parser.add_argument("--candidate", default=HEURISTIC)
     parser.add_argument("--suite", action="append")
     parser.add_argument("--portal-mocks-dir", type=Path)
     parser.add_argument("--portal-mocks-mode", choices=["sixmax", "heads-up"], default="sixmax")
@@ -362,6 +374,7 @@ def main():
     if args.portal_mocks_dir:
         portal_suites = register_portal_profile_suites(
             args.portal_mocks_dir,
+            candidate=args.candidate,
             mode=args.portal_mocks_mode,
             profiles=args.portal_profile,
             hands=args.hands or 400,
@@ -390,6 +403,7 @@ def main():
             args.summary_only,
             workers=args.workers,
             parallel_backend=args.parallel_backend,
+            candidate=args.candidate,
         )
         for name in suites
     ]

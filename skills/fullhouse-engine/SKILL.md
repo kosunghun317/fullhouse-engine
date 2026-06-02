@@ -11,6 +11,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
   likely competitor logic, training flow, and optimization flow.
 - Read `docs/qualifier-2-strategy.md` before changing portal replay tooling,
   replay-derived opponent profiles, or second-chance qualifier strategy.
+- Read `docs/replay-exploit-heuristic.md` before changing or evaluating
+  `bots/replay_exploit_heuristic`.
 - Read `docs/restrictions.md` before changing or writing any bot logic.
 - Read `docs/heuristic-full-space-optimization.md` before running or changing
   the full-space heuristic optimizer.
@@ -59,6 +61,7 @@ For heuristic bot benchmark passes, run:
 
 ```bash
 poetry run python tools/evaluate_heuristic.py --json
+poetry run python tools/evaluate_heuristic.py --candidate bots/replay_exploit_heuristic --suite reference_6max --suite sizing_6max --suite pressure_6max --hands 120 --seed-count 6 --summary-only --json
 ```
 
 For public portal replay analysis, keep all repo Python commands under Poetry:

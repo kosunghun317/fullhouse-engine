@@ -128,6 +128,7 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | Path | Role in the story |
 | --- | --- |
 | `bots/heuristic/bot.py` | Submitted heuristic poker bot; all promoted runtime logic lives here. |
+| `bots/replay_exploit_heuristic/bot.py` | Separate adjustable Qualifier 2 candidate that targets replay-derived overfolder/station hypotheses. |
 | `bots/heuristic/data/tables.npz` | Optional read-only generated table used by the submitted bot. |
 | `bots/benchmarks/*/bot.py` | Simple exploit-target bots for stress tests: callers, folders, minraisers, jammers, pressure, and short-stack lines. |
 | `bots/mock_competitors/*/bot.py` | Likely-submission approximations: bucket policies, equity bots, numpy policies, pressure bots, pot-odds bots, and anti-heuristic bots. |
