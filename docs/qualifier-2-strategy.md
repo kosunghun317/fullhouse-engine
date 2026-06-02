@@ -398,6 +398,43 @@ and falls back to a deterministic card-score heuristic if the import fails.
 - Update docs and skill commands.
 - Commit.
 
+Current smoke commands:
+
+```bash
+poetry run python tools/evaluate_heuristic.py \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --hands 10 \
+  --seeds 5 \
+  --summary-only
+
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --hands 10 \
+  --seeds 5 \
+  --allow-smoke
+
+poetry run python tools/tune_heuristic_full_space.py \
+  --run-id portal-profile-smoke \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --generations 1 \
+  --population 2 \
+  --elite 1 \
+  --stages 1:10:0.5 \
+  --allow-smoke \
+  --skip-final-validation \
+  --workers 1 \
+  --parallel-backend process \
+  --json
+```
+
+For real parameter learning, keep `--portal-mocks-dir` but drop
+`--allow-smoke`, use at least 400 hands per stage, and compare the result
+against the normal strong/mock-family suites before packaging.
+
 ## Near-Term Strategic Recommendation
 
 The first candidate should not be a completely new RL model. It should be a

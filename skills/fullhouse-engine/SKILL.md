@@ -69,6 +69,8 @@ poetry run python tools/analyze_portal_strategy.py runs/portal_history/top64_plu
 poetry run python tools/build_portal_profiles.py runs/portal_history/top64_plus_slop3
 poetry run python tools/build_portal_profile_mocks.py runs/portal_history/top64_plus_slop3 --output runs/portal_profile_mocks/top64_plus_slop3
 poetry run python tools/evaluate_portal_profile_mocks.py runs/portal_profile_mocks/top64_plus_slop3 --mode sixmax --hands 400 --seed-count 64 --json
+poetry run python tools/evaluate_heuristic.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --portal-only --hands 400 --seed-count 64 --summary-only --json
+poetry run python tools/tune_heuristic_full_space.py --portal-mocks-dir runs/portal_profile_mocks/top64_plus_slop3 --generations 4 --population 20 --elite 5 --stages 128:400:0.5,256:400:0.25 --workers 0 --parallel-backend process --progress --json
 ```
 
 Replay outputs under `runs/portal_history/` can be large and should not be

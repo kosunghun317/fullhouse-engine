@@ -1,5 +1,6 @@
 import json
 
+from tools.evaluate_heuristic import register_portal_profile_suites, SUITES
 from tools.portal.mock_generation import build_match_specs, materialize_profile_mocks
 
 
@@ -51,3 +52,20 @@ def test_builds_sixmax_and_heads_up_match_specs(tmp_path):
     assert len(sixmax[0]["bots"]) == 6
     assert len(heads_up) == 6
     assert set(heads_up[0]["bots"]) == {"candidate", "portal_0"}
+
+
+def test_registers_profile_mocks_as_heuristic_suites(tmp_path):
+    template = tmp_path / "bot.py"
+    template.write_text("def decide(state):\n    return {'action': 'check'}\n", encoding="utf-8")
+    manifest = materialize_profile_mocks(_summary(), tmp_path / "mocks", template=template)
+
+    names = register_portal_profile_suites(tmp_path / "mocks", hands=33)
+
+    assert names == ["portal_profiles_1"]
+    assert SUITES["portal_profiles_1"]["hands"] == 33
+    assert SUITES["portal_profiles_1"]["bots"]["heuristic"] == "bots/heuristic/bot.py"
+    assert set(SUITES["portal_profiles_1"]["bots"]) == {
+        "heuristic",
+        manifest["profiles"][0]["bot_id"],
+        manifest["profiles"][1]["bot_id"],
+    }

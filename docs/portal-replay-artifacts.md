@@ -75,6 +75,29 @@ Smoke result: the generated `tight_overfolder` mock directory passed
 zero candidate errors. The candidate lost that one tiny smoke sample by 3,325
 chips; this is a wiring check only, not a strategy conclusion.
 
+Portal-suite tuner smoke command:
+
+```bash
+poetry run python tools/tune_heuristic_full_space.py \
+  --run-id portal-profile-smoke \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --generations 1 \
+  --population 2 \
+  --elite 1 \
+  --stages 1:10:0.5 \
+  --allow-smoke \
+  --skip-final-validation \
+  --workers 1 \
+  --parallel-backend process \
+  --json
+```
+
+Smoke result: the tuner registered `portal_profiles_1` and
+`portal_profiles_2`, completed the tiny CEM pass, wrote
+`runs/heuristic_full_space_tuning/portal-profile-smoke/`, and reported zero
+heuristic errors. This was only a suite-wiring check.
+
 ## High-Signal Snapshot
 
 Top official-rank rows in the all-public report:

@@ -378,6 +378,29 @@ poetry run python tools/evaluate_portal_profile_mocks.py \
   --json
 ```
 
+Generated mocks can also be registered as ordinary heuristic benchmark suites:
+
+```bash
+poetry run python tools/evaluate_heuristic.py \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --hands 400 \
+  --seed-count 64 \
+  --summary-only \
+  --json
+
+poetry run python tools/select_heuristic_config.py \
+  --config baseline \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --hands 400 \
+  --seed-count 64 \
+  --json
+```
+
+Use `--portal-only` for focused replay-profile checks. Omit it to append the
+generated profile suites to the selected normal preset.
+
 For wiring checks only, shrink `--hands` and `--seed-count`. Promotion or
 parameter-learning decisions should use held-out seeds and should be compared
 against existing strong/mock-family suites so the heuristic does not overfit to
@@ -407,6 +430,45 @@ poetry run python tools/tune_heuristic_full_space.py \
   --progress \
   --json
 ```
+
+Portal-profile focused smoke:
+
+```bash
+poetry run python tools/tune_heuristic_full_space.py \
+  --run-id portal-profile-smoke \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --portal-only \
+  --generations 1 \
+  --population 2 \
+  --elite 1 \
+  --stages 1:10:0.5 \
+  --allow-smoke \
+  --skip-final-validation \
+  --workers 1 \
+  --parallel-backend process \
+  --json
+```
+
+Portal-profile serious run shape:
+
+```bash
+poetry run python tools/tune_heuristic_full_space.py \
+  --run-id portal-profile-$(date +%Y%m%d-%H%M%S) \
+  --portal-mocks-dir runs/portal_profile_mocks/all_qualifier_public \
+  --generations 4 \
+  --population 20 \
+  --elite 5 \
+  --stages 128:400:0.5,256:400:0.25 \
+  --workers 0 \
+  --parallel-backend process \
+  --progress \
+  --json
+```
+
+The serious command appends portal profile suites to the default
+`strong-screen` preset. Add `--portal-only` only for a focused ablation; do not
+promote from a portal-only run without a separate held-out strong/mock-family
+gate.
 
 With the default four-suite `strong-screen` preset, each candidate gets at
 least 512 suite/seed tasks in the first stage and finalists get 1024 tasks in

@@ -95,6 +95,7 @@ def build_match_specs(
     candidate: str = DEFAULT_CANDIDATE,
     profiles: list[str] | None = None,
     mode: str = "sixmax",
+    candidate_id: str = "candidate",
 ) -> list[dict]:
     rows = selected_profile_rows(manifest, profiles)
     if not rows:
@@ -104,12 +105,12 @@ def build_match_specs(
         for row in rows:
             specs.append({
                 "name": row["bot_id"],
-                "bots": {"candidate": candidate, row["bot_id"]: row["path"]},
+                "bots": {candidate_id: candidate, row["bot_id"]: row["path"]},
             })
         return specs
     for index in range(0, len(rows), 5):
         chunk = rows[index:index + 5]
-        bots = {"candidate": candidate}
+        bots = {candidate_id: candidate}
         bots.update({row["bot_id"]: row["path"] for row in chunk})
         specs.append({"name": f"portal_profiles_{index // 5 + 1}", "bots": bots})
     return specs

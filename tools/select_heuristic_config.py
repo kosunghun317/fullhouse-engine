@@ -14,7 +14,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from tools.evaluate_heuristic import SUITES, run_suite
+from tools.evaluate_heuristic import SUITES, register_portal_profile_suites, run_suite
 from tools.heuristic_env_overrides import heuristic_env_scope, load_env_overrides
 from tools.tune_heuristic_thresholds import CONFIGS
 
@@ -237,7 +237,11 @@ def main():
     parser.add_argument("--config", choices=sorted(CONFIGS), action="append")
     parser.add_argument("--env-file", action="append", help="JSON or best_env.sh file to evaluate as a config")
     parser.add_argument("--env-config-name", action="append", help="Display name for the matching --env-file")
-    parser.add_argument("--suite", choices=sorted(SUITES), action="append")
+    parser.add_argument("--suite", action="append")
+    parser.add_argument("--portal-mocks-dir", type=Path)
+    parser.add_argument("--portal-mocks-mode", choices=["sixmax", "heads-up"], default="sixmax")
+    parser.add_argument("--portal-profile", action="append", default=[])
+    parser.add_argument("--portal-only", action="store_true")
     parser.add_argument("--bot-override", action="append", help="Override a suite bot path, e.g. rollout_search=runs/.../best_bot")
     parser.add_argument("--preset", choices=sorted(PRESETS), default="quick")
     parser.add_argument("--seeds", default=None)
@@ -256,6 +260,15 @@ def main():
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
 
+    portal_suites = []
+    if args.portal_mocks_dir:
+        portal_suites = register_portal_profile_suites(
+            args.portal_mocks_dir,
+            mode=args.portal_mocks_mode,
+            profiles=args.portal_profile,
+            hands=args.hands,
+        )
+
     env_configs = _env_file_configs(args)
     configs = list(args.config or [])
     configs.extend(env_configs)
@@ -263,6 +276,8 @@ def main():
         configs = sorted(CONFIGS)
     config_envs = {**CONFIGS, **env_configs}
     suites = args.suite or PRESETS[args.preset]["suites"]
+    if portal_suites:
+        suites = portal_suites if args.portal_only else [*suites, *portal_suites]
     bot_overrides = _apply_bot_overrides(SUITES, suites, args.bot_override)
     seeds = _parse_seeds(args, args.preset)
     validate_budget(args, suites, seeds)

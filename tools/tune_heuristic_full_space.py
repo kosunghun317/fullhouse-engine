@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.evaluate_heuristic import run_suite
+from tools.evaluate_heuristic import register_portal_profile_suites, run_suite
 from tools.plot_training_progress import render_svg
 from tools.select_heuristic_config import PRESETS
 from tools.strong_mocks.self_train_heuristic import MUTATION_SPACE
@@ -343,7 +343,15 @@ def _write_env_script(path: Path, env: dict[str, str]) -> None:
 
 def run(args) -> dict:
     specs = load_param_specs()
-    suites = args.suite or PRESETS[args.preset]["suites"]
+    suites = list(args.suite or PRESETS[args.preset]["suites"])
+    if args.portal_mocks_dir:
+        portal_suites = register_portal_profile_suites(
+            args.portal_mocks_dir,
+            mode=args.portal_mocks_mode,
+            profiles=args.portal_profile,
+            hands=args.portal_suite_hands or 400,
+        )
+        suites = portal_suites if args.portal_only else [*suites, *portal_suites]
     stages = parse_stages(args.stages)
     _check_budget(args, suites, stages)
 
@@ -494,6 +502,11 @@ def main() -> None:
     parser.add_argument("--run-root", default=None)
     parser.add_argument("--preset", choices=sorted(PRESETS), default="strong-screen")
     parser.add_argument("--suite", action="append")
+    parser.add_argument("--portal-mocks-dir", type=Path)
+    parser.add_argument("--portal-mocks-mode", choices=["sixmax", "heads-up"], default="sixmax")
+    parser.add_argument("--portal-profile", action="append", default=[])
+    parser.add_argument("--portal-only", action="store_true")
+    parser.add_argument("--portal-suite-hands", type=int)
     parser.add_argument("--stages", default="128:400:0.5,256:400:0.25")
     parser.add_argument("--population", type=int, default=24)
     parser.add_argument("--elite", type=int, default=6)

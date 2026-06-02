@@ -14,6 +14,7 @@ sys.path.insert(0, str(ROOT))
 
 from sandbox.match import run_match
 from tools.parallel import map_parallel
+from tools.portal.mock_generation import build_match_specs, load_mock_manifest
 
 
 HEURISTIC = "bots/heuristic/bot.py"
@@ -250,6 +251,28 @@ SUITES = {
 }
 
 
+def register_portal_profile_suites(
+    mocks_dir,
+    candidate=HEURISTIC,
+    mode="sixmax",
+    profiles=None,
+    hands=400,
+) -> list[str]:
+    manifest = load_mock_manifest(Path(mocks_dir))
+    specs = build_match_specs(
+        manifest,
+        candidate=candidate,
+        profiles=profiles,
+        mode=mode,
+        candidate_id="heuristic",
+    )
+    names = []
+    for spec in specs:
+        SUITES[spec["name"]] = {"hands": hands, "bots": spec["bots"]}
+        names.append(spec["name"])
+    return names
+
+
 def summarize(results):
     deltas = [r["chip_delta"].get("heuristic", 0) for r in results]
     errors = []
@@ -298,6 +321,8 @@ def _run_match_task(task):
 
 
 def run_suite(name, seeds, hands_override=None, summary_only=False, workers=1, parallel_backend="process"):
+    if name not in SUITES:
+        raise KeyError(f"unknown suite {name!r}; available suites: {', '.join(sorted(SUITES))}")
     suite = SUITES[name]
     hands = hands_override or suite["hands"]
     tasks = [(name, seed, hands, suite["bots"]) for seed in seeds]
@@ -318,7 +343,11 @@ def _parse_seeds(args):
 
 def main():
     parser = argparse.ArgumentParser(description="Benchmark bots/heuristic/bot.py")
-    parser.add_argument("--suite", choices=sorted(SUITES), action="append")
+    parser.add_argument("--suite", action="append")
+    parser.add_argument("--portal-mocks-dir", type=Path)
+    parser.add_argument("--portal-mocks-mode", choices=["sixmax", "heads-up"], default="sixmax")
+    parser.add_argument("--portal-profile", action="append", default=[])
+    parser.add_argument("--portal-only", action="store_true")
     parser.add_argument("--seeds", default=None)
     parser.add_argument("--seed-start", type=int, default=101)
     parser.add_argument("--seed-count", type=int, default=None)
@@ -328,6 +357,15 @@ def main():
     parser.add_argument("--summary-only", action="store_true")
     parser.add_argument("--json", action="store_true")
     args = parser.parse_args()
+
+    portal_suites = []
+    if args.portal_mocks_dir:
+        portal_suites = register_portal_profile_suites(
+            args.portal_mocks_dir,
+            mode=args.portal_mocks_mode,
+            profiles=args.portal_profile,
+            hands=args.hands or 400,
+        )
 
     suites = args.suite or [
         "reference_6max",
@@ -341,6 +379,8 @@ def main():
         "mixed_stress_6max",
         "heads_up_threshold",
     ]
+    if portal_suites:
+        suites = portal_suites if args.portal_only else [*suites, *portal_suites]
     seeds = _parse_seeds(args)
     report = [
         run_suite(
