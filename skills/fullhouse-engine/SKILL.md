@@ -9,6 +9,8 @@ description: Use when working in the fullhouse-engine repo for the Fullhouse pok
 
 - Read `docs/strategy-and-training.md` for repo purpose, file roles, strategy,
   likely competitor logic, training flow, and optimization flow.
+- Read `docs/qualifier-2-strategy.md` before changing portal replay tooling,
+  replay-derived opponent profiles, or second-chance qualifier strategy.
 - Read `docs/restrictions.md` before changing or writing any bot logic.
 - Read `docs/heuristic-full-space-optimization.md` before running or changing
   the full-space heuristic optimizer.
@@ -58,6 +60,16 @@ For heuristic bot benchmark passes, run:
 ```bash
 poetry run python tools/evaluate_heuristic.py --json
 ```
+
+For public portal replay analysis, keep all repo Python commands under Poetry:
+
+```bash
+poetry run python tools/download_portal_targeted_history.py --rank-lte 64 --bot-name slop3 --output runs/portal_history/top64_plus_slop3
+poetry run python tools/analyze_portal_strategy.py runs/portal_history/top64_plus_slop3 --output-json runs/portal_history/top64_plus_slop3/strategy_report.json
+```
+
+Replay outputs under `runs/portal_history/` can be large and should not be
+committed. Commit code, docs, and small fixtures/manifests only.
 
 For full benchmark summaries, run:
 

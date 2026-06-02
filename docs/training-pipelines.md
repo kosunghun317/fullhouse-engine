@@ -12,6 +12,8 @@ offline infrastructure for building better tests, tuning heuristic parameters,
 or training benchmark-only mock opponents.
 
 For the overall strategy and file map, see `docs/strategy-and-training.md`.
+For public qualifier replay analysis and replay-derived mocks, see
+`docs/qualifier-2-strategy.md`.
 For the full-space heuristic optimizer design and references, see
 `docs/heuristic-full-space-optimization.md`.
 For the rollout-search mock's exact equity, f/g sizing, and tuning logic, see
@@ -73,10 +75,15 @@ graph TD
 | `tools/check_strong_mocks.py` | Strength gate for every strong-mock bot against default/reference bots. | JSON report with per-candidate pass/fail and suite breakdowns |
 | `tools/strong_mocks/league_train.py` | Staged train/eval pools and promotion gates. | `runs/fullhouse_league_training/<run-id>/` plus optional promoted artifact |
 | `training/fast_match.py` | Fast unrestricted local matches for training/evaluation. | JSON summaries |
+| `tools/download_portal_targeted_history.py` | Public portal replay downloader by rank, bot name/id, or match id; streams hand rows to disk. | `runs/portal_history/<run-id>/` |
+| `tools/analyze_portal_strategy.py` | Strategy tendency report over downloaded portal replays. | `strategy_report.json` under the portal run directory |
 
 Run outputs are stored under `runs/`, which is git-ignored. Do not put large or
 temporary training outputs in `/private/tmp`; repo-local runs are easier to
 inspect and resume.
+
+Portal replay outputs can be large. Keep them under `runs/portal_history/` and
+commit only code, docs, small fixtures, or lightweight manifests.
 
 ## Recommended Workflow
 

@@ -27,6 +27,10 @@ ANON_KEY = (
 )
 
 TABLES = {
+    "tournaments": {
+        "select": "id,name,phase,current_round,total_rounds,n_finalists,starts_at,created_at",
+        "order": "starts_at.asc",
+    },
     "matches": {
         "select": "id,tournament_id,round,table_index,status,n_hands,started_at,completed_at,error_message",
         "order": "round.asc,table_index.asc",
@@ -44,8 +48,8 @@ TABLES = {
         "order": "hand_id.asc",
     },
     "bots": {
-        "select": "id,user_id,bot_name,status,created_at",
-        "order": "created_at.asc",
+        "select": "id,user_id,bot_name,version,status,error_message,submitted_at",
+        "order": "submitted_at.asc",
     },
     "leaderboard": {
         "select": "tournament_id,bot_id,rank,cumulative_delta,matches_played,updated_at",
@@ -72,7 +76,20 @@ def _request_json(url: str, token: str, timeout: int, retries: int) -> list[dict
             with urllib.request.urlopen(request, timeout=timeout) as response:
                 payload = response.read().decode("utf-8")
             return json.loads(payload)
-        except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError) as exc:
+        except urllib.error.HTTPError as exc:
+            try:
+                body = exc.read().decode("utf-8")
+            except Exception:
+                body = ""
+            if body and hasattr(exc, "add_note"):
+                exc.add_note(body)
+            elif body:
+                print(body, flush=True)
+            last_error = exc
+            if attempt >= retries:
+                break
+            time.sleep(min(8.0, 1.5 * (attempt + 1)))
+        except (urllib.error.URLError, TimeoutError) as exc:
             last_error = exc
             if attempt >= retries:
                 break
@@ -152,7 +169,10 @@ def main() -> int:
     args = parser.parse_args()
 
     output = Path(args.output)
-    tables = args.table or ["matches", "match_bots", "hands", "hand_winners", "bots", "leaderboard"]
+    if args.page_size > 1000:
+        print("Supabase REST caps pages at 1000 rows; using --page-size 1000", flush=True)
+        args.page_size = 1000
+    tables = args.table or ["tournaments", "matches", "match_bots", "hands", "hand_winners", "bots", "leaderboard"]
     downloaded: dict[str, list[dict]] = {}
     for table in tables:
         rows = fetch_table(table, args.jwt, args.page_size, args.timeout, args.retries)

@@ -7,6 +7,11 @@ bot, then train and tune it offline against opponents that resemble likely
 hackathon submissions: RL policies, CFR/bucket policies, equity Monte Carlo
 bots, threshold/pot-odds bots, pressure bots, and opponent-modeling bots.
 
+For the second-chance qualifier workflow based on public portal replay data,
+see `docs/qualifier-2-strategy.md`. That document is the source of truth for
+portal data collection, replay-derived opponent profiles, and Qualifier 2
+counter-strategy hypotheses.
+
 The submitted bot is `bots/heuristic`. Everything under `bots/strong_mocks`,
 `bots/mock_competitors`, `bots/benchmarks`, `tools`, `training`, and `scripts`
 is local-only training or evaluation infrastructure.
@@ -166,6 +171,9 @@ WORKERS=0 PARALLEL_BACKEND=process scripts/build_tuned_submission.sh
 | `tools/plot_training_progress.py` | Converts JSONL training traces to SVG plots. |
 | `tools/parallel.py` | Process/thread helper for local benchmark and training workloads. |
 | `tools/analyze_hand_history.py` | Post-qualifier hand-history analysis helper. |
+| `tools/download_portal_match_history.py` | Supabase REST downloader for public portal metadata and hand-history tables. |
+| `tools/download_portal_targeted_history.py` | Targeted/streamed portal replay downloader by rank, bot, or match selection. |
+| `tools/analyze_portal_strategy.py` | Portal replay analyzer for bot-level VPIP/PFR/aggression/pressure/showdown tendencies. |
 | `tools/coevolve_training.py` | Alternating PPO/heuristic coevolution orchestrator. |
 | `scripts/train_all_strong_mocks.sh` | Main train/tune/gate wrapper for the complete strong-mock pool. |
 | `scripts/train_opponents_real.sh` | Targeted PPO/bucket-only strong-mock training wrapper. |
